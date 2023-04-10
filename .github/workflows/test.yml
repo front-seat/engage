@@ -57,13 +57,13 @@ jobs:
       - name: Install node dependencies
         run: npm install
       - name: Check python formatting (black)
-        run: pipenv run black server
+        run: poetry run black server
       - name: Check python linting (ruff)
-        run: pipenv run ruff check server
+        run: poetry run ruff check server
       - name: Check python types (pyright)
-        run: pipenv run npx pyright
+        run: poetry run npx pyright
       - name: Run python tests
-        run: pipenv run python manage.py test
+        run: poetry run python manage.py test
         env:
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
           BASE_URL: http://localhost:3000
