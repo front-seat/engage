@@ -13,6 +13,11 @@ authors = ["Dave Peck <davepeck@davepeck.org>"]
 
 [tool.black]
 target-version = ["py311"]
+check = true
+exclude = "/migrations/"
+
+[tool.ruff]
+exclude = ["migrations"]
 
 [tool.isort]
 known_first_party = "server"

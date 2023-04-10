@@ -7,11 +7,11 @@ NC="\e[0m"
 
 # Run Python formatter (black) -- but let Django migrations get a pass.
 printf "${BLUE}Running black...${NC}\n"
-black --check server --exclude "/migrations/"
+black server
 
 # Run Python linter (ruff).
 printf "${BLUE}Running ruff...${NC}\n"
-ruff server
+ruff check server
 
 # Run the Python type checker (pyright).
 # (Oddly, the python type checker itself is written in... typescript!)

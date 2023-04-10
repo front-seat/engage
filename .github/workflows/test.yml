@@ -54,16 +54,14 @@ jobs:
           path: ~/.npm
           key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
           restore-keys: ${{ runner.os }}-node-
-      - name: Install node dependencies (top-level)
+      - name: Install node dependencies
         run: npm install
-      - name: Install node dependencies (client)
-        run: npm install -w client
       - name: Check python formatting (black)
-        run: pipenv run black --check server --exclude "/migrations/"
-      - name: Check python linting (flake8)
-        run: pipenv run flake8 server
+        run: pipenv run black server
+      - name: Check python linting (ruff)
+        run: pipenv run ruff check server
       - name: Check python types (pyright)
-        run: pipenv run ./scripts/pyright.sh
+        run: pipenv run npx pyright
       - name: Run python tests
         run: pipenv run python manage.py test
         env:
