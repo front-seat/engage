@@ -1,14 +1,9 @@
-import enum
-import requests
 import urllib.parse
+
+import requests
 
 from .errors import LegistarError
 from .schema import Body, Event, EventDate, Matter
-
-
-class LegistarCustomer(enum.StrEnum):
-    SEATTLE = "seattle"
-
 
 LEGISTAR_API_BASE_URL = "https://webapi.legistar.com/v1"
 
@@ -20,11 +15,9 @@ class LegistarClient:
     See documentation at https://webapi.legistar.com/Home/Examples
     """
 
-    def __init__(
-        self, customer: LegistarCustomer, base_url: str = LEGISTAR_API_BASE_URL
-    ):
+    def __init__(self, customer: str, base_url: str = LEGISTAR_API_BASE_URL):
         self.base_url = base_url
-        self.customer = customer.value
+        self.customer = customer
 
     def _url(self, path: str, **queryparams):
         """Form a URL for the given path and query parameters."""
