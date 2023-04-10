@@ -185,3 +185,22 @@ def get_matters(
         agenda_end_date=agenda_end_date,
     )
     _echo_jsonable(response, lines)
+
+
+@main.command()
+@_common_api_params
+def get_upcoming_matters(
+    customer: str,
+    api_url: str,
+    lines: bool,
+    top: int | None = None,
+    skip: int | None = None,
+):
+    """Get all upcoming matters."""
+    client = LegistarClient(customer, api_url)
+    response = client.get_matter_dicts(
+        top=top,
+        skip=skip,
+        agenda_start_date=datetime.datetime.now(),
+    )
+    _echo_jsonable(response, lines)
