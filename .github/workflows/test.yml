@@ -1,0 +1,76 @@
+name: "Full Test Pass"
+
+on: push
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    services:
+      db_service:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_DB: postgres
+          POSTGRES_PASSWORD: postgres
+        # Set health checks to wait until postgres has started
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          # Maps tcp port 5432 on service container to the host
+          - 5432:5432
+    steps:
+      - name: Checkout the `engage` repository
+        uses: actions/checkout@v3
+      - name: Install node 18
+        uses: actions/setup-node@v2
+        with:
+          node-version: "18"
+      - name: Install python 3.11.x
+        uses: actions/setup-python@v2
+        id: install-python
+        with:
+          python-version: "3.11.3"
+      - name: Install poetry
+        uses: snok/install-poetry@v1
+        with:
+          version: 1.4.2
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+      - name: Load cached venv
+        id: cache-python
+        uses: actions/cache@v3
+        with:
+          path: .venv
+          key: venv-${{ runner.os }}-${{ steps.install-python.outputs.python-version }}-${{ hashfiles('**/poetry.lock') }}
+      - name: Install python dependencies
+        if: steps.cache-python.outputs.cache-hit != 'true'
+        run: poetry install --no-interaction --no-root
+      - name: Cache npm cachefiles
+        uses: actions/cache@v2
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: ${{ runner.os }}-node-
+      - name: Install node dependencies (top-level)
+        run: npm install
+      - name: Install node dependencies (client)
+        run: npm install -w client
+      - name: Check python formatting (black)
+        run: pipenv run black --check server --exclude "/migrations/"
+      - name: Check python linting (flake8)
+        run: pipenv run flake8 server
+      - name: Check python types (pyright)
+        run: pipenv run ./scripts/pyright.sh
+      - name: Run python tests
+        run: pipenv run python manage.py test
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
+          BASE_URL: http://localhost:3000
+          DEBUG: NO
+          DISABLE_DATABASE_SSL: YES
+          SECURE_SSL_REDIRECT: NO
+          SECRET_KEY: supersecret
+          EMAIL_BACKEND: django.core.mail.backends.console.EmailBackend

@@ -1,0 +1,2 @@
+class LegistarError(Exception):
+    pass

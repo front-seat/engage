@@ -1,10 +1,37 @@
 from django.db import models
+from pgvector.django import VectorField
+
+OPENAI_ADA_EMBEDDING_DIMENSIONS = 1536
 
 
-class Body(models.Model):
-    """
-    A legislative body, such as Seattle City Council.
-    """
+class Committee(models.TextChoices):
+    """Known committees as seen on seattle.legistar.com."""
+
+    COUNCIL = "Council", "City Council"
+    COUNCIL_BRIEFING = "Council Briefing", "Council Briefing"
+    ECONOMIC_DEVELOPMENT = (
+        "Economic Development",
+        "Economic Development, Technology, and City Light Committee",
+    )
+    FINANCE = "Finance", "Finance and Housing Committee"
+    GOVERNANCE = (
+        "Governance",
+        "Governance, Native Communities, and Tribal Governments Committee",
+    )
+    NEIGHBORHOODS = (
+        "Neighborhoods",
+        "Neighborhoods, Education, Civil Rights, and Culture Committee",
+    )
+    PUBLIC_ASSETS = "Public Assets", "Public Assets and Homelessness Committee"
+    PUBLIC_SAFETY = "Public Safety", "Public Safety and Human Services Committee"
+    SELECT_BUDGET = "Select Budget", "Select Budget Committee"
+    SELECT_2023_HOUSING_LEVY = (
+        "Select 2023 Housing Levy",
+        "Select Committee on the 2023 Housing Levy",
+    )
+    SELECT_LABOR = "Select Labor", "Select Committee on Labor"
+    SUSTAINABILITY = "Sustainability", "Sustainability and Renters' Rights Committee"
+    TRANSPORTATION = "Transportation", "Transportation and Seattle Public Utilities"
 
 
 class DocumentKind(models.TextChoices):
@@ -43,7 +70,7 @@ class Document(models.Model):
         help_text="The original URL where the document was found."
     )
     event_date = models.DateField(
-        help_text="The date of the event the document is about, if known.",
+        help_text="The date of the event the document is about, if relevant.",
         null=True,
         blank=True,
         db_index=True,
@@ -66,6 +93,10 @@ class Document(models.Model):
     text = models.TextField(
         help_text="The extracted text of the document.",
         blank=True,
+    )
+
+    embedding = VectorField(
+        OPENAI_ADA_EMBEDDING_DIMENSIONS, null=True, blank=True, default=None
     )
 
     def __str__(self):
