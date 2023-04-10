@@ -1,396 +1,152 @@
 import datetime
 import typing as t
 
-import requests
+from pydantic import BaseModel as PydanticBase
+from pydantic import Field, validator
 
 
-class BodyDict(t.TypedDict):
-    """Raw body data from Legistar API."""
+class BaseSchema(PydanticBase):
+    """Base schema type for all Legistar-returned data."""
 
-    BodyId: int
-    BodyGuid: str
-    BodyLastModifiedUtc: str
-    BodyRowVersion: str
-    BodyName: str
-    BodyTypeId: int
-    BodyTypeName: str
-    BodyMeetFlag: int  # 1 if body meets, 0 if not
-    BodyActiveFlag: int  # 1 if body is active, 0 if not
-    BodySort: int
-    BodyDescription: str
-    BodyContactNameId: int | None
-    BodyContactFullName: str | None
-    BodyContactPhone: str | None
-    BodyContactEmail: str | None
-    BodyUsedControlFlag: int  # 1 if body uses control, 0 if not
-    BodyNumberOfMembers: int
-    BodyUsedActingFlag: int  # 1 if body uses acting, 0 if not
-    BodyUsedTargetFlag: int  # 1 if body uses target, 0 if not
-    BodyUsedSponsorFlag: int  # 1 if body uses sponsor, 0 if not
+    class Config:
+        allow_population_by_field_name = True
 
 
-class Body:
-    """Well-typed body data from Legistar API."""
+class Body(BaseSchema):
+    """Body data schema from the Legistar API."""
 
-    def __init__(self, data: BodyDict):
-        self.data = data
-
-    @classmethod
-    def from_dict(cls, data: dict | BodyDict) -> "Body":
-        return cls(t.cast(BodyDict, data))
-
-    def to_dict(self) -> dict:
-        return dict(self.data)
-
-    @property
-    def id(self) -> int:
-        return self.data["BodyId"]
-
-    @property
-    def guid(self) -> str:
-        return self.data["BodyGuid"]
-
-    @property
-    def last_modified(self) -> datetime.datetime:
-        return datetime.datetime.fromisoformat(self.data["BodyLastModifiedUtc"])
-
-    @property
-    def name(self) -> str:
-        return self.data["BodyName"]
-
-    @property
-    def type_name(self) -> str:
-        return self.data["BodyTypeName"]
-
-    @property
-    def description(self) -> str:
-        return self.data["BodyDescription"]
-
-    @property
-    def contact_full_name(self) -> str | None:
-        return self.data["BodyContactFullName"]
-
-    @property
-    def contact_phone(self) -> str | None:
-        return self.data["BodyContactPhone"]
-
-    @property
-    def contact_email(self) -> str | None:
-        return self.data["BodyContactEmail"]
-
-    @property
-    def number_of_members(self) -> int:
-        return self.data["BodyNumberOfMembers"]
+    id: int = Field(alias="BodyId")
+    guid: str = Field(alias="BodyGuid")
+    last_modified: datetime.datetime = Field(alias="BodyLastModifiedUtc")
+    row_version: str = Field(alias="BodyRowVersion")
+    name: str = Field(alias="BodyName")
+    type_id: int = Field(alias="BodyTypeId")
+    type_name: str = Field(alias="BodyTypeName")
+    meet_flag: int = Field(alias="BodyMeetFlag")
+    active_flag: int = Field(alias="BodyActiveFlag")
+    sort: int = Field(alias="BodySort")
+    description: str = Field(alias="BodyDescription")
+    contact_name_id: t.Optional[int] = Field(alias="BodyContactNameId")
+    contact_full_name: t.Optional[str] = Field(alias="BodyContactFullName")
+    contact_phone: t.Optional[str] = Field(alias="BodyContactPhone")
+    contact_email: t.Optional[str] = Field(alias="BodyContactEmail")
+    used_control_flag: int = Field(alias="BodyUsedControlFlag")
+    number_of_members: int = Field(alias="BodyNumberOfMembers")
+    used_acting_flag: int = Field(alias="BodyUsedActingFlag")
+    used_target_flag: int = Field(alias="BodyUsedTargetFlag")
+    used_sponsor_flag: int = Field(alias="BodyUsedSponsorFlag")
 
 
-class EventDict(t.TypedDict):
-    """Raw event data from Legistar API."""
+class Event(BaseSchema):
+    """Event data schema from the Legistar API."""
 
-    EventId: int
-    EventGuid: str
-    EventLastModifiedUtc: str
-    EventRowVersion: str
-    EventBodyId: int
-    EventBodyName: str
-    EventDate: str
-    EventTime: str
-    EventVideoStatus: str  # like Public, Private, etc.
-    EventAgendaStatusId: int
-    EventAgendaStatusName: str  # like Cancelled, etc.
-    EventMinutesStatusId: int
-    EventMinutesStatusName: str  # like Cancelled, etc.
-    EventLocation: str  # like City Hall, etc. Often contains an address.
-    EventAgendaFile: str | None  # if present, a URL to the agenda PDF
-    EventMinutesFile: str | None  # if present, a URL to the minutes PDF
-    EventAgendaLastPublishedUTC: str | None
-    EventMinutesLastPublishedUTC: str | None
-    EventComment: str
-    EventVideoPath: str | None
-    EventMedia: str | None
-    EventInSiteURL: str  # like https://chicago.legistar.com/MeetingDetail.aspx
-    EventItems: list[dict]  # TODO: flesh out
+    id: int = Field(alias="EventId")
+    guid: str = Field(alias="EventGuid")
+    last_modified: datetime.datetime = Field(alias="EventLastModifiedUtc")
+    row_version: str = Field(alias="EventRowVersion")
+    body_id: int = Field(alias="EventBodyId")
+    body_name: str = Field(alias="EventBodyName")
+    date: datetime.date = Field(alias="EventDate")
+    time: datetime.time | None = Field(alias="EventTime")
+    video_status: str = Field(alias="EventVideoStatus")
+    agenda_status_id: int = Field(alias="EventAgendaStatusId")
+    agenda_status_name: str = Field(alias="EventAgendaStatusName")
+    minutes_status_id: int = Field(alias="EventMinutesStatusId")
+    minutes_status_name: str = Field(alias="EventMinutesStatusName")
+    location: str = Field(alias="EventLocation")  # often contains an address
+    agenda_file: str | None = Field(alias="EventAgendaFile")  # URL to the agenda PDF
+    minutes_file: str | None = Field(alias="EventMinutesFile")  # URL to the minutes PDF
+    agenda_last_published: datetime.datetime | None = Field(
+        alias="EventAgendaLastPublishedUTC"
+    )
+    minutes_last_published: datetime.datetime | None = Field(
+        alias="EventMinutesLastPublishedUTC"
+    )
+    comment: str | None = Field(alias="EventComment")
+    video_path: str | None = Field(alias="EventVideoPath")
+    media: str | None = Field(alias="EventMedia")
+    in_site_url: str = Field(alias="EventInSiteURL")  # URL to the event page
+    items: list[dict] = Field(alias="EventItems")  # TODO: flesh out
+
+    @validator("date", pre=True)
+    def parse_date(cls, value: str) -> datetime.date:
+        return datetime.datetime.fromisoformat(value).date()
+
+    @validator("time", pre=True)
+    def parse_time(cls, value: str | None) -> datetime.time | None:
+        return datetime.datetime.strptime(value, "%H:%M %p").time() if value else None
 
 
-class Event:
-    """Well-typed event data from Legistar API."""
+class Matter(BaseSchema):
+    """Matter data schema from the Legistar API."""
 
-    def __init__(self, data: EventDict):
-        self.data = data
-
-    @classmethod
-    def from_dict(cls, data: dict | EventDict) -> "Event":
-        return cls(t.cast(EventDict, data))
-
-    def to_dict(self) -> dict:
-        return dict(self.data)
-
-    @property
-    def id(self) -> int:
-        return self.data["EventId"]
-
-    @property
-    def guid(self) -> str:
-        return self.data["EventGuid"]
-
-    @property
-    def last_modified(self) -> datetime.datetime:
-        return datetime.datetime.fromisoformat(self.data["EventLastModifiedUtc"])
-
-    @property
-    def body_id(self) -> int:
-        return self.data["EventBodyId"]
-
-    @property
-    def body_name(self) -> str:
-        return self.data["EventBodyName"]
+    id: int = Field(alias="MatterId")
+    guid: str = Field(alias="MatterGuid")
+    last_modified: datetime.datetime = Field(alias="MatterLastModifiedUtc")
+    row_version: str = Field(alias="MatterRowVersion")
+    file: str | None = Field(alias="MatterFile")  # like "Min 43"
+    name: str | None = Field(alias="MatterName")  # like "Ordinance 2020-1234"
+    title: str | None = Field(alias="MatterTitle")  # often, but not always, a date
+    type_id: int = Field(alias="MatterTypeId")
+    type_name: str = Field(
+        alias="MatterTypeName"
+    )  # like "Ordinance", "Resolution", etc.  # noqa: E501
+    status_id: int = Field(alias="MatterStatusId")
+    status_name: str = Field(
+        alias="MatterStatusName"
+    )  # like "Passed", "Failed", "Adopted", etc.  # noqa: E501
+    body_id: int = Field(alias="MatterBodyId")
+    body_name: str = Field(alias="MatterBodyName")
+    intro_date: datetime.datetime | None = Field(alias="MatterIntroDate")
+    agenda_date: datetime.datetime | None = Field(alias="MatterAgendaDate")
+    passed_date: datetime.datetime | None = Field(alias="MatterPassedDate")
+    enactment_date: datetime.datetime | None = Field(alias="MatterEnactmentDate")
+    enactment_number: str | None = Field(alias="MatterEnactmentNumber")
+    requester: str | None = Field(alias="MatterRequester")
+    notes: str | None = Field(alias="MatterNotes")
+    version: str = Field(alias="MatterVersion")  # like "1"
+    cost: str | None = Field(alias="MatterCost")
+    text_1: str | None = Field(alias="MatterText1")
+    text_2: str | None = Field(alias="MatterText2")
+    text_3: str | None = Field(alias="MatterText3")
+    text_4: str | None = Field(alias="MatterText4")
+    text_5: str | None = Field(alias="MatterText5")
+    date_1: datetime.datetime | None = Field(alias="MatterDate1")
+    date_2: datetime.datetime | None = Field(alias="MatterDate2")
+    date_3: datetime.datetime | None = Field(alias="MatterDate3")
+    date_4: datetime.datetime | None = Field(alias="MatterDate4")
+    date_5: datetime.datetime | None = Field(alias="MatterDate5")
+    ex_text_1: str | None = Field(alias="MatterExText1")
+    ex_text_2: str | None = Field(alias="MatterExText2")
+    ex_text_3: str | None = Field(alias="MatterExText3")
+    ex_text_4: str | None = Field(alias="MatterExText4")
+    ex_text_5: str | None = Field(alias="MatterExText5")
+    ex_text_6: str | None = Field(alias="MatterExText6")
+    ex_text_7: str | None = Field(alias="MatterExText7")
+    ex_text_8: str | None = Field(alias="MatterExText8")
+    ex_text_9: str | None = Field(alias="MatterExText9")
+    ex_text_10: str | None = Field(alias="MatterExText10")
+    ex_text_11: str | None = Field(alias="MatterExText11")
+    ex_date_1: datetime.datetime | None = Field(alias="MatterExDate1")
+    ex_date_2: datetime.datetime | None = Field(alias="MatterExDate2")
+    ex_date_3: datetime.datetime | None = Field(alias="MatterExDate3")
+    ex_date_4: datetime.datetime | None = Field(alias="MatterExDate4")
+    ex_date_5: datetime.datetime | None = Field(alias="MatterExDate5")
+    ex_date_6: datetime.datetime | None = Field(alias="MatterExDate6")
+    ex_date_7: datetime.datetime | None = Field(alias="MatterExDate7")
+    ex_date_8: datetime.datetime | None = Field(alias="MatterExDate8")
+    ex_date_9: datetime.datetime | None = Field(alias="MatterExDate9")
+    ex_date_10: datetime.datetime | None = Field(alias="MatterExDate10")
+    agiloft_id: str | None = Field(alias="MatterAgiloftId")
+    restrict_view_via_web: bool = Field(alias="MatterRestrictViewViaWeb")
+    reports: list[dict] = Field(alias="MatterReports")
 
     @property
-    def date(self) -> datetime.date:
-        return datetime.datetime.fromisoformat(self.data["EventDate"]).date()
+    def text(self) -> str | None:
+        """The Matter's text, if any."""
+        return "\n".join([getattr(self, f"text_{i}") or "" for i in range(1, 6)])
 
     @property
-    def time(self) -> datetime.time:
-        return datetime.datetime.strptime(self.data["EventTime"], "%H:%M %p").time()
-
-    @property
-    def video_status(self) -> str:
-        return self.data["EventVideoStatus"]
-
-    @property
-    def agenda_status_id(self) -> int:
-        return self.data["EventAgendaStatusId"]
-
-    @property
-    def agenda_status_name(self) -> str:
-        return self.data["EventAgendaStatusName"]
-
-    @property
-    def minutes_status_id(self) -> int:
-        return self.data["EventMinutesStatusId"]
-
-    @property
-    def minutes_status_name(self) -> str:
-        return self.data["EventMinutesStatusName"]
-
-    @property
-    def location(self) -> str:
-        return self.data["EventLocation"]
-
-    @property
-    def agenda_file_url(self) -> str | None:
-        return self.data["EventAgendaFile"]
-
-    def get_agenda_file(self) -> requests.Response | None:
-        if self.agenda_file_url is None:
-            return None
-        response = requests.get(self.agenda_file_url)
-        response.raise_for_status()
-        return response
-
-    @property
-    def minutes_file_url(self) -> str | None:
-        return self.data["EventMinutesFile"]
-
-    def get_minutes_file(self) -> requests.Response | None:
-        if self.minutes_file_url is None:
-            return None
-        response = requests.get(self.minutes_file_url)
-        response.raise_for_status()
-        return response
-
-    @property
-    def agenda_last_published(self) -> datetime.datetime | None:
-        if self.data["EventAgendaLastPublishedUTC"] is None:
-            return None
-        return datetime.datetime.fromisoformat(self.data["EventAgendaLastPublishedUTC"])
-
-    @property
-    def minutes_last_published(self) -> datetime.datetime | None:
-        if self.data["EventMinutesLastPublishedUTC"] is None:
-            return None
-        return datetime.datetime.fromisoformat(
-            self.data["EventMinutesLastPublishedUTC"]
-        )
-
-    @property
-    def comment(self) -> str:
-        return self.data["EventComment"]
-
-    @property
-    def video_path(self) -> str | None:
-        return self.data["EventVideoPath"]
-
-    @property
-    def media(self) -> str | None:
-        return self.data["EventMedia"]
-
-    @property
-    def in_site_url(self) -> str:
-        return self.data["EventInSiteURL"]
-
-    @property
-    def items(self) -> list[dict]:
-        return self.data["EventItems"]
-
-
-class MatterDict(t.TypedDict):
-    """Raw matter data from Legistar API."""
-
-    MatterId: int
-    MatterGuid: str
-    MatterLastModifiedUtc: str
-    MatterRowVersion: str
-    MatterFile: str  # like "Min 43"
-    MatterName: str | None  # like "Ordinance 2020-1234"
-    MatterTitle: str | None  # often, but not always, a date in Seattle.
-    MatterTypeId: int
-    MatterTypeName: str  # like "Ordinance", "Resolution", etc.
-    MatterStatusId: int
-    MatterStatusName: str  # like "Passed", "Failed", "Adopted", etc.
-    MatterBodyId: int
-    MatterBodyName: str
-    MatterIntroDate: str | None
-    MatterAgendaDate: str | None
-    MatterPassedDate: str | None
-    MatterEnactmentDate: str | None
-    MatterEnactmentNumber: int | None
-    MatterRequester: str | None
-    MatterNotes: str | None
-    MatterVersion: str  # like "1"
-    MatterCost: str | None
-    MatterText1: str | None
-    MatterText2: str | None
-    MatterText3: str | None
-    MatterText4: str | None
-    MatterText5: str | None
-    MatterDate1: str | None
-    MatterDate2: str | None
-    MatterEXText1: str | None
-    MatterEXText2: str | None
-    MatterEXText3: str | None
-    MatterEXText4: str | None
-    MatterEXText5: str | None
-    MatterEXText6: str | None
-    MatterEXText7: str | None
-    MatterEXText8: str | None
-    MatterEXText9: str | None
-    MatterEXText10: str | None
-    MatterEXText11: str | None
-    MatterEXDate1: str | None
-    MatterEXDate2: str | None
-    MatterEXDate3: str | None
-    MatterEXDate4: str | None
-    MatterEXDate5: str | None
-    MatterEXDate6: str | None
-    MatterEXDate7: str | None
-    MatterEXDate8: str | None
-    MatterEXDate9: str | None
-    MatterEXDate10: str | None
-    MatterAgiloftId: int | None
-    MatterReference: str | None
-    MatterRestrictViewViaWeb: bool
-    MatterReports: list[dict]
-
-
-class Matter:
-    """Well-typed matter data from Legistar API."""
-
-    def __init__(self, data: MatterDict):
-        self.data = data
-
-    @classmethod
-    def from_dict(cls, data: dict | MatterDict) -> "Matter":
-        return cls(t.cast(MatterDict, data))
-
-    def to_dict(self) -> dict:
-        return dict(self.data)
-
-    @property
-    def id(self) -> int:
-        return self.data["MatterId"]
-
-    @property
-    def guid(self) -> str:
-        return self.data["MatterGuid"]
-
-    @property
-    def last_modified(self) -> datetime.datetime:
-        return datetime.datetime.fromisoformat(self.data["MatterLastModifiedUtc"])
-
-    @property
-    def file(self) -> str:
-        return self.data["MatterFile"]
-
-    @property
-    def name(self) -> str | None:
-        return self.data["MatterName"]
-
-    @property
-    def title(self) -> str | None:
-        return self.data["MatterTitle"]
-
-    @property
-    def type_name(self) -> str:
-        return self.data["MatterTypeName"]
-
-    @property
-    def status_name(self) -> str:
-        return self.data["MatterStatusName"]
-
-    @property
-    def body_id(self) -> int:
-        return self.data["MatterBodyId"]
-
-    @property
-    def body_name(self) -> str:
-        return self.data["MatterBodyName"]
-
-    @property
-    def intro_date(self) -> datetime.datetime | None:
-        if self.data["MatterIntroDate"] is None:
-            return None
-        return datetime.datetime.fromisoformat(self.data["MatterIntroDate"])
-
-    @property
-    def agenda_date(self) -> datetime.datetime | None:
-        if self.data["MatterAgendaDate"] is None:
-            return None
-        return datetime.datetime.fromisoformat(self.data["MatterAgendaDate"])
-
-    @property
-    def passed_date(self) -> datetime.datetime | None:
-        if self.data["MatterPassedDate"] is None:
-            return None
-        return datetime.datetime.fromisoformat(self.data["MatterPassedDate"])
-
-    @property
-    def enactment_date(self) -> datetime.datetime | None:
-        if self.data["MatterEnactmentDate"] is None:
-            return None
-        return datetime.datetime.fromisoformat(self.data["MatterEnactmentDate"])
-
-    @property
-    def enactment_number(self) -> int | None:
-        return self.data["MatterEnactmentNumber"]
-
-    @property
-    def notes(self) -> str | None:
-        return self.data["MatterNotes"]
-
-    @property
-    def text(self) -> str:
-        # Merge all MatterText* fields into one string; if they're None,
-        # replace with empty string.
-        return "\n".join([self.data.get(f"MatterText{i}") or "" for i in range(1, 6)])
-
-    @property
-    def ex_text(self) -> str:
-        # Merge all MatterEXText* fields into one string; if they're None,
-        # replace with empty string.
-        return "\n".join(
-            [self.data.get(f"MatterEXText{i}") or "" for i in range(1, 12)]
-        )
-
-    @property
-    def reports(self) -> list[dict]:
-        return self.data["MatterReports"]
+    def ex_text(self) -> str | None:
+        """The Matter's extended text, if any."""
+        return "\n".join([getattr(self, f"ex_text_{i}") or "" for i in range(1, 12)])

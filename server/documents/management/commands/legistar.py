@@ -3,6 +3,7 @@ import json
 from functools import wraps
 
 import djclick as click
+from pydantic import BaseModel as PydanticBase
 
 from server.lib.legistar import LegistarClient
 
@@ -56,20 +57,22 @@ def _common_api_params(func):
 _common_scraper_params = _common_params
 
 
-def _echo_jsonable(jsonable: list | dict, lines: bool = False, indent: int | None = 2):
+def _echo_response(
+    data: list | dict | PydanticBase, lines: bool = False, indent: int | None = 2
+):
     """
     Given an arbitrary json-serializable structure, echo it to stdout.
 
     If `lines` is True, then each item in a list is dumped on a separate line
     and `indent` is ignored.
     """
-    if lines and isinstance(jsonable, list):
-        for item in jsonable:
-            click.echo(json.dumps(item))
-    elif lines:
-        click.echo(json.dumps(jsonable))
+    if isinstance(data, list):
+        for item in data:
+            _echo_response(item, lines=lines, indent=indent)
+    elif isinstance(data, PydanticBase):
+        click.echo(data.json(indent=None if lines else indent))
     else:
-        click.echo(json.dumps(jsonable, indent=indent))
+        click.echo(json.dumps(data, indent=None if lines else indent))
 
 
 @click.group(invoke_without_command=True)
@@ -91,8 +94,8 @@ def get_bodies(
 ):
     """Get all legislative bodies."""
     client = LegistarClient(customer, api_url)
-    response = client.get_body_dicts(top=top, skip=skip)
-    _echo_jsonable(response, lines)
+    response = client.get_bodies(top=top, skip=skip)
+    _echo_response(response, lines)
 
 
 @main.command()
@@ -120,13 +123,13 @@ def get_events(
 ):
     """Get all events."""
     client = LegistarClient(customer, api_url)
-    response = client.get_event_dicts(
+    response = client.get_events(
         top=top,
         skip=skip,
         event_start_date=event_start_date,
         event_end_date=event_end_date,
     )
-    _echo_jsonable(response, lines)
+    _echo_response(response, lines)
 
 
 @main.command()
@@ -147,7 +150,7 @@ def get_event_dates_for_body(
         top=top,
         skip=skip,
     )
-    _echo_jsonable([str(r) for r in response], lines)
+    _echo_response([str(r) for r in response], lines)
 
 
 @main.command()
@@ -177,14 +180,14 @@ def get_matters(
 ):
     """Get all matters."""
     client = LegistarClient(customer, api_url)
-    response = client.get_matter_dicts(
+    response = client.get_matters(
         top=top,
         skip=skip,
         body_id=body_id,
         agenda_start_date=agenda_start_date,
         agenda_end_date=agenda_end_date,
     )
-    _echo_jsonable(response, lines)
+    _echo_response(response, lines)
 
 
 @main.command()
@@ -198,9 +201,9 @@ def get_upcoming_matters(
 ):
     """Get all upcoming matters."""
     client = LegistarClient(customer, api_url)
-    response = client.get_matter_dicts(
+    response = client.get_matters(
         top=top,
         skip=skip,
         agenda_start_date=datetime.datetime.now(),
     )
-    _echo_jsonable(response, lines)
+    _echo_response(response, lines)
