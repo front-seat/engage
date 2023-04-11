@@ -1,5 +1,6 @@
 import datetime
 import typing as t
+import urllib.parse
 
 from pydantic import BaseModel as PydanticBase
 from pydantic import Field, validator
@@ -106,6 +107,7 @@ class Matter(BaseSchema):
     notes: str | None = Field(alias="MatterNotes")
     version: str = Field(alias="MatterVersion")  # like "1"
     cost: str | None = Field(alias="MatterCost")
+    # This is no fun! For texts, see self.text and self.ex_text.
     text_1: str | None = Field(alias="MatterText1")
     text_2: str | None = Field(alias="MatterText2")
     text_3: str | None = Field(alias="MatterText3")
@@ -150,3 +152,50 @@ class Matter(BaseSchema):
     def ex_text(self) -> str | None:
         """The Matter's extended text, if any."""
         return "\n".join([getattr(self, f"ex_text_{i}") or "" for i in range(1, 12)])
+
+
+class CalendarEntry(BaseSchema):
+    """Single row in the /Calendar.aspx page's main table."""
+
+    body: str
+    body_url: str
+    date: datetime.date
+    time: datetime.time | None  # None implies "cancelled"
+    location: str
+    details_url: str  # a page on the Legistar site
+    agenda_url: str  # a PDF
+    agenda_packet_url: str | None = None  # a PDF
+    minutes_url: str | None = None  # a PDF
+    video_url: str | None = None  # for the city of Seattle, a seattlechannel.org URL
+
+    # FUTURE: use the Council Data Project to get a video transcript
+
+    def _body_query_dict(self) -> dict[str, str]:
+        """The query dict from the committee URL."""
+        parsed = urllib.parse.urlparse(self.body_url)
+        return dict(urllib.parse.parse_qsl(parsed.query))
+
+    @property
+    def body_id(self) -> int:
+        """The Body ID from the committee URL."""
+        return int(self._body_query_dict()["BodyID"])
+
+    @property
+    def body_guid(self) -> str:
+        """The Body GUID from the committee URL."""
+        return self._body_query_dict()["BodyGUID"]
+
+    def _detail_query_dict(self) -> dict[str, str]:
+        """The query dict from the details URL."""
+        parsed = urllib.parse.urlparse(self.details_url)
+        return dict(urllib.parse.parse_qsl(parsed.query))
+
+    @property
+    def matter_id(self) -> int:
+        """The Matter ID from the details URL."""
+        return int(self._detail_query_dict()["ID"])
+
+    @property
+    def matter_guid(self) -> str:
+        """The Matter GUID from the details URL."""
+        return self._detail_query_dict()["GUID"]

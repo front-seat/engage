@@ -34,8 +34,13 @@ class LegistarClient:
             response = requests.get(url)
             response.raise_for_status()
         except requests.exceptions.HTTPError as e:
-            raise LegistarError from e
+            raise LegistarError(str(e)) from e
         return response.json()
+
+    def get_body(self, body_id: int) -> Body:
+        """Get a body by ID."""
+        data = self._get(f"Bodies/{body_id}")
+        return Body.parse_obj(data)
 
     def get_bodies(self, top: int | None = None, skip: int | None = None) -> list[Body]:
         """Get all bodies."""
@@ -81,6 +86,13 @@ class LegistarClient:
         if not isinstance(data, list):
             raise LegistarError(f"get_event_dates: expected list, got {type(data)}")
         return [datetime.datetime.fromisoformat(d).date() for d in data]
+
+    def get_matter(self, matter_id: int) -> Matter:
+        """Get a matter by ID."""
+        data = self._get(f"Matters/{matter_id}")
+        if not isinstance(data, dict):
+            raise LegistarError(f"get_matter: expected dict, got {type(data)}")
+        return Matter.parse_obj(data)
 
     def get_matters(
         self,

@@ -5,7 +5,7 @@ from functools import wraps
 import djclick as click
 from pydantic import BaseModel as PydanticBase
 
-from server.lib.legistar import LegistarClient
+from server.lib.legistar import LegistarClient, LegistarScraper
 
 
 def _common_params(func):
@@ -84,6 +84,23 @@ def main():
 
 
 @main.command()
+@click.option("--body-id", type=int, help="Legistar body ID", required=True)
+@_common_api_params
+def get_body(
+    customer: str,
+    api_url: str,
+    lines: bool,
+    body_id: int,
+    top: int | None = None,
+    skip: int | None = None,
+):
+    """Get a legislative body."""
+    client = LegistarClient(customer, api_url)
+    response = client.get_body(body_id)
+    _echo_response(response, lines)
+
+
+@main.command()
 @_common_api_params
 def get_bodies(
     customer: str,
@@ -154,6 +171,23 @@ def get_event_dates_for_body(
 
 
 @main.command()
+@click.option("--matter-id", type=int, help="Legistar matter ID", required=True)
+@_common_api_params
+def get_matter(
+    customer: str,
+    api_url: str,
+    matter_id: int,
+    lines: bool,
+    top: int | None = None,
+    skip: int | None = None,
+):
+    """Get a single matter."""
+    client = LegistarClient(customer, api_url)
+    response = client.get_matter(matter_id)
+    _echo_response(response, lines)
+
+
+@main.command()
 @click.option("--body-id", type=int, help="Legistar body ID", default=None)
 @click.option(
     "--agenda-start-date",
@@ -206,4 +240,16 @@ def get_upcoming_matters(
         skip=skip,
         agenda_start_date=datetime.datetime.now(),
     )
+    _echo_response(response, lines)
+
+
+@main.command()
+@_common_scraper_params
+def get_calendar(
+    customer: str,
+    lines: bool,
+):
+    """Get a legislative body's calendar via scraping."""
+    scaper = LegistarScraper(customer)
+    response = scaper.get_calendar()
     _echo_response(response, lines)
