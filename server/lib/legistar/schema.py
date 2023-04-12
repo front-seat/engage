@@ -286,11 +286,11 @@ class Legislation(BaseSchema):
     """The /Legislation.aspx page."""
 
     record_no: str  # like "CB 120537"
-    version: int
+    version: int | None
     council_bill_no: str | None = None  # like "120537"
     type: str  # like "Council Bill (CB)" or "Information Item (Inf)"
     status: str | None  # like "Heard in Committee"
-    department: Link
+    controlling_body: str
     on_agenda: datetime.date
     ordinance_no: str | None
     title: str

@@ -153,7 +153,7 @@ def _make_meeting_row(row: RowScraper) -> MeetingRow:
 
 LEGISLATION_DETAIL_LABELS = {
     "record no",
-    "version",
+    # "version",
     "council bill no",
     "type",
     "status",
@@ -170,11 +170,11 @@ LEGISLATION_DETAIL_LABELS = {
 def _make_legislation(details: DetailScraper, table: TableScraper) -> Legislation:
     """Extract the legislation details from the page."""
     record_no = details.get_text("record no")
-    version = details.get_int("version")
+    version = details.get_int("version") if details.has_label("version") else None
     council_bill_no = details.get_optional_text("council bill no")
     type = details.get_text("type")
     status = details.get_optional_text("status")
-    department = details.get_link("current controlling legislative body")
+    controlling_body = details.get_text("current controlling legislative body")
     on_agenda = details.get_date("on agenda")
     ordinance_no = details.get_optional_text("ordinance no")
     title = details.get_text("title")
@@ -194,7 +194,7 @@ def _make_legislation(details: DetailScraper, table: TableScraper) -> Legislatio
         council_bill_no=council_bill_no,
         type=type,
         status=status,
-        department=department,
+        controlling_body=controlling_body,
         on_agenda=on_agenda,
         ordinance_no=ordinance_no,
         title=title,
@@ -365,12 +365,19 @@ def children_of_type_before(tag: Tag, of_type: str, before: str) -> t.Iterator[T
 
 
 def find_in_sequence(
-    tags: t.Iterable[Tag], of_types: set[str], avoid_nesting: bool = True
+    tags: t.Iterable[Tag],
+    of_types: set[str],
+    avoid_nesting: bool = True,
+    filter: t.Optional[t.Callable[[Tag], bool]] = None,
 ) -> t.Iterator[Tag]:
-    """Given a seuqence of tags, and desired types, return each matching tag."""
+    """Given a sequence of tags, and desired types, return each matching tag."""
+    # This is another weird generic-ish method that turns out to be handy when
+    # dealing with Legistar's anti-semantic HTML. :-/
     for tag in tags:
         for found_tag in tag.find_all(of_types):
             if avoid_nesting and found_tag.find_all(of_types):
+                continue
+            if filter and not filter(found_tag):
                 continue
             yield found_tag
 
@@ -622,7 +629,19 @@ class DetailScraper:
         There may be 0 or more values for each label.
         """
         view_children = children_of_type_before(view, of_type="table", before="div")
-        return list(find_in_sequence(view_children, {"span", "a"}))
+
+        def _only_selected_options_filter(tag: Tag) -> bool:
+            return (
+                tag.name == "option" and tag.has_attr("selected")
+            ) or tag.name != "option"
+
+        return list(
+            find_in_sequence(
+                view_children,
+                {"span", "a", "option"},
+                filter=_only_selected_options_filter,
+            )
+        )
 
     def _build_labels(self) -> list[str]:
         """Return a list of all labels in the view."""

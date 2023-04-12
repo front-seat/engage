@@ -268,8 +268,8 @@ def get_calendar(
 
 
 @main.command()
-@click.option("--meeting-id", type=int, help="Legistar meeting ID", required=True)
-@click.option("--meeting-guid", type=str, help="Legistar meeting GUID", required=True)
+@click.argument("meeting_id", type=int, required=True)
+@click.argument("meeting_guid", type=str, required=True)
 @_common_scraper_params
 def get_meeting_rows(
     customer: str,
@@ -284,8 +284,8 @@ def get_meeting_rows(
 
 
 @main.command()
-@click.option("--meeting-id", type=int, help="Legistar meeting ID", required=True)
-@click.option("--meeting-guid", type=str, help="Legistar meeting GUID", required=True)
+@click.argument("meeting_id", type=int, required=True)
+@click.argument("meeting_guid", type=str, required=True)
 @_common_scraper_params
 def get_meeting(
     customer: str,
@@ -300,12 +300,8 @@ def get_meeting(
 
 
 @main.command()
-@click.option(
-    "--legislation-id", type=int, help="Legistar legislation ID", required=True
-)
-@click.option(
-    "--legislation-guid", type=str, help="Legistar legislation GUID", required=True
-)
+@click.argument("legislation_id", type=int, required=True)
+@click.argument("legislation_guid", type=str, required=True)
 @_common_scraper_params
 def get_legislation_rows(
     customer: str,
@@ -320,12 +316,8 @@ def get_legislation_rows(
 
 
 @main.command()
-@click.option(
-    "--legislation-id", type=int, help="Legistar legislation ID", required=True
-)
-@click.option(
-    "--legislation-guid", type=str, help="Legistar legislation GUID", required=True
-)
+@click.argument("legislation_id", type=int, required=True)
+@click.argument("legislation_guid", type=str, required=True)
 @_common_scraper_params
 def get_legislation(
     customer: str,
@@ -340,8 +332,8 @@ def get_legislation(
 
 
 @main.command()
-@click.option("--action-id", type=int, help="Legistar action ID", required=True)
-@click.option("--action-guid", type=str, help="Legistar action GUID", required=True)
+@click.argument("action_id", type=int, required=True)
+@click.argument("action_guid", type=str, required=True)
 @_common_scraper_params
 def get_action_rows(
     customer: str,
@@ -356,8 +348,8 @@ def get_action_rows(
 
 
 @main.command()
-@click.option("--action-id", type=int, help="Legistar action ID", required=True)
-@click.option("--action-guid", type=str, help="Legistar action GUID", required=True)
+@click.argument("action_id", type=int, required=True)
+@click.argument("action_guid", type=str, required=True)
 @_common_scraper_params
 def get_action(
     customer: str,
@@ -366,6 +358,6 @@ def get_action(
     action_guid: str,
 ):
     """Get a legislative body's action details + rows via scraping."""
-    scaper = LegistarScraper(customer)
-    response = scaper.get_action(action_id, action_guid)
+    scraper = LegistarScraper(customer)
+    response = scraper.get_action(action_id, action_guid)
     _echo_response(response, lines)
