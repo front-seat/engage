@@ -253,3 +253,67 @@ def get_calendar(
     scaper = LegistarScraper(customer)
     response = scaper.get_calendar()
     _echo_response(response, lines)
+
+
+@main.command()
+@_common_scraper_params
+def get_calendar_rows(
+    customer: str,
+    lines: bool,
+):
+    """Get a legislative body's calendar via scraping."""
+    scaper = LegistarScraper(customer)
+    response = scaper.get_calendar_rows()
+    _echo_response(response, lines)
+
+
+@main.command()
+@click.option("--meeting-id", type=int, help="Legistar meeting ID", required=True)
+@click.option("--meeting-guid", type=str, help="Legistar meeting GUID", required=True)
+@_common_scraper_params
+def get_meeting_rows(
+    customer: str,
+    lines: bool,
+    meeting_id: int,
+    meeting_guid: str,
+):
+    """Get a legislative body's meeting items via scraping."""
+    scaper = LegistarScraper(customer)
+    response = scaper.get_meeting_rows(meeting_id, meeting_guid)
+    _echo_response(response, lines)
+
+
+@main.command()
+@click.option(
+    "--legislation-id", type=int, help="Legistar legislation ID", required=True
+)
+@click.option(
+    "--legislation-guid", type=str, help="Legistar legislation GUID", required=True
+)
+@_common_scraper_params
+def get_legislation_rows(
+    customer: str,
+    lines: bool,
+    legislation_id: int,
+    legislation_guid: str,
+):
+    """Get a legislative body's legislation items via scraping."""
+    scaper = LegistarScraper(customer)
+    response = scaper.get_legislation_rows(legislation_id, legislation_guid)
+    _echo_response(response, lines)
+
+
+@main.command()
+@click.option("--action-id", type=int, help="Legistar action ID", required=True)
+@click.option("--action-guid", type=str, help="Legistar action GUID", required=True)
+@_common_scraper_params
+def get_action_rows(
+    customer: str,
+    lines: bool,
+    action_id: int,
+    action_guid: str,
+):
+    """Get a legislative body's action items via scraping."""
+    scaper = LegistarScraper(customer)
+    response = scaper.get_action_rows(action_id, action_guid)
+    _echo_response(response, lines)

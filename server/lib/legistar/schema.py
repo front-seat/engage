@@ -6,10 +6,20 @@ from pydantic import BaseModel as PydanticBase
 from pydantic import Field, validator
 
 
+def _id_from_url(url: str) -> int:
+    """Extract the ID from a Legistar URL."""
+    parsed = urllib.parse.urlparse(url)
+    return int(dict(urllib.parse.parse_qsl(parsed.query))["ID"])
+
+
+def _guid_from_url(url: str) -> str:
+    """Extract the GUID from a Legistar URL."""
+    parsed = urllib.parse.urlparse(url)
+    return dict(urllib.parse.parse_qsl(parsed.query))["GUID"]
+
+
 class BaseSchema(PydanticBase):
     """Base schema type for all Legistar-returned data."""
-
-    # CONSIDER:
 
     # def dict(self, *args, **kwargs):
     #     """Override dict() to ensure we remove None values from the output."""
@@ -168,7 +178,7 @@ class Matter(BaseSchema):
         return "\n".join([getattr(self, f"ex_text_{i}") or "" for i in range(1, 12)])
 
 
-class CalendarEntry(BaseSchema):
+class CalendarRow(BaseSchema):
     """Single row in the /Calendar.aspx page's main table."""
 
     body: str
@@ -205,11 +215,96 @@ class CalendarEntry(BaseSchema):
         return dict(urllib.parse.parse_qsl(parsed.query))
 
     @property
-    def matter_id(self) -> int:
-        """The Matter ID from the details URL."""
+    def meeting_id(self) -> int:
+        """The Meeting ID from the details URL."""
         return int(self._detail_query_dict()["ID"])
 
     @property
-    def matter_guid(self) -> str:
-        """The Matter GUID from the details URL."""
+    def meeting_guid(self) -> str:
+        """The Meeting GUID from the details URL."""
         return self._detail_query_dict()["GUID"]
+
+
+class Calendar(BaseSchema):
+    """The /Calendar.aspx page."""
+
+    rows: list[CalendarRow]
+
+
+class MeetingRow(BaseSchema):
+    """Single row in the /MeetingDetail.aspx page's main table."""
+
+    legislation: str  # like "Appt 02510" or "CB 120537"
+    legislation_url: str
+    version: int
+    agenda_sequence: int
+    name: str | None = None
+    type: str  # like "Appointment (Appt)" or "Council Bill (CB)"
+    title: str  # like "Appointment of Lowell Deo as member, ..."
+    action: str | None  # like "confirm", or "pass as amended"
+    result: str | None  # like "Pass"
+    action_url: str | None = None  # a link to a /HistoryDetail.aspx page
+    video_url: str | None = None  # a link to a seattlechannel.org video
+
+    # FUTURE for now, ignore Action, Result, Action Details, and Seattle Channel
+
+    @property
+    def legislation_id(self) -> int:
+        """The Legislation ID from the legislation URL."""
+        return _id_from_url(self.legislation_url)
+
+    @property
+    def legislation_guid(self) -> str:
+        """The Legislation GUID from the legislation URL."""
+        return _guid_from_url(self.legislation_url)
+
+    @property
+    def action_id(self) -> int | None:
+        """The Action ID from the action URL."""
+        return _id_from_url(self.action_url) if self.action_url else None
+
+    @property
+    def action_guid(self) -> str | None:
+        """The Action GUID from the action URL."""
+        return _guid_from_url(self.action_url) if self.action_url else None
+
+
+class LegislationRow(BaseSchema):
+    """Single row in the /Legislation.aspx page's main history table."""
+
+    date: datetime.date
+    version: int
+    action_by: str  # like "City Clerk" or "Mayor" etc.
+    action: str  # like "attested by City Clerk", "Signed", etc.
+    result: str | None = None  # like "Pass", "Fail", etc.
+    action_url: str  # a link to a /HistoryDetail.aspx page
+    meeting_url: str | None = None  # a link to a /MeetingDetail.aspx page
+    video_url: str | None = None  # a link to a seattlechannel.org video
+
+    @property
+    def action_id(self) -> int:
+        """The Action ID from the action URL."""
+        return _id_from_url(self.action_url)
+
+    @property
+    def action_guid(self) -> str:
+        """The Action GUID from the action URL."""
+        return _guid_from_url(self.action_url)
+
+
+class ActionRow(BaseSchema):
+    """Single row in the /HistoryDetail.aspx page's main table."""
+
+    person: str  # like "Alex Pedersen"
+    person_url: str  # a link to a /PersonDetail.aspx page
+    vote: str  # like "In Favor", "Absent", "Excused", etc.
+
+    @property
+    def person_id(self) -> int:
+        """The Person ID from the person URL."""
+        return _id_from_url(self.person_url)
+
+    @property
+    def person_guid(self) -> str:
+        """The Person GUID from the person URL."""
+        return _guid_from_url(self.person_url)
