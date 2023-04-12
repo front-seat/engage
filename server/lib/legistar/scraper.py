@@ -9,9 +9,22 @@ import requests
 from bs4 import BeautifulSoup, Tag
 
 from .errors import LegistarError
-from .schema import ActionRow, Calendar, CalendarRow, LegislationRow, MeetingRow
+from .schema import (
+    Action,
+    ActionRow,
+    Calendar,
+    CalendarRow,
+    Legislation,
+    LegislationRow,
+    Link,
+    Meeting,
+    MeetingRow,
+)
 
-# Expected headers for a single row on /Calendar.aspx
+# ---------------------------------------------------------------------
+# Tools for /Calendar.aspx
+# ---------------------------------------------------------------------
+
 CALENDAR_ROW_HEADERS = [
     "name",
     "meeting date",
@@ -26,8 +39,35 @@ CALENDAR_ROW_HEADERS = [
 ]
 
 
-# Expected labels for the detail section on /MeetingDetail.aspx
-MEETING_DETAIL_LABELS = [
+def _make_calendar_row(row: RowScraper) -> CalendarRow:
+    department = row.get_link("name")
+    date = row.get_date("meeting date")
+    time = row.get_optional_time("meeting time")
+    location = row.get_text("meeting location")
+    details = row.get_link("meeting details")
+    agenda = row.get_link("agenda")
+    agenda_packet = row.get_optional_link("agenda packet")
+    minutes = row.get_optional_link("minutes")
+    video = row.get_optional_link("seattle channel")
+
+    return CalendarRow(
+        department=department,
+        date=date,
+        time=time,
+        location=location,
+        details=details,
+        agenda=agenda,
+        agenda_packet=agenda_packet,
+        minutes=minutes,
+        video=video,
+    )
+
+
+# ---------------------------------------------------------------------
+# Tools for /MeetingDetail.aspx
+# ---------------------------------------------------------------------
+
+MEETING_DETAIL_LABELS = {
     "meeting name",
     "agenda status",
     "meeting date/time",
@@ -37,10 +77,36 @@ MEETING_DETAIL_LABELS = [
     "agenda packet",
     "meeting video",
     "attachments",
-]
+}
 
-# Expected headers for a single row on /MeetingDetail.aspx
-# This is a single bit of legislation.
+
+def _make_meeting(details: DetailScraper, table: TableScraper) -> Meeting:
+    """Extract the meeting details from the page."""
+    department = details.get_link("meeting name")
+    agenda_status = details.get_optional_text("agenda status")
+    date, time = details.get_date_and_optional_time("meeting date/time")
+    location = details.get_text("meeting location")
+    agenda = details.get_link("published agenda")
+    minutes = details.get_optional_link("published minutes")
+    agenda_packet = details.get_optional_link("agenda packet")
+    video = details.get_optional_link("meeting video")
+    attachments = details.get_links("attachments")
+    rows = [_make_meeting_row(row) for row in table]
+    return Meeting(
+        department=department,
+        agenda_status=agenda_status,
+        date=date,
+        time=time,
+        location=location,
+        agenda=agenda,
+        minutes=minutes,
+        agenda_packet=agenda_packet,
+        video=video,
+        attachments=attachments,
+        rows=rows,
+    )
+
+
 MEETING_ROW_HEADERS = [
     "record no",
     "ver",
@@ -55,8 +121,37 @@ MEETING_ROW_HEADERS = [
 ]
 
 
-# Expected labels for the detail section on /LegislationDetail.aspx
-LEGISLATION_DETAIL_LABELS = [
+def _make_meeting_row(row: RowScraper) -> MeetingRow:
+    legislation = row.get_link("record no")
+    version = row.get_int("ver")
+    agenda_sequence = row.get_int("agenda #")
+    name = row.get_optional_text("name")
+    type = row.get_text("type")
+    title = row.get_text("title")
+    action = row.get_optional_text("action")
+    result = row.get_optional_text("result")
+    action_details = row.get_optional_link("action details")
+    video = row.get_optional_link("seattle channel")
+
+    return MeetingRow(
+        legislation=legislation,
+        version=version,
+        agenda_sequence=agenda_sequence,
+        name=name,
+        type=type,
+        title=title,
+        action=action,
+        result=result,
+        action_details=action_details,
+        video=video,
+    )
+
+
+# ---------------------------------------------------------------------
+# Tools for /LegislationDetail.aspx
+# ---------------------------------------------------------------------
+
+LEGISLATION_DETAIL_LABELS = {
     "record no",
     "version",
     "council bill no",
@@ -66,12 +161,50 @@ LEGISLATION_DETAIL_LABELS = [
     "on agenda",
     "ordinance no",
     "title",
-    "sponsors",
-    "supporting documents",
-]
+    # "sponsors",
+    # "attachments",
+    # "supporting documents",
+}
 
-# Expected headers for a single row on /LegislationDetail.aspx
-# This  leads to a history item.
+
+def _make_legislation(details: DetailScraper, table: TableScraper) -> Legislation:
+    """Extract the legislation details from the page."""
+    record_no = details.get_text("record no")
+    version = details.get_int("version")
+    council_bill_no = details.get_optional_text("council bill no")
+    type = details.get_text("type")
+    status = details.get_optional_text("status")
+    department = details.get_link("current controlling legislative body")
+    on_agenda = details.get_date("on agenda")
+    ordinance_no = details.get_optional_text("ordinance no")
+    title = details.get_text("title")
+    sponsors = details.get_links("sponsors") if details.has_label("sponsors") else []
+    attachments = (
+        details.get_links("attachments") if details.has_label("attachments") else []
+    )
+    supporting_documents = (
+        details.get_links("supporting documents")
+        if details.has_label("supporting documents")
+        else []
+    )
+    rows = [_make_legislation_row(row) for row in table]
+    return Legislation(
+        record_no=record_no,
+        version=version,
+        council_bill_no=council_bill_no,
+        type=type,
+        status=status,
+        department=department,
+        on_agenda=on_agenda,
+        ordinance_no=ordinance_no,
+        title=title,
+        sponsors=sponsors,
+        attachments=attachments,
+        supporting_documents=supporting_documents,
+        rows=rows,
+    )
+
+
 LEGISLATION_ROW_HEADERS = [
     "date",
     "ver",
@@ -83,8 +216,34 @@ LEGISLATION_ROW_HEADERS = [
     "seattle channel",
 ]
 
-# Expected labels for the detail section on an action /HistoryDetail.aspx
-ACTION_DETAIL_LABELS = [
+
+def _make_legislation_row(row: RowScraper) -> LegislationRow:
+    date = row.get_date("date")
+    version = row.get_int("ver")
+    action_by = row.get_text("action by")
+    action = row.get_text("action")
+    result = row.get_optional_text("result")
+    action_details = row.get_link("action details")
+    meeting = row.get_optional_link("meeting details")
+    video = row.get_optional_link("seattle channel")
+
+    return LegislationRow(
+        date=date,
+        version=version,
+        action_by=action_by,
+        action=action,
+        result=result,
+        action_details=action_details,
+        meeting=meeting,
+        video=video,
+    )
+
+
+# ---------------------------------------------------------------------
+# Tools for /HistoryDetail.aspx (aka "action")
+# ---------------------------------------------------------------------
+
+ACTION_DETAIL_LABELS = {
     "record no",
     "version",
     "type",
@@ -94,11 +253,48 @@ ACTION_DETAIL_LABELS = [
     "minutes note",
     "action",
     "action text",
-]
+}
 
-# Expected headers for a single row on an action /HistoryDetail.aspx
-# Basically, a vote on a piece of legislation.
+
+def _make_action(details: DetailScraper, table: TableScraper) -> Action:
+    """Extract the action details from the page."""
+    record_no = details.get_text("record no")
+    version = details.get_int("version")
+    type = details.get_text("type")
+    title = details.get_text("title")
+    result = details.get_optional_text("result")
+    agenda_note = details.get_optional_text("agenda note")
+    minutes_note = details.get_optional_text("minutes note")
+    action = details.get_text("action")
+    action_text = details.get_optional_text("action text")
+    rows = [_make_action_row(row) for row in table]
+    return Action(
+        record_no=record_no,
+        version=version,
+        type=type,
+        title=title,
+        result=result,
+        agenda_note=agenda_note,
+        minutes_note=minutes_note,
+        action=action,
+        action_text=action_text,
+        rows=rows,
+    )
+
+
 ACTION_ROW_HEADERS = ["person name", "vote"]
+
+
+def _make_action_row(row: RowScraper) -> ActionRow:
+    person = row.get_link("person name")
+    vote = row.get_text("vote")
+
+    return ActionRow(person=person, vote=vote)
+
+
+# ---------------------------------------------------------------------
+# Generic utilities
+# ---------------------------------------------------------------------
 
 
 def clean_text(text: str) -> str:
@@ -141,6 +337,20 @@ def get_optional_href_from_a_tag(a: Tag) -> str | None:
         return None
 
 
+def get_link_from_a_tag(a: Tag, base_url: str) -> Link:
+    """Given an `a` tag, get the attachment structure."""
+    href = get_href_from_a_tag(a)
+    absolute_href = urllib.parse.urljoin(base_url, href)
+    return Link(name=clean_text(a.text), url=absolute_href)
+
+
+def get_optional_link_from_a_tag(a: Tag, base_url: str) -> Link | None:
+    try:
+        return get_link_from_a_tag(a, base_url)
+    except LegistarError:
+        return None
+
+
 def children_of_type_before(tag: Tag, of_type: str, before: str) -> t.Iterator[Tag]:
     """Yield all children of the given tag of the given type before the stop tag."""
     # Sadly, this turns out to be pretty handy when dealing with a whole bunch
@@ -174,6 +384,11 @@ def is_label_predicate(tag: Tag) -> bool:
         "current controlling legislative body"
     }
     return ends_with_colon or is_special_case
+
+
+# ---------------------------------------------------------------------
+# Table & row scraping
+# ---------------------------------------------------------------------
 
 
 class RowScraper:
@@ -270,32 +485,27 @@ class RowScraper:
                 return None
             raise LegistarError(f"Could not parse time {text}") from e
 
-    def get_text_and_link(self, header: str) -> tuple[str, str]:
+    def get_link(self, header: str) -> Link:
         """Get the link and text of the cell in the given column."""
         maybe_link = self.row.find_all("td")[
             self.table_scraper.get_header_index(header)
         ].find("a")
         if not isinstance(maybe_link, Tag):
             raise LegistarError(f"Could not find link for header {header}")
-        href = get_href_from_a_tag(maybe_link)
-        absolute_href = urllib.parse.urljoin(self.table_scraper.scraper.base_url, href)
-        return clean_text(maybe_link.text), absolute_href
+        return get_link_from_a_tag(
+            maybe_link, base_url=self.table_scraper.scraper.base_url
+        )
 
-    def get_optional_text_and_link(
-        self, header: str
-    ) -> tuple[str, str] | tuple[None, None]:
+    def get_optional_link(self, header: str) -> Link | None:
         """Get the link and text of the cell in the given column, if it exists."""
         maybe_link = self.row.find_all("td")[
             self.table_scraper.get_header_index(header)
         ].find("a")
         if not isinstance(maybe_link, Tag):
-            return None, None
-        try:
-            href = get_href_from_a_tag(maybe_link)
-        except LegistarError:
-            return None, None
-        absolute_href = urllib.parse.urljoin(self.table_scraper.scraper.base_url, href)
-        return clean_text(maybe_link.text), absolute_href
+            return None
+        return get_optional_link_from_a_tag(
+            maybe_link, base_url=self.table_scraper.scraper.base_url
+        )
 
 
 class TableScraper:
@@ -357,6 +567,11 @@ class TableScraper:
         return cls(scraper, table, header_class=header_class, row_class=row_class)
 
 
+# ---------------------------------------------------------------------
+# Details tab scraper
+# ---------------------------------------------------------------------
+
+
 class DetailScraper:
     """
     Utilities to cull structured data from an arbitrary Legistar website detail tab.
@@ -365,6 +580,7 @@ class DetailScraper:
     view: Tag
     _details: list[Tag]
     _is_label: t.Callable[[Tag], bool]
+    labels: list[str]
 
     def __init__(
         self,
@@ -379,6 +595,7 @@ class DetailScraper:
         self.view = self._build_view(soup, view_class, view_index)
         self._details = self._build_details(self.view)
         self._is_label = is_label
+        self.labels = self._build_labels()
 
     def _build_view(
         self,
@@ -407,14 +624,17 @@ class DetailScraper:
         view_children = children_of_type_before(view, of_type="table", before="div")
         return list(find_in_sequence(view_children, {"span", "a"}))
 
-    @property
-    def labels(self) -> list[str]:
+    def _build_labels(self) -> list[str]:
         """Return a list of all labels in the view."""
         return [
             clean_header(detail.text)
             for detail in self._details
             if self._is_label(detail)
         ]
+
+    def has_label(self, label: str) -> bool:
+        """Return True if the label exists in the view."""
+        return label in self.labels
 
     def get_label_detail_index(self, label: str) -> int:
         """Get the index of the given label in the details list."""
@@ -487,17 +707,53 @@ class DetailScraper:
         except LegistarError:
             return None
 
-    def _text_and_link_from_tag(self, tag: Tag) -> tuple[str, str]:
-        """Get the link and text value for a given tag."""
-        if tag.name != "a":
-            raise LegistarError(f"Expected <a> tag, got {tag}")
-        maybe_href = tag.get("href")
-        if not isinstance(maybe_href, str):
-            raise LegistarError(f"Unexpected href: {maybe_href}")
-        absolute_href = urllib.parse.urljoin(self.scraper.base_url, maybe_href)
-        return (clean_text(tag.text), absolute_href)
+    def get_date_and_time(self, label: str) -> tuple[datetime.date, datetime.time]:
+        """Get the date and time value for a given label."""
+        text = self.get_text(label)
+        date, time = text.split(" ")
+        return (
+            datetime.datetime.strptime(date, "%m/%d/%Y").date(),
+            datetime.datetime.strptime(time, "%I:%M %p").time(),
+        )
 
-    def get_text_and_link(self, label: str) -> tuple[str, str]:
+    def get_date_and_optional_time(
+        self, label: str
+    ) -> tuple[datetime.date, datetime.time | None]:
+        """Get the date and time value for a given label."""
+        text = self.get_text(label)
+        date, time = text.split(" ")
+        return (
+            datetime.datetime.strptime(date, "%m/%d/%Y").date(),
+            datetime.datetime.strptime(time, "%I:%M %p").time()
+            if time and time.lower().strip() != "canceled"
+            else None,
+        )
+
+    def get_date(self, label: str) -> datetime.date:
+        """Get the date value for a given label."""
+        text = self.get_text(label)
+        return datetime.datetime.strptime(text, "%m/%d/%Y").date()
+
+    def get_optional_date(self, label: str) -> datetime.date | None:
+        """Get the date value for a given label."""
+        try:
+            return self.get_date(label)
+        except LegistarError:
+            return None
+
+    def get_time(self, label: str) -> datetime.time:
+        """Get the time value for a given label."""
+        text = self.get_text(label)
+        return datetime.datetime.strptime(text, "%I:%M %p").time()
+
+    def get_optional_time(self, label: str) -> datetime.time | None:
+        """Get the time value for a given label."""
+        try:
+            return self.get_time(label)
+        except LegistarError:
+            return None
+
+    def get_link(self, label: str) -> Link:
         """Get the link and text value for a given label."""
         label_index = self.get_label_detail_index(label)
         maybe_values = self._details[label_index + 1 :]
@@ -509,25 +765,31 @@ class DetailScraper:
         value = values[0]
         if not isinstance(value, Tag):
             raise LegistarError(f"Unexpected value: {value}")
-        return self._text_and_link_from_tag(value)
+        return get_link_from_a_tag(value, base_url=self.scraper.base_url)
 
-    def get_optional_text_and_link(
-        self, label: str
-    ) -> tuple[str, str] | tuple[None, None]:
+    def get_optional_link(self, label: str) -> Link | None:
         """Get the link and text value for a given label, if it exists."""
         try:
-            return self.get_text_and_link(label)
+            return self.get_link(label)
         except LegistarError:
-            return None, None
+            return None
 
-    def get_texts_and_links(self, label: str) -> list[tuple[str, str]]:
-        """Get the link and text value for a given label."""
+    def get_links(self, label: str) -> list[Link]:
+        """Get a collection of link and text values for a given label."""
         label_index = self.get_label_detail_index(label)
         maybe_values = self._details[label_index + 1 :]
         values = list(
             itertools.takewhile(lambda detail: not self._is_label(detail), maybe_values)
         )
-        return [self._text_and_link_from_tag(value) for value in values]
+        return [
+            get_link_from_a_tag(value, base_url=self.scraper.base_url)
+            for value in values
+        ]
+
+
+# ---------------------------------------------------------------------
+# Top level scraper API (this is probably what you're looking for!)
+# ---------------------------------------------------------------------
 
 
 class LegistarScraper:
@@ -564,70 +826,45 @@ class LegistarScraper:
         return BeautifulSoup(text, features="lxml")
 
     def _get_table_scraper(
-        self, path: str, expected_headers: list[str], **queryparams
+        self, path: str, exact_headers: list[str], **queryparams
     ) -> TableScraper:
         """Perform a GET request and return a TableScraper object."""
         soup = self._get_soup(path, **queryparams)
         table_scraper = TableScraper.from_soup(self, soup)
-        if table_scraper.headers != expected_headers:
+        if table_scraper.headers != exact_headers:
             raise LegistarError(f"Unexpected headers: {table_scraper.headers}")
         return table_scraper
 
     def _get_detail_scraper(
-        self, path: str, expected_labels: list[str], **queryparams
+        self, path: str, required_labels: set[str], **queryparams
     ) -> DetailScraper:
         """Perform a GET request and return a DetailScraper object."""
         soup = self._get_soup(path, **queryparams)
         detail_scraper = DetailScraper(self, soup)
-        if detail_scraper.labels != expected_labels:
+        if set(detail_scraper.labels) < required_labels:
             raise LegistarError(f"Unexpected labels: {detail_scraper.labels}")
         return detail_scraper
 
-    def _get_table_and_detail_scraper(
+    def _get_detail_and_table_scraper(
         self,
         path: str,
-        expected_table_headers: list[str],
-        expected_detail_labels: list[str],
+        exact_table_headers: list[str],
+        required_detail_labels: set[str],
         **queryparams,
-    ) -> tuple[TableScraper, DetailScraper]:
+    ) -> tuple[DetailScraper, TableScraper]:
         """Perform a GET request and return a TableScraper and DetailScraper object."""
         soup = self._get_soup(path, **queryparams)
         table_scraper = TableScraper.from_soup(self, soup)
-        if table_scraper.headers != expected_table_headers:
+        if table_scraper.headers != exact_table_headers:
             raise LegistarError(f"Unexpected headers: {table_scraper.headers}")
         detail_scraper = DetailScraper(self, soup)
-        if detail_scraper.labels != expected_detail_labels:
+        if set(detail_scraper.labels) < set(required_detail_labels):
             raise LegistarError(f"Unexpected labels: {detail_scraper.labels}")
-        return table_scraper, detail_scraper
+        return detail_scraper, table_scraper
 
     def get_calendar_rows(self) -> list[CalendarRow]:
-        """Get the calendar."""
+        """Get rows from the calendar page."""
         table_scraper = self._get_table_scraper("/Calendar.aspx", CALENDAR_ROW_HEADERS)
-
-        def _make_calendar_row(row: RowScraper) -> CalendarRow:
-            body, body_url = row.get_text_and_link("name")
-            date = row.get_date("meeting date")
-            time = row.get_optional_time("meeting time")
-            location = row.get_text("meeting location")
-            _, details_url = row.get_text_and_link("meeting details")
-            _, agenda_url = row.get_text_and_link("agenda")
-            _, agenda_packet_url = row.get_optional_text_and_link("agenda packet")
-            _, minutes_url = row.get_optional_text_and_link("minutes")
-            _, video_url = row.get_optional_text_and_link("seattle channel")
-
-            return CalendarRow(
-                body=body,
-                body_url=body_url,
-                date=date,
-                time=time,
-                location=location,
-                details_url=details_url,
-                agenda_url=agenda_url,
-                agenda_packet_url=agenda_packet_url,
-                minutes_url=minutes_url,
-                video_url=video_url,
-            )
-
         return [_make_calendar_row(row) for row in table_scraper]
 
     def get_calendar(self) -> Calendar:
@@ -639,41 +876,25 @@ class LegistarScraper:
         return Calendar(rows=self.get_calendar_rows())
 
     def get_meeting_rows(self, meeting_id: int, meeting_guid: str) -> list[MeetingRow]:
-        """Get the meeting detail for a given calendar entry."""
+        """Get rows from a single meeting detail page."""
         table_scraper = self._get_table_scraper(
             "/MeetingDetail.aspx",
             MEETING_ROW_HEADERS,
             ID=meeting_id,
             GUID=meeting_guid,
         )
-
-        def _make_meeting_row(row: RowScraper) -> MeetingRow:
-            legislation, legislation_url = row.get_text_and_link("record no")
-            version = row.get_int("ver")
-            agenda_sequence = row.get_int("agenda #")
-            name = row.get_optional_text("name")
-            type = row.get_text("type")
-            title = row.get_text("title")
-            action = row.get_optional_text("action")
-            result = row.get_optional_text("result")
-            _, action_url = row.get_optional_text_and_link("action details")
-            _, video_url = row.get_optional_text_and_link("seattle channel")
-
-            return MeetingRow(
-                legislation=legislation,
-                legislation_url=legislation_url,
-                version=version,
-                agenda_sequence=agenda_sequence,
-                name=name,
-                type=type,
-                title=title,
-                action=action,
-                result=result,
-                action_url=action_url,
-                video_url=video_url,
-            )
-
         return [_make_meeting_row(row) for row in table_scraper]
+
+    def get_meeting(self, meeting_id: int, meeting_guid: str) -> Meeting:
+        """Get details + rows from a single meeting detail page."""
+        detail_scraper, table_scraper = self._get_detail_and_table_scraper(
+            "/MeetingDetail.aspx",
+            MEETING_ROW_HEADERS,
+            MEETING_DETAIL_LABELS,
+            ID=meeting_id,
+            GUID=meeting_guid,
+        )
+        return _make_meeting(detail_scraper, table_scraper)
 
     def get_legislation_rows(
         self, legislation_id: int, legislation_guid: str
@@ -685,29 +906,20 @@ class LegistarScraper:
             ID=legislation_id,
             GUID=legislation_guid,
         )
-
-        def _make_legislation_row(row: RowScraper) -> LegislationRow:
-            date = row.get_date("date")
-            version = row.get_int("ver")
-            action_by = row.get_text("action by")
-            action = row.get_text("action")
-            result = row.get_optional_text("result")
-            _, action_url = row.get_text_and_link("action details")
-            _, meeting_url = row.get_optional_text_and_link("meeting details")
-            _, video_url = row.get_optional_text_and_link("seattle channel")
-
-            return LegislationRow(
-                date=date,
-                version=version,
-                action_by=action_by,
-                action=action,
-                result=result,
-                action_url=action_url,
-                meeting_url=meeting_url,
-                video_url=video_url,
-            )
-
         return [_make_legislation_row(row) for row in table_scraper]
+
+    def get_legislation(
+        self, legislation_id: int, legislation_guid: str
+    ) -> Legislation:
+        """Get the legislation detail for a given calendar entry."""
+        detail_scraper, table_scraper = self._get_detail_and_table_scraper(
+            "/LegislationDetail.aspx",
+            LEGISLATION_ROW_HEADERS,
+            LEGISLATION_DETAIL_LABELS,
+            ID=legislation_id,
+            GUID=legislation_guid,
+        )
+        return _make_legislation(detail_scraper, table_scraper)
 
     def get_action_rows(self, action_id: int, action_guid: str) -> list[ActionRow]:
         """Get the action detail for a given calendar entry."""
@@ -717,11 +929,15 @@ class LegistarScraper:
             ID=action_id,
             GUID=action_guid,
         )
-
-        def _make_action_row(row: RowScraper) -> ActionRow:
-            person, person_url = row.get_text_and_link("person name")
-            vote = row.get_text("vote")
-
-            return ActionRow(person=person, person_url=person_url, vote=vote)
-
         return [_make_action_row(row) for row in table_scraper]
+
+    def get_action(self, action_id: int, action_guid: str) -> Action:
+        """Get the action detail for a given calendar entry."""
+        detail_scraper, table_scraper = self._get_detail_and_table_scraper(
+            "/HistoryDetail.aspx",
+            ACTION_ROW_HEADERS,
+            ACTION_DETAIL_LABELS,
+            ID=action_id,
+            GUID=action_guid,
+        )
+        return _make_action(detail_scraper, table_scraper)
