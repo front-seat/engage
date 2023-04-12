@@ -124,7 +124,7 @@ MEETING_ROW_HEADERS = [
 def _make_meeting_row(row: RowScraper) -> MeetingRow:
     legislation = row.get_link("record no")
     version = row.get_int("ver")
-    agenda_sequence = row.get_int("agenda #")
+    agenda_sequence = row.get_optional_int("agenda #")
     name = row.get_optional_text("name")
     type = row.get_text("type")
     title = row.get_text("title")
@@ -317,7 +317,7 @@ def get_href_from_a_tag(a: Tag) -> str:
     # There'd better be an onclick handler.
     maybe_onclick = a.attrs.get("onclick", "").strip()
     if not maybe_onclick:
-        raise LegistarError("Could not find href or onclick for link")
+        raise LegistarError(f"Could not find href or onclick for link: {a}")
 
     # Buried in this stupid onclick handler is the URL. In particular, it's
     # inside the invocation of radopen('url', ...) or radopen('url')
@@ -710,7 +710,7 @@ class DetailScraper:
     def get_date_and_time(self, label: str) -> tuple[datetime.date, datetime.time]:
         """Get the date and time value for a given label."""
         text = self.get_text(label)
-        date, time = text.split(" ")
+        date, time = text.split(" ", maxsplit=1)
         return (
             datetime.datetime.strptime(date, "%m/%d/%Y").date(),
             datetime.datetime.strptime(time, "%I:%M %p").time(),
@@ -721,7 +721,7 @@ class DetailScraper:
     ) -> tuple[datetime.date, datetime.time | None]:
         """Get the date and time value for a given label."""
         text = self.get_text(label)
-        date, time = text.split(" ")
+        date, time = text.split(" ", maxsplit=1)
         return (
             datetime.datetime.strptime(date, "%m/%d/%Y").date(),
             datetime.datetime.strptime(time, "%I:%M %p").time()
@@ -781,10 +781,11 @@ class DetailScraper:
         values = list(
             itertools.takewhile(lambda detail: not self._is_label(detail), maybe_values)
         )
-        return [
-            get_link_from_a_tag(value, base_url=self.scraper.base_url)
+        maybe_links = [
+            get_optional_link_from_a_tag(value, base_url=self.scraper.base_url)
             for value in values
         ]
+        return [link for link in maybe_links if link is not None]
 
 
 # ---------------------------------------------------------------------

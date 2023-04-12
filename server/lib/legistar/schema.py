@@ -236,7 +236,7 @@ class MeetingRow(BaseSchema):
     # aka "Record No"; like "Appt 02510" or "CB 120537"; /LegislationDetail.aspx
     legislation: Link
     version: int
-    agenda_sequence: int
+    agenda_sequence: int | None
     name: str | None = None
     type: str  # like "Appointment (Appt)" or "Council Bill (CB)"
     title: str  # like "Appointment of Lowell Deo as member, ..."
