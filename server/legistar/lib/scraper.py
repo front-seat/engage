@@ -565,9 +565,12 @@ class TableScraper:
 
     def __iter__(self) -> t.Iterator[RowScraper]:
         """Iterate over the rows of the table."""
-        for row in self.table.find_all("tr", class_="rgRow"):
+        for row in self.table.find_all("tr"):
             if not isinstance(row, Tag):
                 raise LegistarError(f"Invalid row: {row}")
+            row_class = "".join(row.attrs.get("class", [""]))
+            if "rgRow" not in row_class and "rgAltRow" not in row_class:
+                continue
             yield RowScraper(self, row)
 
     @classmethod
