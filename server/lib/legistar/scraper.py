@@ -299,7 +299,10 @@ def _make_action_row(row: RowScraper) -> ActionRow:
 
 def clean_text(text: str) -> str:
     """Clean up text from the Legistar website."""
-    return text.replace("\xa0", " ").strip()
+    # Remove non-breaking spaces; replace em-dashes and en-dashes.
+    return (
+        text.replace("\xa0", " ").replace("\u2013", "-").replace("\u2014", "-").strip()
+    )
 
 
 def clean_header(header: str) -> str:
@@ -367,7 +370,6 @@ def children_of_type_before(tag: Tag, of_type: str, before: str) -> t.Iterator[T
 def find_in_sequence(
     tags: t.Iterable[Tag],
     of_types: set[str],
-    avoid_nesting: bool = True,
     filter: t.Optional[t.Callable[[Tag], bool]] = None,
 ) -> t.Iterator[Tag]:
     """Given a sequence of tags, and desired types, return each matching tag."""
@@ -375,8 +377,6 @@ def find_in_sequence(
     # dealing with Legistar's anti-semantic HTML. :-/
     for tag in tags:
         for found_tag in tag.find_all(of_types):
-            if avoid_nesting and found_tag.find_all(of_types):
-                continue
             if filter and not filter(found_tag):
                 continue
             yield found_tag
@@ -630,16 +630,24 @@ class DetailScraper:
         """
         view_children = children_of_type_before(view, of_type="table", before="div")
 
-        def _only_selected_options_filter(tag: Tag) -> bool:
-            return (
-                tag.name == "option" and tag.has_attr("selected")
-            ) or tag.name != "option"
+        def _is_selected_option(tag: Tag) -> bool:
+            return tag.name == "option" and tag.has_attr("selected")
+
+        def _is_span_with_nested_a(tag: Tag) -> bool:
+            return tag.name == "span" and len(tag.find_all("a")) > 0
+
+        def _child_filter(tag: Tag) -> bool:
+            if tag.name == "span" and _is_span_with_nested_a(tag):
+                return False
+            if tag.name == "option" and not _is_selected_option(tag):
+                return False
+            return True
 
         return list(
             find_in_sequence(
                 view_children,
                 {"span", "a", "option"},
-                filter=_only_selected_options_filter,
+                filter=_child_filter,
             )
         )
 
