@@ -175,7 +175,7 @@ def _make_legislation(details: DetailScraper, table: TableScraper) -> Legislatio
     type = details.get_text("type")
     status = details.get_optional_text("status")
     controlling_body = details.get_text("current controlling legislative body")
-    on_agenda = details.get_date("on agenda")
+    on_agenda = details.get_optional_date("on agenda")
     ordinance_no = details.get_optional_text("ordinance no")
     title = details.get_text("title")
     sponsors = details.get_links("sponsors") if details.has_label("sponsors") else []

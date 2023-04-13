@@ -291,7 +291,7 @@ class Legislation(BaseSchema):
     type: str  # like "Council Bill (CB)" or "Information Item (Inf)"
     status: str | None  # like "Heard in Committee"
     controlling_body: str
-    on_agenda: datetime.date
+    on_agenda: datetime.date | None
     ordinance_no: str | None
     title: str
     sponsors: list[Link]

@@ -367,14 +367,16 @@ def get_action(
 @click.option(
     "--future-only", is_flag=True, help="Only return future events.", default=False
 )
+@click.option("--debug", is_flag=True, help="Print debug info.", default=False)
 @_common_scraper_params
 def crawl_calendar(
     customer: str,
     lines: bool,
     future_only: bool,
+    debug: bool,
 ):
     """Get all events."""
-    crawler = LegistarCalendarCrawler(customer, future_only=future_only)
+    crawler = LegistarCalendarCrawler(customer, future_only=future_only, debug=debug)
     # Ignore `lines` param.
     for item in crawler.crawl():
         _echo_response(item, lines=True)
