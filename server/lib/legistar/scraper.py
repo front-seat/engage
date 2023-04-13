@@ -80,7 +80,9 @@ MEETING_DETAIL_LABELS = {
 }
 
 
-def _make_meeting(details: DetailScraper, table: TableScraper) -> Meeting:
+def _make_meeting(
+    id: int, guid: str, details: DetailScraper, table: TableScraper
+) -> Meeting:
     """Extract the meeting details from the page."""
     department = details.get_link("meeting name")
     agenda_status = details.get_optional_text("agenda status")
@@ -93,6 +95,8 @@ def _make_meeting(details: DetailScraper, table: TableScraper) -> Meeting:
     attachments = details.get_links("attachments")
     rows = [_make_meeting_row(row) for row in table]
     return Meeting(
+        id=id,
+        guid=guid,
         department=department,
         agenda_status=agenda_status,
         date=date,
@@ -167,7 +171,9 @@ LEGISLATION_DETAIL_LABELS = {
 }
 
 
-def _make_legislation(details: DetailScraper, table: TableScraper) -> Legislation:
+def _make_legislation(
+    id: int, guid: str, details: DetailScraper, table: TableScraper
+) -> Legislation:
     """Extract the legislation details from the page."""
     record_no = details.get_text("record no")
     version = details.get_int("version") if details.has_label("version") else None
@@ -189,6 +195,8 @@ def _make_legislation(details: DetailScraper, table: TableScraper) -> Legislatio
     )
     rows = [_make_legislation_row(row) for row in table]
     return Legislation(
+        id=id,
+        guid=guid,
         record_no=record_no,
         version=version,
         council_bill_no=council_bill_no,
@@ -256,7 +264,9 @@ ACTION_DETAIL_LABELS = {
 }
 
 
-def _make_action(details: DetailScraper, table: TableScraper) -> Action:
+def _make_action(
+    id: int, guid: str, details: DetailScraper, table: TableScraper
+) -> Action:
     """Extract the action details from the page."""
     record_no = details.get_text("record no")
     version = details.get_int("version")
@@ -269,6 +279,8 @@ def _make_action(details: DetailScraper, table: TableScraper) -> Action:
     action_text = details.get_optional_text("action text")
     rows = [_make_action_row(row) for row in table]
     return Action(
+        id=id,
+        guid=guid,
         record_no=record_no,
         version=version,
         type=type,
@@ -916,6 +928,10 @@ class LegistarScraper:
         )
         return [_make_meeting_row(row) for row in table_scraper]
 
+    def get_meeting_url(self, meeting_id: int, meeting_guid: str) -> str:
+        """Get the URL for a single meeting detail page."""
+        return self._url("/MeetingDetail.aspx", ID=meeting_id, GUID=meeting_guid)
+
     def get_meeting(self, meeting_id: int, meeting_guid: str) -> Meeting:
         """Get details + rows from a single meeting detail page."""
         detail_scraper, table_scraper = self._get_detail_and_table_scraper(
@@ -925,7 +941,7 @@ class LegistarScraper:
             ID=meeting_id,
             GUID=meeting_guid,
         )
-        return _make_meeting(detail_scraper, table_scraper)
+        return _make_meeting(meeting_id, meeting_guid, detail_scraper, table_scraper)
 
     def get_legislation_rows(
         self, legislation_id: int, legislation_guid: str
@@ -939,6 +955,12 @@ class LegistarScraper:
         )
         return [_make_legislation_row(row) for row in table_scraper]
 
+    def get_legislation_url(self, legislation_id: int, legislation_guid: str) -> str:
+        """Get the URL for a single legislation detail page."""
+        return self._url(
+            "/LegislationDetail.aspx", ID=legislation_id, GUID=legislation_guid
+        )
+
     def get_legislation(
         self, legislation_id: int, legislation_guid: str
     ) -> Legislation:
@@ -950,7 +972,9 @@ class LegistarScraper:
             ID=legislation_id,
             GUID=legislation_guid,
         )
-        return _make_legislation(detail_scraper, table_scraper)
+        return _make_legislation(
+            legislation_id, legislation_guid, detail_scraper, table_scraper
+        )
 
     def get_action_rows(self, action_id: int, action_guid: str) -> list[ActionRow]:
         """Get the action detail for a given calendar entry."""
@@ -962,6 +986,10 @@ class LegistarScraper:
         )
         return [_make_action_row(row) for row in table_scraper]
 
+    def get_action_url(self, action_id: int, action_guid: str) -> str:
+        """Get the URL for a single action detail page."""
+        return self._url("/HistoryDetail.aspx", ID=action_id, GUID=action_guid)
+
     def get_action(self, action_id: int, action_guid: str) -> Action:
         """Get the action detail for a given calendar entry."""
         detail_scraper, table_scraper = self._get_detail_and_table_scraper(
@@ -971,4 +999,4 @@ class LegistarScraper:
             ID=action_id,
             GUID=action_guid,
         )
-        return _make_action(detail_scraper, table_scraper)
+        return _make_action(action_id, action_guid, detail_scraper, table_scraper)

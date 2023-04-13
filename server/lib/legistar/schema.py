@@ -227,6 +227,7 @@ class CalendarRow(BaseSchema):
 class Calendar(BaseSchema):
     """The /Calendar.aspx page."""
 
+    kind: str = "calendar"
     rows: list[CalendarRow]
 
 
@@ -249,6 +250,9 @@ class MeetingRow(BaseSchema):
 class Meeting(BaseSchema):
     """The /MeetingDetail.aspx page."""
 
+    kind: str = "meeting"
+    id: int
+    guid: str
     # like "Economic Development, Technology, and City Light Committee"
     department: Link
     agenda_status: str | None = None  # like "Final" or "Pending"
@@ -268,6 +272,11 @@ class Meeting(BaseSchema):
         """Whether the meeting has been canceled."""
         return self.time is None
 
+    @property
+    def relative_url(self) -> str:
+        """The relative URL for the meeting."""
+        return f"/MeetingDetail.aspx?ID={self.id}&GUID={self.guid}"
+
 
 class LegislationRow(BaseSchema):
     """Single row in the /Legislation.aspx page's main history table."""
@@ -285,6 +294,9 @@ class LegislationRow(BaseSchema):
 class Legislation(BaseSchema):
     """The /Legislation.aspx page."""
 
+    kind: str = "legislation"
+    id: int
+    guid: str
     record_no: str  # like "CB 120537"
     version: int | None
     council_bill_no: str | None = None  # like "120537"
@@ -300,6 +312,11 @@ class Legislation(BaseSchema):
 
     rows: list[LegislationRow]
 
+    @property
+    def relative_url(self) -> str:
+        """The relative URL for the legislation."""
+        return f"/LegislationDetail.aspx?ID={self.id}&GUID={self.guid}"
+
 
 class ActionRow(BaseSchema):
     """Single row in the /HistoryDetail.aspx page's main table."""
@@ -311,6 +328,9 @@ class ActionRow(BaseSchema):
 class Action(BaseSchema):
     """The /HistoryDetail.aspx page."""
 
+    kind: str = "action"
+    id: int
+    guid: str
     record_no: str  # like "CB 120537" or "Inf 1960"
     version: int
     type: str  # like "Council Bill (CB)" or "Information Item (Inf)"
@@ -323,3 +343,8 @@ class Action(BaseSchema):
 
     # AKA votes
     rows: list[ActionRow]
+
+    @property
+    def relative_url(self) -> str:
+        """The relative URL for the action."""
+        return f"/HistoryDetail.aspx?ID={self.id}&GUID={self.guid}"

@@ -38,7 +38,7 @@ class LegistarCalendarCrawler:
     def get_calendar(self) -> Calendar:
         if self._calendar is None:
             if self.debug:
-                print("DEBUG: get_calendar()", file=sys.stderr)
+                print(">>>> DEBUG: get_calendar()", file=sys.stderr)
             self._calendar = self.scraper.get_calendar(future_only=self.future_only)
         return self._calendar
 
@@ -47,9 +47,10 @@ class LegistarCalendarCrawler:
         return self.get_meeting(id, guid)
 
     def get_meeting(self, id: int, guid: str) -> Meeting:
-        if id not in self._meetings:
+        if guid not in self._meetings:
             if self.debug:
-                print(f"DEBUG: get_meeting({id}, {guid})", file=sys.stderr)
+                url = self.scraper.get_meeting_url(id, guid)
+                print(f">>>> DEBUG: get_meeting({url})", file=sys.stderr)
             self._meetings[guid] = self.scraper.get_meeting(id, guid)
         return self._meetings[guid]
 
@@ -58,9 +59,10 @@ class LegistarCalendarCrawler:
         return self.get_legislation(id, guid)
 
     def get_legislation(self, id: int, guid: str) -> Legislation:
-        if id not in self._legislations:
+        if guid not in self._legislations:
             if self.debug:
-                print(f"DEBUG: get_legislation({id}, {guid})", file=sys.stderr)
+                url = self.scraper.get_legislation_url(id, guid)
+                print(f">>>> DEBUG: get_legislation({url})", file=sys.stderr)
             self._legislations[guid] = self.scraper.get_legislation(id, guid)
         return self._legislations[guid]
 
@@ -69,9 +71,10 @@ class LegistarCalendarCrawler:
         return self.get_action(id, guid)
 
     def get_action(self, id: int, guid: str) -> Action:
-        if id not in self._actions:
+        if guid not in self._actions:
             if self.debug:
-                print(f"DEBUG: get_action({id}, {guid})", file=sys.stderr)
+                url = self.scraper.get_action_url(id, guid)
+                print(f">>>> DEBUG: get_action({url})", file=sys.stderr)
             self._actions[guid] = self.scraper.get_action(id, guid)
         return self._actions[guid]
 
