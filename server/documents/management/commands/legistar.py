@@ -5,7 +5,7 @@ from functools import wraps
 import djclick as click
 from pydantic import BaseModel as PydanticBase
 
-from server.lib.legistar import LegistarClient, LegistarScraper
+from server.lib.legistar import LegistarCalendarCrawler, LegistarClient, LegistarScraper
 
 
 def _common_params(func):
@@ -361,3 +361,20 @@ def get_action(
     scraper = LegistarScraper(customer)
     response = scraper.get_action(action_id, action_guid)
     _echo_response(response, lines)
+
+
+@main.command()
+@click.option(
+    "--future-only", is_flag=True, help="Only return future events.", default=False
+)
+@_common_scraper_params
+def crawl_calendar(
+    customer: str,
+    lines: bool,
+    future_only: bool,
+):
+    """Get all events."""
+    crawler = LegistarCalendarCrawler(customer, future_only=future_only)
+    # Ignore `lines` param.
+    for item in crawler.crawl():
+        _echo_response(item, lines=True)

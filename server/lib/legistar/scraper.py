@@ -890,18 +890,21 @@ class LegistarScraper:
             raise LegistarError(f"Unexpected labels: {detail_scraper.labels}")
         return detail_scraper, table_scraper
 
-    def get_calendar_rows(self) -> list[CalendarRow]:
+    def get_calendar_rows(self, future_only: bool = False) -> list[CalendarRow]:
         """Get rows from the calendar page."""
         table_scraper = self._get_table_scraper("/Calendar.aspx", CALENDAR_ROW_HEADERS)
-        return [_make_calendar_row(row) for row in table_scraper]
+        rows = [_make_calendar_row(row) for row in table_scraper]
+        if future_only:
+            rows = [row for row in rows if row.date >= datetime.date.today()]
+        return rows
 
-    def get_calendar(self) -> Calendar:
+    def get_calendar(self, future_only: bool = False) -> Calendar:
         """Get the calendar."""
         # CONSIDER: this mostly exists for symmetry/completeness.
         # Unlike /MeetingDetail.aspx, /LegislationDetail.aspx,
         # and /HistoryDetail.aspx, /Calendar.aspx does not have top-level
         # details.
-        return Calendar(rows=self.get_calendar_rows())
+        return Calendar(rows=self.get_calendar_rows(future_only=future_only))
 
     def get_meeting_rows(self, meeting_id: int, meeting_guid: str) -> list[MeetingRow]:
         """Get rows from a single meeting detail page."""
