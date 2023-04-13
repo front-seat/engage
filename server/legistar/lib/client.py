@@ -3,9 +3,9 @@ import urllib.parse
 
 import requests
 
+from .api_schema import BodyAPISchema, EventAPISchema, MatterAPISchema
 from .errors import LegistarError
 from .odata import AndFilter, ComparisonFilter, DateComparisonFilter, odata_queryparams
-from .schema import Body, Event, Matter
 
 LEGISTAR_API_BASE_URL = "https://webapi.legistar.com/v1"
 
@@ -37,18 +37,20 @@ class LegistarClient:
             raise LegistarError(str(e)) from e
         return response.json()
 
-    def get_body(self, body_id: int) -> Body:
+    def get_body(self, body_id: int) -> BodyAPISchema:
         """Get a body by ID."""
         data = self._get(f"Bodies/{body_id}")
-        return Body.parse_obj(data)
+        return BodyAPISchema.parse_obj(data)
 
-    def get_bodies(self, top: int | None = None, skip: int | None = None) -> list[Body]:
+    def get_bodies(
+        self, top: int | None = None, skip: int | None = None
+    ) -> list[BodyAPISchema]:
         """Get all bodies."""
         queryparams = odata_queryparams(top=top, skip=skip)
         data = self._get("Bodies", **queryparams)
         if not isinstance(data, list):
             raise LegistarError(f"get_bodies: expected list, got {type(data)}")
-        return [Body.parse_obj(d) for d in data]
+        return [BodyAPISchema.parse_obj(d) for d in data]
 
     def get_events(
         self,
@@ -56,7 +58,7 @@ class LegistarClient:
         skip: int | None = None,
         event_start_date: datetime.date | None = None,
         event_end_date: datetime.date | None = None,
-    ) -> list[Event]:
+    ) -> list[EventAPISchema]:
         """Get all events."""
         filter = None
         if event_start_date is not None:
@@ -68,7 +70,7 @@ class LegistarClient:
         data = self._get("events", **queryparams)
         if not isinstance(data, list):
             raise LegistarError(f"get_events: expected list, got {type(data)}")
-        return [Event.parse_obj(d) for d in data]
+        return [EventAPISchema.parse_obj(d) for d in data]
 
     def get_event_dates_for_body(
         self,
@@ -87,12 +89,12 @@ class LegistarClient:
             raise LegistarError(f"get_event_dates: expected list, got {type(data)}")
         return [datetime.datetime.fromisoformat(d).date() for d in data]
 
-    def get_matter(self, matter_id: int) -> Matter:
+    def get_matter(self, matter_id: int) -> MatterAPISchema:
         """Get a matter by ID."""
         data = self._get(f"Matters/{matter_id}")
         if not isinstance(data, dict):
             raise LegistarError(f"get_matter: expected dict, got {type(data)}")
-        return Matter.parse_obj(data)
+        return MatterAPISchema.parse_obj(data)
 
     def get_matters(
         self,
@@ -102,7 +104,7 @@ class LegistarClient:
         body_id: int | None = None,
         agenda_start_date: datetime.date | None = None,
         agenda_end_date: datetime.date | None = None,
-    ) -> list[Matter]:
+    ) -> list[MatterAPISchema]:
         """Get all matters."""
         filter = None
         if body_id is not None:
@@ -119,4 +121,4 @@ class LegistarClient:
         data = self._get("Matters", **queryparams)
         if not isinstance(data, list):
             raise LegistarError(f"get_matters: expected list, got {type(data)}")
-        return [Matter.parse_obj(d) for d in data]
+        return [MatterAPISchema.parse_obj(d) for d in data]
