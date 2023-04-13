@@ -5,7 +5,7 @@ from functools import wraps
 import djclick as click
 from pydantic import BaseModel as PydanticBase
 
-from server.lib.legistar import LegistarCalendarCrawler, LegistarClient, LegistarScraper
+from server.legistar.lib import LegistarCalendarCrawler, LegistarClient, LegistarScraper
 
 
 def _common_params(func):
