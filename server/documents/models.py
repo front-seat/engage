@@ -1,59 +1,67 @@
-from django.db import models
-from pgvector.django import VectorField
+from __future__ import annotations
+
+import mimetypes
+import typing as t
+
+import requests
+from django.core.files.base import ContentFile
+from django.db import models, transaction
+from django.utils.text import slugify
 
 OPENAI_ADA_EMBEDDING_DIMENSIONS = 1536
 
 
-class Committee(models.TextChoices):
-    """Known committees as seen on seattle.legistar.com."""
-
-    COUNCIL = "Council", "City Council"
-    COUNCIL_BRIEFING = "Council Briefing", "Council Briefing"
-    ECONOMIC_DEVELOPMENT = (
-        "Economic Development",
-        "Economic Development, Technology, and City Light Committee",
-    )
-    FINANCE = "Finance", "Finance and Housing Committee"
-    GOVERNANCE = (
-        "Governance",
-        "Governance, Native Communities, and Tribal Governments Committee",
-    )
-    NEIGHBORHOODS = (
-        "Neighborhoods",
-        "Neighborhoods, Education, Civil Rights, and Culture Committee",
-    )
-    PUBLIC_ASSETS = "Public Assets", "Public Assets and Homelessness Committee"
-    PUBLIC_SAFETY = "Public Safety", "Public Safety and Human Services Committee"
-    SELECT_BUDGET = "Select Budget", "Select Budget Committee"
-    SELECT_2023_HOUSING_LEVY = (
-        "Select 2023 Housing Levy",
-        "Select Committee on the 2023 Housing Levy",
-    )
-    SELECT_LABOR = "Select Labor", "Select Committee on Labor"
-    SUSTAINABILITY = "Sustainability", "Sustainability and Renters' Rights Committee"
-    TRANSPORTATION = "Transportation", "Transportation and Seattle Public Utilities"
+def _load_url(url: str) -> tuple[bytes, str]:
+    """Load a document from a URL."""
+    response = requests.get(url)
+    response.raise_for_status()
+    return response.content, response.headers["Content-Type"]
 
 
-class DocumentKind(models.TextChoices):
-    """Known document types as seen on seattle.legistar.com."""
+class DocumentManager(models.Manager):
+    def get_or_create_from_url(
+        self,
+        url: str,
+        kind: str,
+        title: str,
+        loader: t.Callable[[str], tuple[bytes, str]] = _load_url,
+    ) -> tuple[Document, bool]:
+        """Get or create a document from a URL."""
+        # Don't use the default get_or_create() because we want to
+        # use the URL as the unique identifier and prevent loading the
+        # document from the URL if it already exists.
+        with transaction.atomic():
+            document = self.filter(url=url).first()
+            if document is not None:
+                return document, False
+            content, mime_type = loader(url)
+            extension = mimetypes.guess_extension(mime_type)
+            if extension is None:
+                raise ValueError(f"Unknown MIME type: {mime_type}")
+            content_file = ContentFile(content, name=f"{slugify(title)}{extension}")
+            document = self.create(
+                url=url,
+                title=title,
+                mime_type=mime_type,
+                kind=kind,
+                file=content_file,
+            )
+            return document, True
 
-    # Overall document types
-    AGENDA = "Agenda", "Agenda"
-    AGENDA_PACKET = "Agenda Packet", "Agenda Packet"
-    ORDINANCE_SUMMARY = "Ord Summary", "Ordinance Summary"
-    TRANSCRIPT = "Transcript", "Transcript"
+    def get_or_create_from_content(
+        self,
+        url: str,
+        kind: str,
+        title: str,
+        content: bytes,
+        mime_type: str,
+    ) -> tuple[Document, bool]:
+        """Get or create a document from a URL."""
 
-    # Legislative document types
-    APPOINTMENT = "Appt", "Appointment"
-    CLERK_FILE = "CF", "Clerk File"
-    COUNCIL_BILL = "CB", "Council Bill"
-    COUNCIL_BUDGET_ACTION = "CBA", "Council Budget Action"
-    INFORMATION_ITEM = "Inf", "Information Item"
-    INTRODUCTION_AND_REFERRAL_CALENDAR = "IRC", "Introduction and Referral Calendar"
-    MINUTES = "Min", "Minutes"
-    ORDINANCE = "Ord", "Ordinance"
-    RESOLUTION = "Res", "Resolution"
-    STATEMENT_OF_LEGISLATIVE_INTENT = "SLI", "Statement of Legislative Intent"
+        def _loader(_: str) -> tuple[bytes, str]:
+            return content, mime_type
+
+        return self.get_or_create_from_url(url, kind, title, _loader)
 
 
 class Document(models.Model):
@@ -61,43 +69,25 @@ class Document(models.Model):
     A single document downloaded from a source URL.
     """
 
-    created_at = models.DateTimeField(
-        auto_now_add=True,
-        editable=False,
-        help_text="The date and time this document was scraped.",
-    )
-    source_url = models.URLField(
-        help_text="The original URL where the document was found."
-    )
-    event_date = models.DateField(
-        help_text="The date of the event the document is about, if relevant.",
-        null=True,
-        blank=True,
-        db_index=True,
+    objects = DocumentManager()
+
+    url = models.URLField(
+        unique=True, help_text="The original URL where the document was found."
     )
     kind = models.CharField(
-        max_length=100,
-        choices=DocumentKind.choices,
-        help_text="The kind of document.",
+        max_length=255,
         db_index=True,
+        help_text="The kind of document.",
     )
-
+    title = models.CharField(max_length=255, help_text="The title of the document.")
+    mime_type = models.CharField(
+        max_length=255, help_text="The MIME type of the document."
+    )
     file = models.FileField(
         upload_to="documents",
-        help_text="The downloaded document, if any.",
-        null=True,
-        blank=True,
-        default=None,
-    )
-
-    text = models.TextField(
-        help_text="The extracted text of the document.",
-        blank=True,
-    )
-
-    embedding = VectorField(
-        OPENAI_ADA_EMBEDDING_DIMENSIONS, null=True, blank=True, default=None
+        help_text="The downloaded document.",
     )
 
     def __str__(self):
-        return f"{self.kind} ({self.event_date})"
+        return f"{self.kind}: {self.title}"
+        return f"{self.kind}: {self.title}"

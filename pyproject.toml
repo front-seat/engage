@@ -42,6 +42,7 @@ openai = "^0.27.4"
 pydantic = "^1.10.7"
 pyhumps = "^3.8.0"
 langchain = "^0.0.138"
+django-stubs = "^1.16.0"
 
 [tool.poetry.group.dev.dependencies]
 black = "^23.3.0"
