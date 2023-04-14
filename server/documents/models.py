@@ -90,4 +90,3 @@ class Document(models.Model):
 
     def __str__(self):
         return f"{self.kind}: {self.title}"
-        return f"{self.kind}: {self.title}"

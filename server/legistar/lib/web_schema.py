@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import datetime
 import urllib.parse
 
@@ -187,4 +189,6 @@ class ActionSchema(BaseSchema):
 
     def url(self, base_url: str) -> str:
         """The URL for the action."""
+        return f"{base_url}{self.relative_url}"
+        return f"{base_url}{self.relative_url}"
         return f"{base_url}{self.relative_url}"

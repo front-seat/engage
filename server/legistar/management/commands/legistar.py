@@ -1,11 +1,21 @@
 import datetime
 import json
+import sys
 from functools import wraps
 
 import djclick as click
 from pydantic import BaseModel as PydanticBase
 
-from server.legistar.lib import LegistarCalendarCrawler, LegistarClient, LegistarScraper
+from server.legistar.lib import (
+    ActionSchema,
+    CalendarSchema,
+    LegislationSchema,
+    LegistarCalendarCrawler,
+    LegistarClient,
+    LegistarScraper,
+    MeetingSchema,
+)
+from server.legistar.models import Action, Legislation, Meeting
 
 
 def _common_params(func):
@@ -368,15 +378,61 @@ def get_action(
     "--future-only", is_flag=True, help="Only return future events.", default=False
 )
 @click.option("--debug", is_flag=True, help="Print debug info.", default=False)
+@click.option(
+    "--db", is_flag=True, help="Update database, including attachments.", default=False
+)
 @_common_scraper_params
 def crawl_calendar(
     customer: str,
     lines: bool,
     future_only: bool,
+    db: bool,
     debug: bool,
 ):
     """Get all events."""
+
+    def _update_meeting_db(schema: MeetingSchema) -> None:
+        """Create or update meeting in database."""
+        meeting, created = Meeting.objects.update_or_create_from_schema(schema)
+        if debug:
+            verb = "created" if created else "updated"
+            print(
+                f">>>> DEBUG: Meeting {meeting.pk} ({meeting.legistar_id}) {verb}.",
+                file=sys.stderr,
+            )
+
+    def _update_legislation_db(schema: LegislationSchema) -> None:
+        """Create or update legislation in database."""
+        legislation, created = Legislation.objects.update_or_create_from_schema(schema)
+        if debug:
+            verb = "created" if created else "updated"
+            print(
+                f"Legislation {legislation.pk} ({legislation.legistar_id}) {verb}.",
+                file=sys.stderr,
+            )
+
+    def _update_action_db(schema: ActionSchema) -> None:
+        """Create or update action in database."""
+        action, created = Action.objects.update_or_create_from_schema(schema)
+        if debug:
+            verb = "created" if created else "updated"
+            print(f"Action {action.pk} ({action.legistar_id}) {verb}.", file=sys.stderr)
+
+    def _update_db(
+        item: CalendarSchema | MeetingSchema | LegislationSchema | ActionSchema,
+    ) -> None:
+        """Update the database."""
+        if isinstance(item, MeetingSchema):
+            _update_meeting_db(item)
+        elif isinstance(item, LegislationSchema):
+            _update_legislation_db(item)
+        elif isinstance(item, ActionSchema):
+            _update_action_db(item)
+        elif not isinstance(item, CalendarSchema):
+            raise ValueError(f"Unexpected item type: {type(item)}")
+
     crawler = LegistarCalendarCrawler(customer, future_only=future_only, debug=debug)
-    # Ignore `lines` param.
     for item in crawler.crawl():
-        _echo_response(item, lines=True)
+        _echo_response(item, lines)
+        if db:
+            _update_db(item)

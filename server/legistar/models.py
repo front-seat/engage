@@ -87,21 +87,21 @@ class MeetingManager(models.Manager):
         agenda_document, _ = Document.objects.get_or_create_from_url(
             url=schema.agenda.url,
             kind=LegistarDocumentKind.AGENDA,
-            title=f"meeting-{schema.id}-agenda-{schema.agenda.name}",
+            title=f"meeting-{schema.id}-agenda",
         )
         documents.append(agenda_document)
         if schema.agenda_packet:
             agenda_packet_document, _ = Document.objects.get_or_create_from_url(
                 url=schema.agenda_packet.url,
                 kind=LegistarDocumentKind.AGENDA_PACKET,
-                title=f"meeting-{schema.id}-packet-{schema.agenda_packet.name}",
+                title=f"meeting-{schema.id}-agenda_packet",
             )
             documents.append(agenda_packet_document)
         if schema.minutes:
             minutes_document, _ = Document.objects.get_or_create_from_url(
                 url=schema.minutes.url,
                 kind=LegistarDocumentKind.MINUTES,
-                title=f"meeting-{schema.id}-minutes-{schema.minutes.name}",
+                title=f"meeting-{schema.id}-minutes",
             )
             documents.append(minutes_document)
         for attachment in schema.attachments:
@@ -236,6 +236,8 @@ class LegislationManager(models.Manager):
 class Legislation(models.Model):
     """A single piece of legislation as found on the Legistar website."""
 
+    objects = LegislationManager()
+
     legistar_id = models.IntegerField(
         help_text="The ID of the legislation on the Legistar site."
     )
@@ -244,7 +246,7 @@ class Legislation(models.Model):
     )
 
     record_no = models.CharField(
-        max_length=255, help_text="The record number of the legislation."
+        db_index=True, max_length=255, help_text="The record number of the legislation."
     )
     type = models.CharField(max_length=255, help_text="The type of legislation.")
     status = models.CharField(
@@ -284,6 +286,11 @@ class Legislation(models.Model):
         """Return the supporting documents for the legislation."""
         return self.documents.filter(kind=LegistarDocumentKind.SUPPORTING_DOCUMENT)
 
+    @property
+    def actions(self) -> t.Iterable[Action]:
+        """Return the actions for the legislation."""
+        return Action.objects.filter(record_no=self.record_no)
+
     class Meta:
         verbose_name = "Legislation"
         verbose_name_plural = "Legislation"
@@ -296,15 +303,13 @@ class Legislation(models.Model):
 
 
 class ActionManager(models.Manager):
-    def update_or_create_from_schema(
-        self, legislation: Legislation, schema: ActionSchema
-    ) -> tuple[Action, bool]:
+    def update_or_create_from_schema(self, schema: ActionSchema) -> tuple[Action, bool]:
         """Update or create an action from a schema."""
         action, created = self.update_or_create(
             legistar_id=schema.id,
             legistar_guid=schema.guid,
             defaults={
-                "legislation": legislation,
+                "record_no": schema.record_no,
                 "schema_data": json.loads(schema.json()),
             },
         )
@@ -316,18 +321,17 @@ class Action(models.Model):
 
     objects = ActionManager()
 
-    legislation = models.ForeignKey(
-        "Legislation",
-        on_delete=models.CASCADE,
-        related_name="actions",
-        help_text="The legislation the action is associated with.",
-    )
-
     legistar_id = models.IntegerField(
         help_text="The ID of the action on the Legistar site."
     )
     legistar_guid = models.CharField(
         max_length=36, help_text="The GUID of the action on the Legistar site."
+    )
+
+    record_no = models.CharField(
+        db_index=True,
+        max_length=255,
+        help_text="The legislative record number of the action.",
     )
 
     schema_data = models.JSONField(default=dict, help_text="The raw schema data.")
@@ -346,6 +350,11 @@ class Action(models.Model):
     def schema_rows(self) -> list[ActionRowSchema]:
         """Return the rows of the action."""
         return self.schema.rows
+
+    @property
+    def legislation(self) -> Legislation | None:
+        """Return the legislation associated with the action."""
+        return Legislation.objects.filter(record_no=self.record_no).first()
 
     class Meta:
         verbose_name = "Action"
