@@ -4,6 +4,7 @@ import sys
 from functools import wraps
 
 import djclick as click
+from django.conf import settings
 from pydantic import BaseModel as PydanticBase
 
 from server.legistar.lib import (
@@ -375,9 +376,11 @@ def get_action(
 
 @main.command()
 @click.option(
-    "--future-only", is_flag=True, help="Only return future events.", default=False
+    "--start",
+    type=str,
+    help="Only return events on or after this date (YYYY-MM-DD or `today`).",
+    default=None,
 )
-@click.option("--debug", is_flag=True, help="Print debug info.", default=False)
 @click.option(
     "--db", is_flag=True, help="Update database, including attachments.", default=False
 )
@@ -385,38 +388,40 @@ def get_action(
 def crawl_calendar(
     customer: str,
     lines: bool,
-    future_only: bool,
+    start: str | None,
     db: bool,
-    debug: bool,
 ):
     """Get all events."""
 
     def _update_meeting_db(schema: MeetingSchema) -> None:
         """Create or update meeting in database."""
         meeting, created = Meeting.objects.update_or_create_from_schema(schema)
-        if debug:
+        if settings.VERBOSE:
             verb = "created" if created else "updated"
             print(
-                f">>>> DEBUG: Meeting {meeting.pk} ({meeting.legistar_id}) {verb}.",
+                f">>>> CRAWL: Meeting {meeting.pk} ({meeting.legistar_id}) {verb}.",
                 file=sys.stderr,
             )
 
     def _update_legislation_db(schema: LegislationSchema) -> None:
         """Create or update legislation in database."""
         legislation, created = Legislation.objects.update_or_create_from_schema(schema)
-        if debug:
+        if settings.VERBOSE:
             verb = "created" if created else "updated"
             print(
-                f"Legislation {legislation.pk} ({legislation.legistar_id}) {verb}.",
+                f">>>> CRAWL: Leg {legislation.pk} ({legislation.legistar_id}) {verb}.",
                 file=sys.stderr,
             )
 
     def _update_action_db(schema: ActionSchema) -> None:
         """Create or update action in database."""
         action, created = Action.objects.update_or_create_from_schema(schema)
-        if debug:
+        if settings.VERBOSE:
             verb = "created" if created else "updated"
-            print(f"Action {action.pk} ({action.legistar_id}) {verb}.", file=sys.stderr)
+            print(
+                f">>>> CRAWL: Act {action.pk} ({action.legistar_id}) {verb}.",
+                file=sys.stderr,
+            )
 
     def _update_db(
         item: CalendarSchema | MeetingSchema | LegislationSchema | ActionSchema,
@@ -431,7 +436,14 @@ def crawl_calendar(
         elif not isinstance(item, CalendarSchema):
             raise ValueError(f"Unexpected item type: {type(item)}")
 
-    crawler = LegistarCalendarCrawler(customer, future_only=future_only, debug=debug)
+    start_date: datetime.date | None = None
+    if start is not None:
+        if start.lower().strip() == "today":
+            start_date = datetime.date.today()
+        else:
+            start_date = datetime.datetime.strptime(start, "%Y-%m-%d").date()
+
+    crawler = LegistarCalendarCrawler(customer, start_date=start_date)
     for item in crawler.crawl():
         _echo_response(item, lines)
         if db:

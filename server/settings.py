@@ -11,6 +11,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = os.environ["SECRET_KEY"]
 DEBUG = os.environ.get("DEBUG", "NO") == "YES"
+VERBOSE = os.environ.get("VERBOSE", "NO") == "YES"
 
 ALLOWED_HOSTS = [
     host for host in os.environ.get("ALLOWED_HOSTS", "").split(",") if host

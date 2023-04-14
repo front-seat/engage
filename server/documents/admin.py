@@ -7,12 +7,12 @@ from .models import Document
 
 
 class DocumentAdmin(admin.ModelAdmin):
-    list_display = ("title", "kind", "view_file", "mime_type")
+    list_display = ("title", "kind", "link", "mime_type")
 
-    def view_file(self, obj):
+    def link(self, obj):
         return mark_safe(f'<a href="{obj.file.url}" target="_blank">View</a>')
 
-    view_file.allow_tags = True
+    link.allow_tags = True
 
 
 admin_site.register(Document, DocumentAdmin)

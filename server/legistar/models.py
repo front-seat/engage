@@ -3,6 +3,7 @@ from __future__ import annotations
 import datetime
 import json
 import typing as t
+import urllib.parse
 
 import requests
 from django.db import models
@@ -35,6 +36,7 @@ class LegistarDocumentKind:
     MINUTES = "minutes"
     ATTACHMENT = "attachment"
     SUPPORTING_DOCUMENT = "supporting_document"
+    FULL_TEXT = "full_text"
 
 
 class MeetingManager(models.Manager):
@@ -147,6 +149,11 @@ class Meeting(models.Model):
         return self.time is None
 
     @property
+    def is_active(self) -> bool:
+        """Whether the meeting has not been canceled."""
+        return not self.is_canceled
+
+    @property
     def agenda(self) -> Document:
         """Return the agenda document, if it exists."""
         return self.documents.get(kind=LegistarDocumentKind.AGENDA)
@@ -180,6 +187,11 @@ class Meeting(models.Model):
     def schema_rows(self) -> list[MeetingRowSchema]:
         """Return the rows of the meeting."""
         return self.schema.rows
+
+    @property
+    def url(self) -> str:
+        """Return the URL for the meeting."""
+        return self.schema.url
 
     class Meta:
         verbose_name = "Meeting"
@@ -229,6 +241,15 @@ class LegislationManager(models.Manager):
                 title=f"legislation-{schema.id}-supporting-{supporting_document.name}",
             )
             documents.append(supporting_document_document)
+        if schema.full_text is not None:
+            full_text_document, _ = Document.objects.get_or_create_from_content(
+                url=urllib.parse.urljoin(schema.url, "#FullTextDiv"),
+                kind=LegistarDocumentKind.FULL_TEXT,
+                title=f"legislation-{schema.id}-full",
+                content=schema.full_text.encode("utf-8"),
+                mime_type="text/plain",
+            )
+            documents.append(full_text_document)
         legislation.documents.set(documents)
         return legislation, created
 
@@ -252,7 +273,7 @@ class Legislation(models.Model):
     status = models.CharField(
         max_length=255, blank=True, help_text="The status of the legislation."
     )
-    title = models.CharField(max_length=255, help_text="The title of the legislation.")
+    title = models.TextField(help_text="The title of the legislation.")
     schema_data = models.JSONField(default=dict, help_text="The raw schema data.")
 
     documents = models.ManyToManyField(
@@ -290,6 +311,11 @@ class Legislation(models.Model):
     def actions(self) -> t.Iterable[Action]:
         """Return the actions for the legislation."""
         return Action.objects.filter(record_no=self.record_no)
+
+    @property
+    def url(self) -> str:
+        """Return the URL for the legislation."""
+        return self.schema.url
 
     class Meta:
         verbose_name = "Legislation"
@@ -355,6 +381,11 @@ class Action(models.Model):
     def legislation(self) -> Legislation | None:
         """Return the legislation associated with the action."""
         return Legislation.objects.filter(record_no=self.record_no).first()
+
+    @property
+    def url(self) -> str:
+        """Return the URL for the action."""
+        return self.schema.url
 
     class Meta:
         verbose_name = "Action"

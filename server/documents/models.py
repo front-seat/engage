@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import mimetypes
+import sys
 import typing as t
 
+import humanize
 import requests
+from django.conf import settings
 from django.core.files.base import ContentFile
 from django.db import models, transaction
 from django.utils.text import slugify
@@ -34,11 +37,21 @@ class DocumentManager(models.Manager):
             document = self.filter(url=url).first()
             if document is not None:
                 return document, False
+            if settings.VERBOSE:
+                print(f">>>> CRAWL: get_document({url})", file=sys.stderr)
             content, mime_type = loader(url)
             extension = mimetypes.guess_extension(mime_type)
             if extension is None:
                 raise ValueError(f"Unknown MIME type: {mime_type}")
-            content_file = ContentFile(content, name=f"{slugify(title)}{extension}")
+            file_name = f"{slugify(title)}{extension}"
+            content_file = ContentFile(content, name=file_name)
+            if settings.VERBOSE:
+                natural_size = humanize.naturalsize(len(content), format="%.0f")
+                print(
+                    f"         : {file_name} ({natural_size})",
+                    file=sys.stderr,
+                )
+
             document = self.create(
                 url=url,
                 title=title,

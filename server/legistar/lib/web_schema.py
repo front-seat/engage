@@ -81,8 +81,7 @@ class MeetingSchema(BaseSchema):
     """The /MeetingDetail.aspx page."""
 
     kind: str = "meeting"
-    id: int
-    guid: str
+    url: str  # the absolute URL for the meeting
     # like "Economic Development, Technology, and City Light Committee"
     department: Link
     agenda_status: str | None = None  # like "Final" or "Pending"
@@ -103,13 +102,19 @@ class MeetingSchema(BaseSchema):
         return self.time is None
 
     @property
-    def relative_url(self) -> str:
-        """The relative URL for the meeting."""
-        return f"/MeetingDetail.aspx?ID={self.id}&GUID={self.guid}"
+    def is_active(self) -> bool:
+        """Whether the meeting is active."""
+        return self.time is not None
 
-    def url(self, base_url: str) -> str:
-        """The URL for the action."""
-        return f"{base_url}{self.relative_url}"
+    @property
+    def id(self) -> int:
+        """The ID from the URL. If none is present, an exception is raised."""
+        return _id_from_url(self.url)
+
+    @property
+    def guid(self) -> str:
+        """The GUID from the URL. If none is present, an exception is raised."""
+        return _guid_from_url(self.url)
 
 
 class LegislationRowSchema(BaseSchema):
@@ -118,9 +123,9 @@ class LegislationRowSchema(BaseSchema):
     date: datetime.date
     version: int
     action_by: str  # like "City Clerk" or "Mayor" etc.
-    action: str  # like "attested by City Clerk", "Signed", etc.
+    action: str | None  # like "attested by City Clerk", "Signed", etc.
     result: str | None = None  # like "Pass", "Fail", etc.
-    action_details: Link  # a link to a /HistoryDetail.aspx page
+    action_details: Link | None  # a link to a /HistoryDetail.aspx page
     meeting: Link | None  # a link to a /MeetingDetail.aspx page
     video: Link | None  # for the city of Seattle, a seattlechannel.org URL
 
@@ -129,8 +134,7 @@ class LegislationSchema(BaseSchema):
     """The /Legislation.aspx page."""
 
     kind: str = "legislation"
-    id: int
-    guid: str
+    url: str  # the absolute URL for the legislation
     record_no: str  # like "CB 120537"
     version: int | None
     council_bill_no: str | None = None  # like "120537"
@@ -143,17 +147,21 @@ class LegislationSchema(BaseSchema):
     sponsors: list[Link]
     attachments: list[Link]
     supporting_documents: list[Link]
+    # for ordinances, etc, the full text of the legislation
+    # (not always available; not always complete)
+    full_text: str | None
 
     rows: list[LegislationRowSchema]
 
     @property
-    def relative_url(self) -> str:
-        """The relative URL for the legislation."""
-        return f"/LegislationDetail.aspx?ID={self.id}&GUID={self.guid}"
+    def id(self) -> int:
+        """The ID from the URL. If none is present, an exception is raised."""
+        return _id_from_url(self.url)
 
-    def url(self, base_url: str) -> str:
-        """The URL for the action."""
-        return f"{base_url}{self.relative_url}"
+    @property
+    def guid(self) -> str:
+        """The GUID from the URL. If none is present, an exception is raised."""
+        return _guid_from_url(self.url)
 
 
 class ActionRowSchema(BaseSchema):
@@ -167,8 +175,7 @@ class ActionSchema(BaseSchema):
     """The /HistoryDetail.aspx page."""
 
     kind: str = "action"
-    id: int
-    guid: str
+    url: str  # the absolute URL for the action
     record_no: str  # like "CB 120537" or "Inf 1960"
     version: int
     type: str  # like "Council Bill (CB)" or "Information Item (Inf)"
@@ -176,19 +183,18 @@ class ActionSchema(BaseSchema):
     result: str | None
     agenda_note: str | None
     minutes_note: str | None
-    action: str  # like "pass as amended", "confirm", "heard in committee", etc.
+    action: str | None  # like "pass as amended", "confirm", "heard in committee", etc.
     action_text: str | None  # like "council minutes were approved"
 
     # AKA votes
     rows: list[ActionRowSchema]
 
     @property
-    def relative_url(self) -> str:
-        """The relative URL for the action."""
-        return f"/HistoryDetail.aspx?ID={self.id}&GUID={self.guid}"
+    def id(self) -> int:
+        """The ID from the URL. If none is present, an exception is raised."""
+        return _id_from_url(self.url)
 
-    def url(self, base_url: str) -> str:
-        """The URL for the action."""
-        return f"{base_url}{self.relative_url}"
-        return f"{base_url}{self.relative_url}"
-        return f"{base_url}{self.relative_url}"
+    @property
+    def guid(self) -> str:
+        """The GUID from the URL. If none is present, an exception is raised."""
+        return _guid_from_url(self.url)
