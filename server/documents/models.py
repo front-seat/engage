@@ -298,3 +298,4 @@ class DocumentSummary(models.Model):
 
     class Meta:
         ordering = ["-summarized_at"]
+        verbose_name_plural = "Document summaries"

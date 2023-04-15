@@ -29,7 +29,7 @@ def single(pk: int, extractor: str, db: bool):
         click.echo(document_text.text)
         return
     with document.file.open("rb") as file:
-        text = run_extractor(extractor, document.mime_type, file)
+        text = run_extractor(name=extractor, io=file, mime_type=document.mime_type)
     click.echo(text)
 
 
