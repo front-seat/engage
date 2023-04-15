@@ -7,7 +7,7 @@ from langchain.docstore.document import Document
 from langchain.prompts import PromptTemplate
 from langchain.text_splitter import CharacterTextSplitter
 
-default_v1_prompt = """Write a charming, witty, and engaging summary of the following text, targeted at a highly educated layperson:
+default_v1_prompt = """Write a charming, concise, and engaging summary of the following text, targeted at a highly educated layperson:
 
 
 "{text}"
