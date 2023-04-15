@@ -13,6 +13,7 @@ from django.db import models, transaction
 from django.utils.text import slugify
 
 from .extract import run_extractor
+from .summarize import run_summarizer
 
 OPENAI_ADA_EMBEDDING_DIMENSIONS = 1536
 
@@ -135,7 +136,7 @@ class DocumentTextManager(models.Manager):
                 return document_text, False
             if settings.VERBOSE:
                 print(
-                    f">>>> EXTRACT: document_text({document}, {extractor_name})",
+                    f">>>> EXTRACT: document({document}, {extractor_name})",
                     file=sys.stderr,
                 )
             with document.file.open("rb") as file:
@@ -199,3 +200,101 @@ class DocumentText(models.Model):
 
     class Meta:
         ordering = ["-extracted_at"]
+
+
+class DocumentSummaryManager(models.Manager):
+    def filter_by_summarizer(self, summarizer_name: str):
+        return self.filter(extra__summarizer__name=summarizer_name)
+
+    def filter_by_document_text(self, document_text: DocumentText):
+        return self.filter(document_text=document_text)
+
+    def filter_by_document_text_and_summarizer(
+        self, document_text: DocumentText, summarizer_name: str
+    ):
+        return self.filter(
+            document_text=document_text, extra__summarizer__name=summarizer_name
+        )
+
+    def get_or_create_from_document_text(
+        self,
+        document_text: DocumentText,
+        summarizer_name: str,
+        summarizer_kwargs: dict[str, t.Any] | None = None,
+    ) -> tuple[DocumentSummary, bool]:
+        with transaction.atomic():
+            document_summary = self.filter_by_document_text_and_summarizer(
+                document_text, summarizer_name
+            ).first()
+            if document_summary is not None:
+                return document_summary, False
+            if settings.VERBOSE:
+                print(
+                    f">>>> SUMMARIZE: doc_text({document_text}, {summarizer_name})",
+                    file=sys.stderr,
+                )
+            summary = run_summarizer(
+                name=summarizer_name,
+                text=document_text.text,
+                **(summarizer_kwargs or {}),
+            )
+            document_summary = self.create(
+                document=document_text.document,
+                document_text=document_text,
+                extra={
+                    "summarizer": {
+                        "name": summarizer_name,
+                        "kwargs": summarizer_kwargs or {},
+                    }
+                },
+                summary=summary,
+            )
+            return document_summary, True
+
+
+class DocumentSummary(models.Model):
+    """The extracted summary of a document text."""
+
+    objects = DocumentSummaryManager()
+
+    summarized_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    extra = models.JSONField(default=dict, db_index=True, help_text="Extra data.")
+
+    summary = models.TextField(help_text="The summary of the document text.")
+
+    document = models.ForeignKey(
+        Document,
+        on_delete=models.CASCADE,
+        related_name="summaries",
+        help_text="The document this summary belongs to.",
+    )
+
+    document_text = models.ForeignKey(
+        DocumentText,
+        on_delete=models.CASCADE,
+        related_name="summaries",
+        help_text="The document text this summary belongs to.",
+    )
+
+    @property
+    def summarizer_name(self) -> str:
+        return self.extra["summarizer"]["name"]
+
+    @summarizer_name.setter
+    def summarizer_name(self, value: str):
+        self.extra["summarizer"] = {**self.extra.get("summarizer", {}), "name": value}
+
+    @property
+    def summarizer_kwargs(self) -> dict[str, t.Any]:
+        return self.extra["summarizer"].get("kwargs", {})
+
+    @summarizer_kwargs.setter
+    def summarizer_kwargs(self, value: dict[str, t.Any]):
+        self.extra["summarizer"] = {
+            **self.extra.get("summarizer", {}),
+            "kwargs": value,
+        }
+
+    class Meta:
+        ordering = ["-summarized_at"]

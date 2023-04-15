@@ -5,7 +5,7 @@ from nonrelated_inlines.admin import NonrelatedTabularInline
 from server.admin import admin_site
 from server.lib.admin import NoPermissionAdminMixin
 
-from .models import Document, DocumentText
+from .models import Document, DocumentSummary, DocumentText
 
 
 class NonrelatedDocumentTabularInline(NoPermissionAdminMixin, NonrelatedTabularInline):
@@ -32,7 +32,7 @@ class NonrelatedDocumentTabularInline(NoPermissionAdminMixin, NonrelatedTabularI
 
 class DocumentTextTabularInline(NoPermissionAdminMixin, admin.TabularInline):
     model = DocumentText
-    fields = ("extracted_at", "document", "extra", "short_text")
+    fields = ("extracted_at", "document", "short_text", "extra")
     readonly_fields = fields
     show_change_link = True
     extra = 0
@@ -43,11 +43,19 @@ class DocumentTextTabularInline(NoPermissionAdminMixin, admin.TabularInline):
     short_text.short_description = "Text"
 
 
+class DocumentSummaryTabularInline(NoPermissionAdminMixin, admin.TabularInline):
+    model = DocumentSummary
+    fields = ("summarized_at", "document", "summary", "extra")
+    readonly_fields = fields
+    show_change_link = True
+    extra = 0
+
+
 class DocumentAdmin(NoPermissionAdminMixin, admin.ModelAdmin):
     list_display = ("title", "kind", "link", "mime_type")
     fields = ("url_link", "kind", "title", "mime_type", "file")
     readonly_fields = fields
-    inlines = (DocumentTextTabularInline,)
+    inlines = (DocumentTextTabularInline, DocumentSummaryTabularInline)
 
     def url_link(self, obj):
         return mark_safe(f'<a href="{obj.url}" target="_blank">{obj.url}</a>')
@@ -62,10 +70,27 @@ class DocumentAdmin(NoPermissionAdminMixin, admin.ModelAdmin):
 
 
 class DocumentTextAdmin(NoPermissionAdminMixin, admin.ModelAdmin):
-    list_display = ("extracted_at", "document", "extra")
+    list_display = ("extracted_at", "document", "short_text", "extra")
     fields = ("extracted_at", "document", "extra", "text")
     readonly_fields = fields
+
+    def short_text(self, obj):
+        return obj.text[:100] + "..." if len(obj.text) > 100 else obj.text
+
+    short_text.short_description = "Text"
+
+
+class DocumentSummaryAdmin(NoPermissionAdminMixin, admin.ModelAdmin):
+    list_display = ("summarized_at", "document", "short_summary", "extra")
+    fields = ("summarized_at", "document", "extra", "summary")
+    readonly_fields = fields
+
+    def short_summary(self, obj):
+        return obj.summary[:100] + "..." if len(obj.summary) > 100 else obj.summary
+
+    short_summary.short_description = "Summary"
 
 
 admin_site.register(Document, DocumentAdmin)
 admin_site.register(DocumentText, DocumentTextAdmin)
+admin_site.register(DocumentSummary, DocumentSummaryAdmin)
