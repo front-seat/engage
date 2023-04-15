@@ -28,8 +28,8 @@ urlpatterns = [
 def _serve_force_utf8(request, path, document_root, show_indexes):
     """Serve a file from the document root, forcing UTF-8 encoding."""
     response = serve(request, path, document_root, show_indexes)
-    # XXX I'm not sure why I need to ignore the type here; I assume
-    # it's because the django stubs aren't quite complete here?
+    # CONSIDER: I'm not sure why I need to type: ignore these lines.
+    # I assume it's because the django stubs aren't quite complete here?
     if response.headers["Content-Type"] == "text/plain":  # type: ignore
         response.headers["Content-Type"] = "text/plain; charset=utf-8"  # type: ignore
     return response
