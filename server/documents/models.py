@@ -199,9 +199,3 @@ class DocumentText(models.Model):
 
     class Meta:
         ordering = ["-extracted_at"]
-        constraints = [
-            models.UniqueConstraint(
-                fields=["document", "extractor"],
-                name="unique_document_text",
-            )
-        ]
