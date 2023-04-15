@@ -1,6 +1,6 @@
 import djclick as click
 
-from server.documents.extract import EXTRACTOR_V1, run_extractor
+from server.documents.extract import EXTRACT_PIPELINE_V1, run_extractor
 from server.documents.models import Document, DocumentText
 
 
@@ -14,7 +14,7 @@ def main():
 
 @main.command()
 @click.argument("pk", type=int, required=True)
-@click.argument("extractor", type=str, default=EXTRACTOR_V1)
+@click.argument("extractor", type=str, default=EXTRACT_PIPELINE_V1)
 @click.option("--db", is_flag=True, default=False)
 def single(pk: int, extractor: str, db: bool):
     """Extract text from a single document."""
@@ -31,7 +31,7 @@ def single(pk: int, extractor: str, db: bool):
 
 
 @main.command()
-@click.argument("extractor", type=str, default=EXTRACTOR_V1)
+@click.argument("extractor", type=str, default=EXTRACT_PIPELINE_V1)
 @click.option("--db", is_flag=True, default=False)
 def all(extractor: str, db: bool):
     """Extract text from all documents that don't yet have it."""
