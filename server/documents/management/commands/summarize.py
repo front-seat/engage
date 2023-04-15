@@ -18,8 +18,20 @@ def main():
 @main.command()
 @click.argument("pk", type=int, required=True)
 @click.argument("summarizer", type=str, default=SUMMARIZE_PIPELINE_V1)
+@click.option("--temperature", type=float, default=None, required=False)
+@click.option("--map-prompt", type=str, default=None, required=False)
+@click.option("--combine-prompt", type=str, default=None, required=False)
+@click.option("--prompt", type=str, default=None, required=False)
 @click.option("--db", is_flag=True, default=False)
-def single(pk: int, summarizer: str, db: bool):
+def single(
+    pk: int,
+    summarizer: str,
+    db: bool,
+    temperature: float | None = None,
+    map_prompt: str | None = None,
+    combine_prompt: str | None = None,
+    prompt: str | None = None,
+):
     """Summarize text from a single document."""
     # XXX for now, select the latest text. This should be improved.
     document_text = DocumentText.objects.filter(document_id=pk).first()
@@ -34,7 +46,18 @@ def single(pk: int, summarizer: str, db: bool):
         )
         click.echo(document_summary.summary)
         return
-    summary = run_summarizer(summarizer, document_text.text)
+    summarizer_kwargs = {}
+    if temperature is not None:
+        summarizer_kwargs["temperature"] = temperature
+    if prompt is not None:
+        summarizer_kwargs["map_prompt"] = prompt.replace("\\n", "\n")
+        summarizer_kwargs["combine_prompt"] = prompt.replace("\\n", "\n")
+    else:
+        if map_prompt is not None:
+            summarizer_kwargs["map_prompt"] = map_prompt.replace("\\n", "\n")
+        if combine_prompt is not None:
+            summarizer_kwargs["combine_prompt"] = combine_prompt.replace("\\n", "\n")
+    summary = run_summarizer(summarizer, document_text.text, **summarizer_kwargs)
     click.echo(summary)
 
 
