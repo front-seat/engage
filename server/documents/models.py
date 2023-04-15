@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import io
 import mimetypes
 import sys
 import typing as t
@@ -10,6 +11,8 @@ from django.conf import settings
 from django.core.files.base import ContentFile
 from django.db import models, transaction
 from django.utils.text import slugify
+
+from .extract import run_extractor
 
 OPENAI_ADA_EMBEDDING_DIMENSIONS = 1536
 
@@ -103,3 +106,65 @@ class Document(models.Model):
 
     def __str__(self):
         return f"{self.kind}: {self.title}"
+
+
+class DocumentTextManager(models.Manager):
+    def get_or_create_from_document(
+        self,
+        document: Document,
+        extractor: str,
+    ) -> tuple[DocumentText, bool]:
+        """Get or create a document text from a document."""
+        # Don't use the default get_or_create() because we want to
+        # use the document and extractor as the unique identifier.
+        with transaction.atomic():
+            document_text = self.filter(document=document, extractor=extractor).first()
+            if document_text is not None:
+                return document_text, False
+            if settings.VERBOSE:
+                print(
+                    f">>>> EXTRACT: document_text({document}, {extractor})",
+                    file=sys.stderr,
+                )
+            with document.file.open("rb") as file:
+                text = run_extractor(
+                    extractor, document.mime_type, t.cast(io.BytesIO, file)
+                )
+            document_text = self.create(
+                document=document,
+                extractor=extractor,
+                text=text,
+            )
+            return document_text, True
+
+
+class DocumentText(models.Model):
+    """The extracted content of a document."""
+
+    objects = DocumentTextManager()
+
+    extracted_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    extractor = models.CharField(
+        max_length=255, help_text="Description of the extractor used."
+    )
+
+    document = models.ForeignKey(
+        Document,
+        on_delete=models.CASCADE,
+        related_name="texts",
+        help_text="The document this text belongs to.",
+    )
+    text = models.TextField(help_text="The text content of the document.")
+
+    def __str__(self):
+        return f"Extracted text: {self.document}"
+
+    class Meta:
+        ordering = ["-extracted_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["document", "extractor"],
+                name="unique_document_text",
+            )
+        ]

@@ -5,7 +5,7 @@ from nonrelated_inlines.admin import NonrelatedTabularInline
 from server.admin import admin_site
 from server.lib.admin import NoPermissionAdminMixin
 
-from .models import Document
+from .models import Document, DocumentText
 
 
 class NonrelatedDocumentTabularInline(NoPermissionAdminMixin, NonrelatedTabularInline):
@@ -30,10 +30,24 @@ class NonrelatedDocumentTabularInline(NoPermissionAdminMixin, NonrelatedTabularI
         return obj.title.split("-")[-1]
 
 
+class DocumentTextTabularInline(NoPermissionAdminMixin, admin.TabularInline):
+    model = DocumentText
+    fields = ("extracted_at", "document", "extractor", "short_text")
+    readonly_fields = fields
+    show_change_link = True
+    extra = 0
+
+    def short_text(self, obj):
+        return obj.text[:255] + "..." if len(obj.text) > 100 else obj.text
+
+    short_text.short_description = "Text"
+
+
 class DocumentAdmin(NoPermissionAdminMixin, admin.ModelAdmin):
     list_display = ("title", "kind", "link", "mime_type")
     fields = ("url_link", "kind", "title", "mime_type", "file")
     readonly_fields = fields
+    inlines = (DocumentTextTabularInline,)
 
     def url_link(self, obj):
         return mark_safe(f'<a href="{obj.url}" target="_blank">{obj.url}</a>')
@@ -47,4 +61,11 @@ class DocumentAdmin(NoPermissionAdminMixin, admin.ModelAdmin):
     link.allow_tags = True
 
 
+class DocumentTextAdmin(NoPermissionAdminMixin, admin.ModelAdmin):
+    list_display = ("extracted_at", "document", "extractor")
+    fields = ("extracted_at", "document", "extractor", "text")
+    readonly_fields = fields
+
+
 admin_site.register(Document, DocumentAdmin)
+admin_site.register(DocumentText, DocumentTextAdmin)
