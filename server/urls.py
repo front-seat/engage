@@ -14,9 +14,32 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
-from django.contrib import admin
+from django.conf import settings
 from django.urls import path
+from django.views.static import serve
+
+from .admin import admin_site
 
 urlpatterns = [
-    path("admin/", admin.site.urls),
+    path("admin/", admin_site.urls),
 ]
+
+
+def _serve_force_utf8(request, path, document_root, show_indexes):
+    """Serve a file from the document root, forcing UTF-8 encoding."""
+    response = serve(request, path, document_root, show_indexes)
+    # CONSIDER: I'm not sure why I need to type: ignore these lines.
+    # I assume it's because the django stubs aren't quite complete here?
+    if response.headers.get("Content-Type") == "text/plain":  # type: ignore
+        response.headers["Content-Type"] = "text/plain; charset=utf-8"  # type: ignore
+    return response
+
+
+if settings.DEBUG:
+    urlpatterns += [
+        path(
+            "media/<path:path>",
+            _serve_force_utf8,
+            {"document_root": settings.MEDIA_ROOT, "show_indexes": True},
+        ),
+    ]

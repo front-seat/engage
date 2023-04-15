@@ -1,7 +1,7 @@
 import os
-import dj_database_url
-
 from pathlib import Path
+
+import dj_database_url
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -11,6 +11,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = os.environ["SECRET_KEY"]
 DEBUG = os.environ.get("DEBUG", "NO") == "YES"
+VERBOSE = os.environ.get("VERBOSE", "NO") == "YES"
 
 ALLOWED_HOSTS = [
     host for host in os.environ.get("ALLOWED_HOSTS", "").split(",") if host
@@ -42,6 +43,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "server.legistar",
     "server.documents",
 ]
 
@@ -98,6 +100,14 @@ LANGUAGE_CODE = "en-us"
 TIME_ZONE = "UTC"
 USE_I18N = True
 USE_TZ = True
+
+
+# --------------------------------------------------------------------
+# OpenAI & AI services config
+# --------------------------------------------------------------------
+
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+OPENAI_ORGANIZATION = os.environ.get("OPENAI_ORGANIZATION")
 
 
 # --------------------------------------------------------------------

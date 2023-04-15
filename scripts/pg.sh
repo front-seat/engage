@@ -15,7 +15,8 @@ createsuperuser() {
 }
 
 up() {
-    docker run --name pg-engage -p 5432:5432 -e POSTGRES_PASSWORD=password -e POSTGRES_USER=user -d postgres:15
+    # engage! requires the pgvector extension
+    docker run --name pg-engage -p 5432:5432 -e POSTGRES_PASSWORD=password -e POSTGRES_USER=user -d ankane/pgvector:latest
     sleep 5
     migrate
     createsuperuser
