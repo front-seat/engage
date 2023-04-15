@@ -109,30 +109,50 @@ class Document(models.Model):
 
 
 class DocumentTextManager(models.Manager):
+    def filter_by_extractor(self, extractor_name: str):
+        return self.filter(extra__extractor__name=extractor_name)
+
+    def filter_by_document(self, document: Document):
+        return self.filter(document=document)
+
+    def filter_by_document_and_extractor(self, document: Document, extractor_name: str):
+        return self.filter(document=document, extra__extractor__name=extractor_name)
+
     def get_or_create_from_document(
         self,
         document: Document,
-        extractor: str,
+        extractor_name: str,
+        extractor_kwargs: dict[str, t.Any] | None = None,
     ) -> tuple[DocumentText, bool]:
         """Get or create a document text from a document."""
         # Don't use the default get_or_create() because we want to
         # use the document and extractor as the unique identifier.
         with transaction.atomic():
-            document_text = self.filter(document=document, extractor=extractor).first()
+            document_text = self.filter_by_document_and_extractor(
+                document, extractor_name
+            ).first()
             if document_text is not None:
                 return document_text, False
             if settings.VERBOSE:
                 print(
-                    f">>>> EXTRACT: document_text({document}, {extractor})",
+                    f">>>> EXTRACT: document_text({document}, {extractor_name})",
                     file=sys.stderr,
                 )
             with document.file.open("rb") as file:
                 text = run_extractor(
-                    extractor, document.mime_type, t.cast(io.BytesIO, file)
+                    name=extractor_name,
+                    io=t.cast(io.BytesIO, file),
+                    mime_type=document.mime_type,
+                    **(extractor_kwargs or {}),
                 )
             document_text = self.create(
                 document=document,
-                extractor=extractor,
+                extra={
+                    "extractor": {
+                        "name": extractor_name,
+                        "kwargs": extractor_kwargs or {},
+                    }
+                },
                 text=text,
             )
             return document_text, True
@@ -145,9 +165,26 @@ class DocumentText(models.Model):
 
     extracted_at = models.DateTimeField(auto_now_add=True, db_index=True)
 
-    extractor = models.CharField(
-        max_length=255, help_text="Description of the extractor used."
-    )
+    extra = models.JSONField(default=dict, db_index=True, help_text="Extra data.")
+
+    @property
+    def extractor_name(self) -> str:
+        return self.extra["extractor"]["name"]
+
+    @extractor_name.setter
+    def extractor_name(self, value: str):
+        self.extra["extractor"] = {**self.extra.get("extractor", {}), "name": value}
+
+    @property
+    def extractor_kwargs(self) -> dict[str, t.Any]:
+        return self.extra["extractor"].get("kwargs", {})
+
+    @extractor_kwargs.setter
+    def extractor_kwargs(self, value: dict[str, t.Any]):
+        self.extra["extractor"] = {
+            **self.extra.get("extractor", {}),
+            "kwargs": value,
+        }
 
     document = models.ForeignKey(
         Document,
@@ -158,7 +195,7 @@ class DocumentText(models.Model):
     text = models.TextField(help_text="The text content of the document.")
 
     def __str__(self):
-        return f"Extracted text: {self.document}"
+        return f"Extracted text of: {self.document}"
 
     class Meta:
         ordering = ["-extracted_at"]

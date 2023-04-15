@@ -32,7 +32,7 @@ class NonrelatedDocumentTabularInline(NoPermissionAdminMixin, NonrelatedTabularI
 
 class DocumentTextTabularInline(NoPermissionAdminMixin, admin.TabularInline):
     model = DocumentText
-    fields = ("extracted_at", "document", "extractor", "short_text")
+    fields = ("extracted_at", "document", "extra", "short_text")
     readonly_fields = fields
     show_change_link = True
     extra = 0
@@ -62,8 +62,8 @@ class DocumentAdmin(NoPermissionAdminMixin, admin.ModelAdmin):
 
 
 class DocumentTextAdmin(NoPermissionAdminMixin, admin.ModelAdmin):
-    list_display = ("extracted_at", "document", "extractor")
-    fields = ("extracted_at", "document", "extractor", "text")
+    list_display = ("extracted_at", "document", "extra")
+    fields = ("extracted_at", "document", "extra", "text")
     readonly_fields = fields
 
 

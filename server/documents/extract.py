@@ -123,23 +123,34 @@ def extract_pdf_plumber_v1(io: io.BytesIO) -> str:
         return "\n".join(texts)
 
 
-EXTRACTOR_V1 = "engage-extractor-1"
+def extract_pipeline_v1(io: io.BytesIO, mime_type: str, **kwargs: t.Any) -> str:
+    """Extract text from a document using a pipeline of extractors. v1."""
+    if mime_type == "application/pdf":
+        return extract_pdf_plumber_v1(io)
+    elif mime_type == "text/plain":
+        return extract_text_v1(io)
+    else:
+        raise ValueError(f"Unrecognized MIME type {mime_type}.")
 
 
-Extractor: t.TypeAlias = t.Callable[[io.BytesIO], str]
-EXTRACTORS: dict[str, dict[str, Extractor]] = {
-    EXTRACTOR_V1: {
-        "text/plain": extract_text_v1,
-        "application/pdf": extract_pdf_plumber_v1,
-    },
+EXTRACT_PIPELINE_V1 = "extract-pipeline-v1"
+
+
+class ExtractorCallable(t.Protocol):
+    def __call__(self, io: io.BytesIO, mime_type: str, **kwargs: t.Any) -> str:
+        ...
+
+
+EXTRACTORS: dict[str, ExtractorCallable] = {
+    EXTRACT_PIPELINE_V1: extract_pipeline_v1,
 }
 
 
-def get_extractor(version: str, mime_type: str) -> Extractor:
+def get_extractor(name: str) -> ExtractorCallable:
     """Get an extractor for a given MIME type and version."""
-    return EXTRACTORS[version][mime_type]
+    return EXTRACTORS[name]
 
 
-def run_extractor(version: str, mime_type: str, io: io.BytesIO) -> str:
+def run_extractor(name: str, io: io.BytesIO, mime_type: str, **kwargs: t.Any) -> str:
     """Run the extractor for a given MIME type and version."""
-    return EXTRACTORS[version][mime_type](io)
+    return EXTRACTORS[name](io, mime_type, **kwargs)

@@ -42,10 +42,10 @@ def all(extractor: str, db: bool):
     for document in documents_without:
         if db:
             document_text, _ = DocumentText.objects.get_or_create_from_document(
-                document, extractor
+                document, extractor_name=extractor
             )
             click.echo(document_text.text)
             continue
         with document.file.open("rb") as file:
-            text = run_extractor(extractor, document.mime_type, file)
+            text = run_extractor(name=extractor, io=file, mime_type=document.mime_type)
         click.echo(text)
