@@ -208,6 +208,10 @@ class Meeting(models.Model):
         """Return the legislations associated with the meeting."""
         return Legislation.objects.filter(record_no__in=self.record_nos)
 
+    def __str__(self):
+        time_or_cancel = self.time or "canceled"
+        return f"Meeting: {self.schema.department.name} {self.date} @ {time_or_cancel}"
+
     class Meta:
         verbose_name = "Meeting"
         verbose_name_plural = "Meetings"
@@ -298,6 +302,11 @@ class Legislation(models.Model):
     )
 
     @property
+    def documents_qs(self) -> models.QuerySet:
+        """Return the documents queryset."""
+        return self.documents.all()
+
+    @property
     def schema(self) -> LegislationSchema:
         """Return the schema data for the legislation."""
         return LegislationSchema.parse_obj(self.schema_data)
@@ -323,7 +332,7 @@ class Legislation(models.Model):
         return self.documents.filter(kind=LegistarDocumentKind.SUPPORTING_DOCUMENT)
 
     @property
-    def actions(self) -> t.Iterable[Action]:
+    def actions(self):
         """Return the actions for the legislation."""
         return Action.objects.filter(record_no=self.record_no)
 
@@ -331,6 +340,14 @@ class Legislation(models.Model):
     def url(self) -> str:
         """Return the URL for the legislation."""
         return self.schema.url
+
+    @property
+    def truncated_title(self) -> str:
+        """Return the truncated title for the legislation."""
+        return self.title[:48] + "..." if len(self.title) > 48 else self.title
+
+    def __str__(self):
+        return f"Legislation: {self.record_no} - {self.truncated_title}"
 
     class Meta:
         verbose_name = "Legislation"

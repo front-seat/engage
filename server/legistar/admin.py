@@ -6,11 +6,14 @@ from nonrelated_inlines.admin import NonrelatedTabularInline
 
 from server.admin import admin_site
 from server.documents.admin import NonrelatedDocumentTabularInline
+from server.lib.admin import NoPermissionAdminMixin
 
 from .models import Action, Legislation, Meeting
 
 
-class NonrelatedLegislationTabularInline(NonrelatedTabularInline):
+class NonrelatedLegislationTabularInline(
+    NoPermissionAdminMixin, NonrelatedTabularInline
+):
     model = Legislation
     fields = ("record_no", "type", "title", "status", "link")
     readonly_fields = fields
@@ -20,20 +23,38 @@ class NonrelatedLegislationTabularInline(NonrelatedTabularInline):
     def get_form_queryset(self, meeting: Meeting):
         return meeting.legislations
 
-    def has_add_permission(self, request, obj=None) -> bool:
-        return False
-
-    def has_delete_permission(self, request, obj=None) -> bool:
-        return False
-
-    def has_change_permission(self, request, obj=None) -> bool:
-        return False
-
-    def has_view_permission(self, request, obj=None) -> bool:
-        return True
-
     def link(self, legislation: Legislation):
         return mark_safe(f'<a href="{legislation.url}" target="_blank">View</a>')
+
+    link.allow_tags = True
+
+
+class NonrelatedActionTabularInline(NoPermissionAdminMixin, NonrelatedTabularInline):
+    model = Action
+    fields = ("title", "result", "action", "link")
+    readonly_fields = fields
+    show_change_link = True
+    extra = 0
+
+    def get_form_queryset(self, obj):
+        return obj.actions
+
+    def title(self, action: Action):
+        # Truncate to 32 characters
+        return (
+            action.schema.title[:32] + "..."
+            if len(action.schema.title) > 32
+            else action.schema.title
+        )
+
+    def result(self, action: Action):
+        return action.schema.result or ""
+
+    def action(self, action: Action):
+        return action.schema.action or ""
+
+    def link(self, action: Action):
+        return mark_safe(f'<a href="{action.url}" target="_blank">View</a>')
 
     link.allow_tags = True
 
@@ -97,14 +118,17 @@ class DepartmentNameListFilter(admin.SimpleListFilter):
             return queryset.filter(schema_data__department__name=self.value())
 
 
-class MeetingAdmin(admin.ModelAdmin):
+class MeetingAdmin(NoPermissionAdminMixin, admin.ModelAdmin):
     list_display = ("department_name", "date", "time", "location", "active", "link")
     fields = (
+        "department_name",
         "legistar_id",
         "legistar_guid",
         "date",
         "time",
         "location",
+        "active",
+        "link",
     )
     readonly_fields = fields
     list_filter = (
@@ -128,9 +152,19 @@ class MeetingAdmin(admin.ModelAdmin):
     link.allow_tags = True
 
 
-class LegislationAdmin(admin.ModelAdmin):
+class LegislationAdmin(NoPermissionAdminMixin, admin.ModelAdmin):
     list_display = ("record_no", "type", "title", "status", "link")
-    readonly_fields = ("schema_data", "documents")
+    fields = (
+        "legistar_id",
+        "legistar_guid",
+        "record_no",
+        "type",
+        "status",
+        "title",
+        "link",
+    )
+    readonly_fields = fields
+    inlines = (NonrelatedDocumentTabularInline, NonrelatedActionTabularInline)
 
     def link(self, obj):
         return mark_safe(f'<a href="{obj.url}" target="_blank">View</a>')
@@ -138,7 +172,7 @@ class LegislationAdmin(admin.ModelAdmin):
     link.allow_tags = True
 
 
-class ActionAdmin(admin.ModelAdmin):
+class ActionAdmin(NoPermissionAdminMixin, admin.ModelAdmin):
     list_display = ("record_no", "title", "link")
     readonly_fields = ("schema_data",)
 

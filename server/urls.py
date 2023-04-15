@@ -30,7 +30,7 @@ def _serve_force_utf8(request, path, document_root, show_indexes):
     response = serve(request, path, document_root, show_indexes)
     # CONSIDER: I'm not sure why I need to type: ignore these lines.
     # I assume it's because the django stubs aren't quite complete here?
-    if response.headers["Content-Type"] == "text/plain":  # type: ignore
+    if response.headers.get("Content-Type") == "text/plain":  # type: ignore
         response.headers["Content-Type"] = "text/plain; charset=utf-8"  # type: ignore
     return response
 
