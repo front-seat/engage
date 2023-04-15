@@ -47,6 +47,7 @@ markdownify = "^0.11.6"
 pdfplumber = "^0.9.0"
 django-nonrelated-inlines = "^0.2"
 lxml = "^4.9.2"
+tiktoken = "^0.3.3"
 
 [tool.poetry.group.dev.dependencies]
 black = "^23.3.0"

@@ -22,7 +22,7 @@ def main():
 def single(pk: int, summarizer: str, db: bool):
     """Summarize text from a single document."""
     # XXX for now, select the latest text. This should be improved.
-    document_text = DocumentText.objects.filter(document_id=pk).latest()
+    document_text = DocumentText.objects.filter(document_id=pk).first()
     if document_text is None:
         raise click.ClickException(
             "No extracted text found for document. Run extract first."

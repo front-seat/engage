@@ -1,8 +1,8 @@
 import typing as t
 
 from django.conf import settings
-from langchain import OpenAI
 from langchain.chains.summarize import load_summarize_chain
+from langchain.chat_models import ChatOpenAI
 from langchain.docstore.document import Document
 from langchain.text_splitter import CharacterTextSplitter
 
@@ -12,18 +12,20 @@ def summarize_langchain_v1(
     temperature: float = 0.2,
     model_name: str = "gpt-3.5-turbo",
     chain_type: str = "map_reduce",
+    chunk_size: int = 3584,
     **kwargs: t.Any,
 ) -> str:
     """Summarize text using langchain and openAI. v1."""
     if settings.OPENAI_API_KEY is None:
         raise ValueError("OPENAI_API_KEY is not set.")
-    llm = OpenAI(
+    llm = ChatOpenAI(
         client=None,  # XXX langchain type hints are busted; shouldn't be needed
         temperature=temperature,
         model_name=model_name,
+        openai_organization=settings.OPENAI_ORGANIZATION,
         openai_api_key=settings.OPENAI_API_KEY,
     )
-    text_splitter = CharacterTextSplitter(text)
+    text_splitter = CharacterTextSplitter(chunk_size=chunk_size)
     texts = text_splitter.split_text(text)
     documents = [Document(page_content=text) for text in texts]
     chain = load_summarize_chain(llm, chain_type=chain_type)
