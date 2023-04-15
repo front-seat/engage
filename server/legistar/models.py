@@ -144,6 +144,11 @@ class Meeting(models.Model):
     )
 
     @property
+    def documents_qs(self) -> models.QuerySet:
+        """Return the documents associated with the meeting."""
+        return self.documents.all()
+
+    @property
     def is_canceled(self) -> bool:
         """Whether the meeting has been canceled."""
         return self.time is None
@@ -192,6 +197,16 @@ class Meeting(models.Model):
     def url(self) -> str:
         """Return the URL for the meeting."""
         return self.schema.url
+
+    @property
+    def record_nos(self) -> t.Iterable[str]:
+        """Return the record numbers for the meeting."""
+        return {row.legislation.name for row in self.schema_rows}
+
+    @property
+    def legislations(self) -> t.Iterable[Legislation]:
+        """Return the legislations associated with the meeting."""
+        return Legislation.objects.filter(record_no__in=self.record_nos)
 
     class Meta:
         verbose_name = "Meeting"
