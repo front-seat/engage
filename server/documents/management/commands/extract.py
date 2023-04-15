@@ -1,4 +1,7 @@
+import sys
+
 import djclick as click
+from django.conf import settings
 
 from server.documents.extract import EXTRACT_PIPELINE_V1, run_extractor
 from server.documents.models import Document, DocumentText
@@ -46,6 +49,10 @@ def all(extractor: str, db: bool):
             )
             click.echo(document_text.text)
             continue
+
+        if settings.VERBOSE:
+            print(f">>>> EXTRACT [nodb]: doc({document}, {extractor})", file=sys.stderr)
+
         with document.file.open("rb") as file:
             text = run_extractor(name=extractor, io=file, mime_type=document.mime_type)
         click.echo(text)
