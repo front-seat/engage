@@ -468,7 +468,7 @@ def pipeline():
 @pipeline.command()
 @click.argument("pk", type=int, required=True)
 @click.argument("pipeline", type=str, default=MEETING_PIPELINE_V1)
-def summarize_meeting(pk: int):
+def summarize_meeting(pk: int, pipeline: str):
     """Summarize a meeting."""
     meeting = Meeting.objects.get(pk=pk)
     meeting_summary, _ = MeetingSummary.objects.get_or_create_from_meeting(
