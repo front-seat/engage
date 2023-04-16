@@ -24,7 +24,7 @@ from .models import Legislation, LegislationSummary, LegistarDocumentKind, Meeti
 # ---------------------------------------------------------------------
 
 
-MEETING_UNIFIED_SUMMARY_PROMPT_V1 = """The following is a set of descriptions of legislative actions on the agenda for an upcoming city councile meeting. Write a charming, concise, and engaging summary of the agenda. Target your summary at a highly educated layperson. Try to highlight the most impactful agenda items; it's okay to drop less important ones (like, for example, appointments to the local film commission) if there isn't enough space to include them all.
+MEETING_UNIFIED_SUMMARY_PROMPT_V1 = """The following is a set of descriptions of legislative actions on the agenda for an upcoming city council meeting. Write a charming, concise, and engaging summary of the agenda. Target your summary at a highly educated layperson. Try to highlight the most impactful agenda items; it's okay to drop less important ones (like, for example, appointments to the local film commission) if there isn't enough space to include them all.
 
 "{text}"
 
@@ -117,6 +117,13 @@ def run_meeting_pipeline(name: str, meeting: Meeting, **kwargs: t.Any) -> str:
 # ---------------------------------------------------------------------
 
 
+LEGISLATION_UNIFIED_SUMMARY_PROMPT_V1 = """The following is a set of descriptions of documents related to a single legislation action taken by a large city council. Write a charming, concise, and engaging summary of the legislative effort, which is titled "<<title>>". Target your summary at a highly educated layperson. Try to highlight the most impactful agenda items; it's okay to drop less important ones (like, for example, appointments to the local film commission) if there isn't enough space to include them all.
+
+"{text}"
+
+ENGAGING_CITY_COUNCIL_LEGISLATIVE_ACTION_SUMMARY:"""  # noqa: E501
+
+
 def summarize_legislation_document_v1(
     legislation: Legislation, document: Document
 ) -> DocumentSummary:
@@ -147,7 +154,23 @@ def summarize_legislation_v1(legislation: Legislation, **kwargs: t.Any) -> str:
             file=sys.stderr,
         )
     joined_summaries = "\n\n".join([ds.summary for ds in document_summaries])
-    unified_summary = run_summarizer(SUMMARIZE_PIPELINE_V1, joined_summaries)
+    # XXX do something smarter here!
+    mid_length_title = (
+        legislation.title[:100] + "..."
+        if len(legislation.title) > 100
+        else legislation.title
+    )
+    mid_length_title = mid_length_title.replace('"', "'")
+    prompt = LEGISLATION_UNIFIED_SUMMARY_PROMPT_V1.replace(
+        "<<title>>", mid_length_title
+    )
+    # XXX figure out how to send multiple variables through a chain
+    unified_summary = run_summarizer(
+        SUMMARIZE_PIPELINE_V1,
+        joined_summaries,
+        map_prompt=prompt,
+        combine_prompt=prompt,
+    )
     return unified_summary
 
 
