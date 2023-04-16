@@ -32,6 +32,9 @@ def summarize_langchain_v1(
     """Summarize text using langchain and openAI. v1."""
     if settings.OPENAI_API_KEY is None:
         raise ValueError("OPENAI_API_KEY is not set.")
+    # XXX figure out how to handle this more gracefully
+    if not text.strip():
+        return "(no summary available)"
     llm = ChatOpenAI(
         client=None,  # XXX langchain type hints are busted; shouldn't be needed
         temperature=temperature,
@@ -41,6 +44,14 @@ def summarize_langchain_v1(
     )
     text_splitter = CharacterTextSplitter(chunk_size=chunk_size)
     texts = text_splitter.split_text(text)
+    text_lengths = [len(text) for text in texts]
+    if any(text_length > chunk_size for text_length in text_lengths):
+        text_splitter = CharacterTextSplitter("\n", chunk_size=chunk_size)
+        texts = text_splitter.split_text(text)
+        text_lengths = [len(text) for text in texts]
+        if any(text_length > chunk_size for text_length in text_lengths):
+            raise ValueError("Unable to split text into small enough chunks.")
+
     documents = [Document(page_content=text) for text in texts]
     map_prompt_template = (
         PromptTemplate(template=map_prompt, input_variables=["text"])

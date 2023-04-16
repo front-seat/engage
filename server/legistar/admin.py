@@ -127,7 +127,15 @@ class MeetingSummaryTabularInline(NoPermissionAdminMixin, admin.TabularInline):
 
 
 class MeetingAdmin(NoPermissionAdminMixin, admin.ModelAdmin):
-    list_display = ("department_name", "date", "time", "location", "active", "link")
+    list_display = (
+        "department_name",
+        "date",
+        "time",
+        "location",
+        "active",
+        "latest_summary",
+        "link",
+    )
     fields = (
         "department_name",
         "legistar_id",
@@ -162,6 +170,16 @@ class MeetingAdmin(NoPermissionAdminMixin, admin.ModelAdmin):
         return mark_safe(f'<a href="{obj.url}" target="_blank">View</a>')
 
     link.allow_tags = True
+
+    def latest_summary(self, obj):
+        meeting_summary = obj.summaries.first()
+        if meeting_summary is None:
+            return ""
+        return (
+            meeting_summary.summary[:256] + "..."
+            if len(meeting_summary.summary) > 256
+            else meeting_summary.summary
+        )
 
 
 class MeetingSummaryAdmin(NoPermissionAdminMixin, admin.ModelAdmin):

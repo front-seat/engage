@@ -24,11 +24,11 @@ from .models import Legislation, LegislationSummary, LegistarDocumentKind, Meeti
 # ---------------------------------------------------------------------
 
 
-MEETING_UNIFIED_SUMMARY_PROMPT_V1 = """The following is a set of descriptions of legislative actions on the agenda for an upcoming city council meeting. Write a charming, concise, and engaging summary of the agenda. Target your summary at a highly educated layperson. Try to highlight the most impactful agenda items; it's okay to drop less important ones (like, for example, appointments to the local film commission) if there isn't enough space to include them all.
+MEETING_UNIFIED_SUMMARY_PROMPT_V1 = """The following is a set of descriptions of legislative actions on the agenda for an upcoming <<department>> meeting. Write a charming, concise, and engaging summary of the agenda. Target your summary at a highly educated layperson. Try to highlight the most impactful agenda items; it's okay to drop less important ones (like, for example, appointments to the local film commission) if there isn't enough space to include them all, and try not to repeat yourself too much.
 
 "{text}"
 
-ENGAGING_CITY_COUNCIL_AGENDA_SUMMARY:"""  # noqa: E501
+ENGAGING_AGENDA_SUMMARY:"""  # noqa: E501
 
 
 def summarize_meeting_document_v1(
@@ -82,11 +82,14 @@ def summarize_meeting_v1(meeting: Meeting, **kwargs: t.Any) -> str:
             file=sys.stderr,
         )
     joined_summaries = "\n\n".join(all_texts)
+    final_prompt = MEETING_UNIFIED_SUMMARY_PROMPT_V1.replace(
+        "<<department>>", meeting.schema.department.name
+    )
     unified_summary = run_summarizer(
         SUMMARIZE_PIPELINE_V1,
         joined_summaries,
-        map_prompt=MEETING_UNIFIED_SUMMARY_PROMPT_V1,
-        combine_prompt=MEETING_UNIFIED_SUMMARY_PROMPT_V1,
+        map_prompt=final_prompt,
+        combine_prompt=final_prompt,
     )
     return unified_summary
 
