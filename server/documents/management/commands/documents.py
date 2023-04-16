@@ -3,19 +3,79 @@ import sys
 import djclick as click
 from django.conf import settings
 
+from server.documents.extract import EXTRACT_PIPELINE_V1, run_extractor
 from server.documents.models import Document, DocumentSummary, DocumentText
 from server.documents.summarize import SUMMARIZE_PIPELINE_V1, run_summarizer
 
 
 @click.group(invoke_without_command=True)
 def main():
-    """Summarize text from documents."""
+    """Manipulate stored documents."""
     context = click.get_current_context()
     if context.invoked_subcommand is None:
         click.echo(context.get_help())
 
 
-@main.command()
+@main.group(invoke_without_command=True)
+def extract():
+    """Extract text from documents."""
+    context = click.get_current_context()
+    if context.invoked_subcommand is None:
+        click.echo(context.get_help())
+
+
+@extract.command(name="single")
+@click.argument("pk", type=int, required=True)
+@click.argument("extractor", type=str, default=EXTRACT_PIPELINE_V1)
+@click.option("--db", is_flag=True, default=False)
+def extract_single(pk: int, extractor: str, db: bool):
+    """Extract text from a single document."""
+    document = Document.objects.get(pk=pk)
+    if db:
+        document_text, _ = DocumentText.objects.get_or_create_from_document(
+            document, extractor
+        )
+        click.echo(document_text.text)
+        return
+    with document.file.open("rb") as file:
+        text = run_extractor(name=extractor, io=file, mime_type=document.mime_type)
+    click.echo(text)
+
+
+@extract.command(name="all")
+@click.argument("extractor", type=str, default=EXTRACT_PIPELINE_V1)
+@click.option("--db", is_flag=True, default=False)
+def extract_all(extractor: str, db: bool):
+    """Extract text from all documents that don't yet have it."""
+    documents_with = DocumentText.objects.filter(extractor=extractor).values_list(
+        "document_id", flat=True
+    )
+    documents_without = Document.objects.exclude(pk__in=documents_with)
+    for document in documents_without:
+        if db:
+            document_text, _ = DocumentText.objects.get_or_create_from_document(
+                document, extractor_name=extractor
+            )
+            click.echo(document_text.text)
+            continue
+
+        if settings.VERBOSE:
+            print(f">>>> EXTRACT [nodb]: doc({document}, {extractor})", file=sys.stderr)
+
+        with document.file.open("rb") as file:
+            text = run_extractor(name=extractor, io=file, mime_type=document.mime_type)
+        click.echo(text)
+
+
+@main.group(invoke_without_command=True)
+def summarize():
+    """Summarize extracted document text."""
+    context = click.get_current_context()
+    if context.invoked_subcommand is None:
+        click.echo(context.get_help())
+
+
+@summarize.command(name="single")
 @click.argument("pk", type=int, required=True)
 @click.argument("summarizer", type=str, default=SUMMARIZE_PIPELINE_V1)
 @click.option("--temperature", type=float, default=None, required=False)
@@ -23,7 +83,7 @@ def main():
 @click.option("--combine-prompt", type=str, default=None, required=False)
 @click.option("--prompt", type=str, default=None, required=False)
 @click.option("--db", is_flag=True, default=False)
-def single(
+def summarize_single(
     pk: int,
     summarizer: str,
     db: bool,
@@ -61,10 +121,10 @@ def single(
     click.echo(summary)
 
 
-@main.command()
+@summarize.command(name="all")
 @click.argument("summarizer", type=str, default=SUMMARIZE_PIPELINE_V1)
 @click.option("--db", is_flag=True, default=False)
-def all(summarizer: str, db: bool):
+def summarize_all(summarizer: str, db: bool):
     """Summarize text from all documents that don't yet have it."""
     documents_with = DocumentSummary.objects.filter(summarizer=summarizer).values_list(
         "document_id", flat=True

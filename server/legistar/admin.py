@@ -8,7 +8,7 @@ from server.admin import admin_site
 from server.documents.admin import NonrelatedDocumentTabularInline
 from server.lib.admin import NoPermissionAdminMixin
 
-from .models import Action, Legislation, Meeting
+from .models import Action, Legislation, LegislationSummary, Meeting, MeetingSummary
 
 
 class NonrelatedLegislationTabularInline(
@@ -118,8 +118,24 @@ class DepartmentNameListFilter(admin.SimpleListFilter):
             return queryset.filter(schema_data__department__name=self.value())
 
 
+class MeetingSummaryTabularInline(NoPermissionAdminMixin, admin.TabularInline):
+    model = MeetingSummary
+    fields = ("created_at", "summary", "extra")
+    readonly_fields = fields
+    show_change_link = True
+    extra = 0
+
+
 class MeetingAdmin(NoPermissionAdminMixin, admin.ModelAdmin):
-    list_display = ("department_name", "date", "time", "location", "active", "link")
+    list_display = (
+        "department_name",
+        "date",
+        "time",
+        "location",
+        "active",
+        "latest_summary",
+        "link",
+    )
     fields = (
         "department_name",
         "legistar_id",
@@ -136,7 +152,11 @@ class MeetingAdmin(NoPermissionAdminMixin, admin.ModelAdmin):
         UpcomingMeetingListFilter,
         DepartmentNameListFilter,
     )
-    inlines = (NonrelatedDocumentTabularInline, NonrelatedLegislationTabularInline)
+    inlines = (
+        MeetingSummaryTabularInline,
+        NonrelatedDocumentTabularInline,
+        NonrelatedLegislationTabularInline,
+    )
 
     def department_name(self, obj):
         return obj.schema.department.name
@@ -151,6 +171,31 @@ class MeetingAdmin(NoPermissionAdminMixin, admin.ModelAdmin):
 
     link.allow_tags = True
 
+    def latest_summary(self, obj):
+        meeting_summary = obj.summaries.first()
+        if meeting_summary is None:
+            return ""
+        return (
+            meeting_summary.summary[:256] + "..."
+            if len(meeting_summary.summary) > 256
+            else meeting_summary.summary
+        )
+
+
+class MeetingSummaryAdmin(NoPermissionAdminMixin, admin.ModelAdmin):
+    list_display = ("created_at", "meeting", "summary", "extra")
+    fields = ("created_at", "meeting", "summary", "extra")
+    readonly_fields = fields
+    show_change_link = True
+
+
+class LegislationSummaryTabularInline(NoPermissionAdminMixin, admin.TabularInline):
+    model = LegislationSummary
+    fields = ("created_at", "summary", "extra")
+    readonly_fields = fields
+    show_change_link = True
+    extra = 0
+
 
 class LegislationAdmin(NoPermissionAdminMixin, admin.ModelAdmin):
     list_display = ("record_no", "type", "title", "status", "link")
@@ -164,12 +209,22 @@ class LegislationAdmin(NoPermissionAdminMixin, admin.ModelAdmin):
         "link",
     )
     readonly_fields = fields
-    inlines = (NonrelatedDocumentTabularInline, NonrelatedActionTabularInline)
+    inlines = (
+        LegislationSummaryTabularInline,
+        NonrelatedDocumentTabularInline,
+        NonrelatedActionTabularInline,
+    )
 
     def link(self, obj):
         return mark_safe(f'<a href="{obj.url}" target="_blank">View</a>')
 
     link.allow_tags = True
+
+
+class LegislationSummaryAdmin(NoPermissionAdminMixin, admin.ModelAdmin):
+    list_display = ("created_at", "legislation", "summary", "extra")
+    fields = ("created_at", "legislation", "summary", "extra")
+    readonly_fields = fields
 
 
 class ActionAdmin(NoPermissionAdminMixin, admin.ModelAdmin):
@@ -188,3 +243,5 @@ class ActionAdmin(NoPermissionAdminMixin, admin.ModelAdmin):
 admin_site.register(Meeting, MeetingAdmin)
 admin_site.register(Legislation, LegislationAdmin)
 admin_site.register(Action, ActionAdmin)
+admin_site.register(MeetingSummary, MeetingSummaryAdmin)
+admin_site.register(LegislationSummary, LegislationSummaryAdmin)

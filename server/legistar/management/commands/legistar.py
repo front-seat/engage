@@ -16,7 +16,14 @@ from server.legistar.lib import (
     LegistarScraper,
     MeetingSchema,
 )
-from server.legistar.models import Action, Legislation, Meeting
+from server.legistar.models import (
+    Action,
+    Legislation,
+    LegislationSummary,
+    Meeting,
+    MeetingSummary,
+)
+from server.legistar.pipelines import LEGISLATION_PIPELINE_V1, MEETING_PIPELINE_V1
 
 
 def _common_params(func):
@@ -448,3 +455,35 @@ def crawl_calendar(
         _echo_response(item, lines)
         if db:
             _update_db(item)
+
+
+@main.group(invoke_without_command=True)
+def pipeline():
+    """Run a pipeline on legistar data."""
+    context = click.get_current_context()
+    if context.invoked_subcommand is None:
+        click.echo(context.get_help())
+
+
+@pipeline.command()
+@click.argument("pk", type=int, required=True)
+@click.argument("pipeline", type=str, default=MEETING_PIPELINE_V1)
+def summarize_meeting(pk: int, pipeline: str):
+    """Summarize a meeting."""
+    meeting = Meeting.objects.get(pk=pk)
+    meeting_summary, _ = MeetingSummary.objects.get_or_create_from_meeting(
+        meeting, pipeline
+    )
+    click.echo(meeting_summary.summary)
+
+
+@pipeline.command()
+@click.argument("pk", type=int, required=True)
+@click.argument("pipeline", type=str, default=LEGISLATION_PIPELINE_V1)
+def summarize_legislation(pk: int, pipeline: str):
+    """Summarize a legislation item."""
+    legislation = Legislation.objects.get(pk=pk)
+    legislation_summary, _ = LegislationSummary.objects.get_or_create_from_legislation(
+        legislation, pipeline
+    )
+    click.echo(legislation_summary.summary)

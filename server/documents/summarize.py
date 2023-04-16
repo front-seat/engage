@@ -7,15 +7,15 @@ from langchain.docstore.document import Document
 from langchain.prompts import PromptTemplate
 from langchain.text_splitter import CharacterTextSplitter
 
-default_v1_prompt = """Write a charming, witty, and engaging summary of the following text, targeted at a highly educated layperson:
+DEFAULT_V1_PROMPT = """Write a charming, concise, and engaging summary of the following text. Target your summary at a highly educated layperson:
 
 
 "{text}"
 
 
 ENGAGING_SUMMARY:"""  # noqa: E501
-default_v1_prompt_template = PromptTemplate(
-    template=default_v1_prompt, input_variables=["text"]
+DEFAULT_V1_PROMPT_TEMPLATE = PromptTemplate(
+    template=DEFAULT_V1_PROMPT, input_variables=["text"]
 )
 
 
@@ -32,6 +32,9 @@ def summarize_langchain_v1(
     """Summarize text using langchain and openAI. v1."""
     if settings.OPENAI_API_KEY is None:
         raise ValueError("OPENAI_API_KEY is not set.")
+    # XXX figure out how to handle this more gracefully
+    if not text.strip():
+        return "(no summary available)"
     llm = ChatOpenAI(
         client=None,  # XXX langchain type hints are busted; shouldn't be needed
         temperature=temperature,
@@ -41,16 +44,24 @@ def summarize_langchain_v1(
     )
     text_splitter = CharacterTextSplitter(chunk_size=chunk_size)
     texts = text_splitter.split_text(text)
+    text_lengths = [len(text) for text in texts]
+    if any(text_length > chunk_size for text_length in text_lengths):
+        text_splitter = CharacterTextSplitter("\n", chunk_size=chunk_size)
+        texts = text_splitter.split_text(text)
+        text_lengths = [len(text) for text in texts]
+        if any(text_length > chunk_size for text_length in text_lengths):
+            raise ValueError("Unable to split text into small enough chunks.")
+
     documents = [Document(page_content=text) for text in texts]
     map_prompt_template = (
         PromptTemplate(template=map_prompt, input_variables=["text"])
         if map_prompt
-        else default_v1_prompt_template
+        else DEFAULT_V1_PROMPT_TEMPLATE
     )
     combine_prompt_template = (
         PromptTemplate(template=combine_prompt, input_variables=["text"])
         if combine_prompt
-        else default_v1_prompt_template
+        else DEFAULT_V1_PROMPT_TEMPLATE
     )
     chain = load_summarize_chain(
         llm,
