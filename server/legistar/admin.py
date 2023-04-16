@@ -120,15 +120,10 @@ class DepartmentNameListFilter(admin.SimpleListFilter):
 
 class MeetingSummaryTabularInline(NoPermissionAdminMixin, admin.TabularInline):
     model = MeetingSummary
-    fields = ("created_at", "meeting_str", "summary", "extra")
+    fields = ("created_at", "summary", "extra")
     readonly_fields = fields
     show_change_link = True
     extra = 0
-
-    def meeting_str(self, obj):
-        return str(obj.legislation)
-
-    meeting_str.short_description = "Meeting"
 
 
 class MeetingAdmin(NoPermissionAdminMixin, admin.ModelAdmin):
@@ -149,7 +144,11 @@ class MeetingAdmin(NoPermissionAdminMixin, admin.ModelAdmin):
         UpcomingMeetingListFilter,
         DepartmentNameListFilter,
     )
-    inlines = (NonrelatedDocumentTabularInline, NonrelatedLegislationTabularInline)
+    inlines = (
+        MeetingSummaryTabularInline,
+        NonrelatedDocumentTabularInline,
+        NonrelatedLegislationTabularInline,
+    )
 
     def department_name(self, obj):
         return obj.schema.department.name
@@ -174,15 +173,10 @@ class MeetingSummaryAdmin(NoPermissionAdminMixin, admin.ModelAdmin):
 
 class LegislationSummaryTabularInline(NoPermissionAdminMixin, admin.TabularInline):
     model = LegislationSummary
-    fields = ("created_at", "legislation_str", "summary", "extra")
+    fields = ("created_at", "summary", "extra")
     readonly_fields = fields
     show_change_link = True
     extra = 0
-
-    def legislation_str(self, obj):
-        return str(obj.legislation)
-
-    legislation_str.short_description = "Legislation"
 
 
 class LegislationAdmin(NoPermissionAdminMixin, admin.ModelAdmin):
