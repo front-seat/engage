@@ -6,7 +6,7 @@ import typing as t
 import urllib.parse
 
 import requests
-from django.db import models, transaction
+from django.db import models
 
 from server.documents.models import Document
 
@@ -249,26 +249,24 @@ class MeetingSummaryManager(models.Manager):
         # CONSIDER: circular nonsense
         from .pipelines import run_meeting_pipeline
 
-        with transaction.atomic():
-            summary = self.filter_by_meeting_and_pipeline(
-                meeting, pipeline_name
-            ).first()
-            if summary is not None:
-                return summary, False
-            summary_text = run_meeting_pipeline(
-                name=pipeline_name, meeting=meeting, **(pipeline_kwargs or {})
-            )
-            summary = self.create(
-                meeting=meeting,
-                summary=summary_text,
-                extra={
-                    "pipeline": {
-                        "name": pipeline_name,
-                        "kwargs": (pipeline_kwargs or {}),
-                    }
-                },
-            )
-            return summary, True
+        # CONSIDER: this is not atomic.
+        summary = self.filter_by_meeting_and_pipeline(meeting, pipeline_name).first()
+        if summary is not None:
+            return summary, False
+        summary_text = run_meeting_pipeline(
+            name=pipeline_name, meeting=meeting, **(pipeline_kwargs or {})
+        )
+        summary = self.create(
+            meeting=meeting,
+            summary=summary_text,
+            extra={
+                "pipeline": {
+                    "name": pipeline_name,
+                    "kwargs": (pipeline_kwargs or {}),
+                }
+            },
+        )
+        return summary, True
 
 
 class MeetingSummary(models.Model):
@@ -480,26 +478,26 @@ class LegislationSummaryManager(models.Manager):
         # CONSIDER: circular nonsense
         from .pipelines import run_legislation_pipeline
 
-        with transaction.atomic():
-            summary = self.filter_by_legislation_and_pipeline(
-                legislation, pipeline_name
-            ).first()
-            if summary is not None:
-                return summary, False
-            summary_text = run_legislation_pipeline(
-                name=pipeline_name, legislation=legislation, **(pipeline_kwargs or {})
-            )
-            summary = self.create(
-                legislation=legislation,
-                summary=summary_text,
-                extra={
-                    "pipeline": {
-                        "name": pipeline_name,
-                        "kwargs": (pipeline_kwargs or {}),
-                    }
-                },
-            )
-            return summary, True
+        # CONSIDER: this is not atomic
+        summary = self.filter_by_legislation_and_pipeline(
+            legislation, pipeline_name
+        ).first()
+        if summary is not None:
+            return summary, False
+        summary_text = run_legislation_pipeline(
+            name=pipeline_name, legislation=legislation, **(pipeline_kwargs or {})
+        )
+        summary = self.create(
+            legislation=legislation,
+            summary=summary_text,
+            extra={
+                "pipeline": {
+                    "name": pipeline_name,
+                    "kwargs": (pipeline_kwargs or {}),
+                }
+            },
+        )
+        return summary, True
 
 
 class LegislationSummary(models.Model):
