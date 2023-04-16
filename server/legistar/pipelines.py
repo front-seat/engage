@@ -9,7 +9,7 @@ from server.documents.models import Document, DocumentSummary, DocumentText
 from server.documents.summarize import SUMMARIZE_PIPELINE_V1, run_summarizer
 
 # CONSIDER: circular nonsense here, since .models imports this module.
-from .models import Legislation, LegistarDocumentKind, Meeting
+from .models import Legislation, LegislationSummary, LegistarDocumentKind, Meeting
 
 # CONSIDER: this is obviously not the final boss form. What do we really
 # want to do here? -Dave
@@ -60,13 +60,20 @@ def summarize_meeting_v1(meeting: Meeting, **kwargs: t.Any) -> str:
         document_summaries.append(summarize_meeting_document_v1(meeting, document))
 
     # Make sure we've summarized each piece of associated legislation.
-    leg_pipeline = get_legislation_pipeline(LEGISLATION_PIPELINE_V1)
-    leg_summaries = []
+    legislation_summaries = []
     for legislation in meeting.legislations:
-        leg_summaries.append(leg_pipeline(legislation))
+        (
+            legislation_summary,
+            _,
+        ) = LegislationSummary.objects.get_or_create_from_legislation(
+            legislation, LEGISLATION_PIPELINE_V1
+        )
+        legislation_summaries.append(legislation_summary)
 
     # Now summarize that in totality + add the extra meeting document_summaries.
-    document_summaries.extend(leg_summaries)
+    document_summary_texts = [ds.summary for ds in document_summaries]
+    summary_texts = [ls.summary for ls in legislation_summaries]
+    all_texts = summary_texts + document_summary_texts
 
     # Run a summarizer over the text of all the document summaries.
     if settings.VERBOSE:
@@ -74,7 +81,7 @@ def summarize_meeting_v1(meeting: Meeting, **kwargs: t.Any) -> str:
             f">>>> SUMMARIZE: meeting({meeting}) - joining leg + meeting summaries",
             file=sys.stderr,
         )
-    joined_summaries = "\n\n".join([ds.summary for ds in document_summaries])
+    joined_summaries = "\n\n".join(all_texts)
     unified_summary = run_summarizer(
         SUMMARIZE_PIPELINE_V1,
         joined_summaries,
