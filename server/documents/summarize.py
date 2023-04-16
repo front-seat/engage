@@ -7,15 +7,15 @@ from langchain.docstore.document import Document
 from langchain.prompts import PromptTemplate
 from langchain.text_splitter import CharacterTextSplitter
 
-default_v1_prompt = """Write a charming, concise, and engaging summary of the following text. Target your summary at a highly educated layperson:
+DEFAULT_V1_PROMPT = """Write a charming, concise, and engaging summary of the following text. Target your summary at a highly educated layperson:
 
 
 "{text}"
 
 
 ENGAGING_SUMMARY:"""  # noqa: E501
-default_v1_prompt_template = PromptTemplate(
-    template=default_v1_prompt, input_variables=["text"]
+DEFAULT_V1_PROMPT_TEMPLATE = PromptTemplate(
+    template=DEFAULT_V1_PROMPT, input_variables=["text"]
 )
 
 
@@ -45,12 +45,12 @@ def summarize_langchain_v1(
     map_prompt_template = (
         PromptTemplate(template=map_prompt, input_variables=["text"])
         if map_prompt
-        else default_v1_prompt_template
+        else DEFAULT_V1_PROMPT_TEMPLATE
     )
     combine_prompt_template = (
         PromptTemplate(template=combine_prompt, input_variables=["text"])
         if combine_prompt
-        else default_v1_prompt_template
+        else DEFAULT_V1_PROMPT_TEMPLATE
     )
     chain = load_summarize_chain(
         llm,

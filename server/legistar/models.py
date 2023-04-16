@@ -6,7 +6,7 @@ import typing as t
 import urllib.parse
 
 import requests
-from django.db import models
+from django.db import models, transaction
 
 from server.documents.models import Document
 
@@ -224,6 +224,100 @@ class Meeting(models.Model):
         ]
 
 
+class MeetingSummaryManager(models.Manager):
+    """A manager for meeting summaries."""
+
+    def filter_by_pipeline(self, pipeline_name: str):
+        """Filter by the pipeline name."""
+        return self.filter(extra__pipeline__name=pipeline_name)
+
+    def filter_by_meeting(self, meeting: Meeting):
+        """Filter by the meeting."""
+        return self.filter(meeting=meeting)
+
+    def filter_by_meeting_and_pipeline(self, meeting: Meeting, pipeline_name: str):
+        """Filter by the meeting and pipeline name."""
+        return self.filter(meeting=meeting, extra__pipeline__name=pipeline_name)
+
+    def get_or_create_from_meeting(
+        self,
+        meeting: Meeting,
+        pipeline_name: str,
+        pipeline_kwargs: dict[str, t.Any] | None = None,
+    ) -> tuple[MeetingSummary, bool]:
+        # CONSIDER: *so* very similar to LegislationSummaryManager
+        # CONSIDER: circular nonsense
+        from .pipelines import run_meeting_pipeline
+
+        with transaction.atomic():
+            summary = self.filter_by_meeting_and_pipeline(
+                meeting, pipeline_name
+            ).first()
+            if summary is not None:
+                return summary, False
+            summary_text = run_meeting_pipeline(
+                name=pipeline_name, meeting=meeting, **(pipeline_kwargs or {})
+            )
+            summary = self.create(
+                meeting=meeting,
+                summary=summary_text,
+                extra={
+                    "pipeline": {
+                        "name": pipeline_name,
+                        "kwargs": (pipeline_kwargs or {}),
+                    }
+                },
+            )
+            return summary, True
+
+
+class MeetingSummary(models.Model):
+    """A summary of a meeting."""
+
+    objects = MeetingSummaryManager()
+
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    meeting = models.ForeignKey(
+        Meeting,
+        on_delete=models.CASCADE,
+        related_name="summaries",
+        help_text="The summarized meeting.",
+    )
+
+    summary = models.TextField(help_text="The summary of the meeting.")
+
+    extra = models.JSONField(default=dict, db_index=True, help_text="Extra data.")
+
+    @property
+    def pipeline_name(self) -> str:
+        """Return the name of the pipeline."""
+        return self.extra["pipeline"]["name"]
+
+    @pipeline_name.setter
+    def pipeline_name(self, value: str):
+        """Set the name of the pipeline."""
+        self.extra["pipeline"] = {**self.extra.get("pipeline", {}), "name": value}
+
+    @property
+    def pipeline_kwargs(self) -> dict:
+        """Return the kwargs of the pipeline."""
+        return self.extra["pipeline"]["kwargs"]
+
+    @pipeline_kwargs.setter
+    def pipeline_kwargs(self, value: dict):
+        """Set the kwargs of the pipeline."""
+        self.extra["pipeline"] = {**self.extra.get("pipeline", {}), "kwargs": value}
+
+    def __str__(self):
+        return f"Meeting Summary: {self.meeting}"
+
+    class Meta:
+        verbose_name = "Meeting Summary"
+        verbose_name_plural = "Meeting Summaries"
+        ordering = ["-created_at"]
+
+
 class LegislationManager(models.Manager):
     """A custom manager for Legislation objects."""
 
@@ -358,6 +452,98 @@ class Legislation(models.Model):
                 name="unique_legislation_legistar_id_guid",
             ),
         ]
+
+
+class LegislationSummaryManager(models.Manager):
+    def filter_by_pipeline(self, pipeline_name: str) -> models.QuerySet:
+        """Return the query set filtered by the pipeline."""
+        return self.filter(extra__pipeline__name=pipeline_name)
+
+    def filter_by_legislation(self, legislation: Legislation):
+        """Return the query set filtered by the legislation."""
+        return self.filter(legislation=legislation)
+
+    def filter_by_legislation_and_pipeline(
+        self, legislation: Legislation, pipeline_name: str
+    ):
+        """Return the query set filtered by the legislation and pipeline."""
+        return self.filter(legislation=legislation, extra__pipeline__name=pipeline_name)
+
+    def get_or_create_from_legislation(
+        self,
+        legislation: Legislation,
+        pipeline_name: str,
+        pipeline_kwargs: dict[str, t.Any] | None = None,
+    ) -> tuple[LegislationSummary, bool]:
+        """Get or create a legislation summary from the legislation."""
+        # CONSIDER: so very similar to MeetingSummaryManager
+        # CONSIDER: circular nonsense
+        from .pipelines import run_legislation_pipeline
+
+        with transaction.atomic():
+            summary = self.filter_by_legislation_and_pipeline(
+                legislation, pipeline_name
+            ).first()
+            if summary is not None:
+                return summary, False
+            summary_text = run_legislation_pipeline(
+                name=pipeline_name, legislation=legislation, **(pipeline_kwargs or {})
+            )
+            summary = self.create(
+                legislation=legislation,
+                summary=summary_text,
+                extra={
+                    "pipeline": {
+                        "name": pipeline_name,
+                        "kwargs": (pipeline_kwargs or {}),
+                    }
+                },
+            )
+            return summary, True
+
+
+class LegislationSummary(models.Model):
+    """A summary of legislation as found on the Legistar website."""
+
+    objects = LegislationSummaryManager()
+
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    legislation = models.ForeignKey(
+        Legislation,
+        on_delete=models.CASCADE,
+        related_name="summaries",
+        help_text="The legislation that the summary is for.",
+    )
+
+    summary = models.TextField(help_text="The summary of the legislation.")
+
+    extra = models.JSONField(default=dict, db_index=True, help_text="Extra data.")
+
+    @property
+    def pipeline_name(self) -> str:
+        """Return the pipeline name."""
+        return self.extra["pipeline"]["name"]
+
+    @pipeline_name.setter
+    def pipeline_name(self, value: str):
+        """Set the pipeline name."""
+        self.extra["pipeline"] = {**self.extra.get("pipeline", {}), "name": value}
+
+    @property
+    def pipeline_kwargs(self) -> dict:
+        """Return the pipeline kwargs."""
+        return self.extra["pipeline"]["kwargs"]
+
+    @pipeline_kwargs.setter
+    def pipeline_kwargs(self, value: dict):
+        """Set the pipeline kwargs."""
+        self.extra["pipeline"] = {**self.extra.get("pipeline", {}), "kwargs": value}
+
+    class Meta:
+        verbose_name = "Legislation Summary"
+        verbose_name_plural = "Legislation Summaries"
+        ordering = ["-created_at"]
 
 
 class ActionManager(models.Manager):
