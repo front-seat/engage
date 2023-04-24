@@ -7,29 +7,17 @@ from langchain.docstore.document import Document
 from langchain.prompts import PromptTemplate
 from langchain.text_splitter import CharacterTextSplitter
 
-DEFAULT_V1_PROMPT = """Write a charming, concise, and engaging summary of the following text. Target your summary at a highly educated layperson:
 
-
-"{text}"
-
-
-ENGAGING_SUMMARY:"""  # noqa: E501
-DEFAULT_V1_PROMPT_TEMPLATE = PromptTemplate(
-    template=DEFAULT_V1_PROMPT, input_variables=["text"]
-)
-
-
-def summarize_langchain_v1(
+def _summarize_openai_langchain(
     text: str,
-    temperature: float = 0.4,
+    map_prompt: str,
+    combine_prompt: str,
     model_name: str = "gpt-3.5-turbo",
+    temperature: float = 0.4,
     chain_type: str = "map_reduce",
     chunk_size: int = 3584,
-    map_prompt: str | None = None,
-    combine_prompt: str | None = None,
-    **kwargs: t.Any,
 ) -> str:
-    """Summarize text using langchain and openAI. v1."""
+    """Summarize text using langchain and openAI. Low-level."""
     if settings.OPENAI_API_KEY is None:
         raise ValueError("OPENAI_API_KEY is not set.")
     # XXX figure out how to handle this more gracefully
@@ -53,15 +41,9 @@ def summarize_langchain_v1(
             raise ValueError("Unable to split text into small enough chunks.")
 
     documents = [Document(page_content=text) for text in texts]
-    map_prompt_template = (
-        PromptTemplate(template=map_prompt, input_variables=["text"])
-        if map_prompt
-        else DEFAULT_V1_PROMPT_TEMPLATE
-    )
-    combine_prompt_template = (
-        PromptTemplate(template=combine_prompt, input_variables=["text"])
-        if combine_prompt
-        else DEFAULT_V1_PROMPT_TEMPLATE
+    map_prompt_template = PromptTemplate(template=map_prompt, input_variables=["text"])
+    combine_prompt_template = PromptTemplate(
+        template=combine_prompt, input_variables=["text"]
     )
     chain = load_summarize_chain(
         llm,
@@ -73,30 +55,105 @@ def summarize_langchain_v1(
     return summary
 
 
-def summarize_pipeline_v1(text: str, **kwargs: t.Any) -> str:
-    """Summarize text using a pipeline of summarizers. v1."""
-    summary = summarize_langchain_v1(text, **kwargs)
+EDUCATED_LAYPERSON_PROMPT = """Write a charming, concise, and engaging summary of the following text. Target your summary at a highly educated layperson:
+
+
+"{text}"
+
+
+ENGAGING_SUMMARY:"""  # noqa: E501
+
+
+def summarize_gpt35_educated_layperson(text: str) -> str:
+    summary = _summarize_openai_langchain(
+        text,
+        map_prompt=EDUCATED_LAYPERSON_PROMPT,
+        combine_prompt=EDUCATED_LAYPERSON_PROMPT,
+    )
+    return summary
+
+
+HIGH_SCHOOL_PROMPT = """Write an engaging summary of the following text that's perfect for a high school student's reading level and attention span:
+
+"{text}"
+
+HIGH_SCHOOL_SUMMARY:"""  # noqa: E501
+
+
+def summarize_gpt35_high_school(text: str) -> str:
+    summary = _summarize_openai_langchain(
+        text,
+        map_prompt=HIGH_SCHOOL_PROMPT,
+        combine_prompt=HIGH_SCHOOL_PROMPT,
+    )
+    return summary
+
+
+ENTERTAINING_BLOG_POST_PROMPT = """Write an entertaining summary of the following text. Make it perfect for a blog post that we hope gets lots of shares:
+
+"{text}"
+
+ENTERTAINING_BLOG_POST_SUMMARY:"""  # noqa: E501
+
+
+def summarize_gpt35_entertaining_blog_post(text: str) -> str:
+    summary = _summarize_openai_langchain(
+        text,
+        map_prompt=ENTERTAINING_BLOG_POST_PROMPT,
+        combine_prompt=ENTERTAINING_BLOG_POST_PROMPT,
+    )
+    return summary
+
+
+NEWSPAPER_HEADLINE_PROMPT = """Write an engaging one-sentence newspaper headline for the following text. Assume your reader is a highly educated layperson:
+
+"{text}"
+
+ENGAGING_HEADLINE:"""  # noqa: E501
+
+
+def summarize_gpt35_newspaper_headline(text: str) -> str:
+    summary = _summarize_openai_langchain(
+        text,
+        map_prompt=EDUCATED_LAYPERSON_PROMPT,
+        combine_prompt=NEWSPAPER_HEADLINE_PROMPT,
+    )
+    return summary
+
+
+CATCHY_CONTROVERSIAL_HEADLINE_PROMPT = """Write a catchy, controversial one-sentence headline for the following text. Try and write something that will get lots of clicks:
+
+"{text}"
+
+CATCHY_HEADLINE:"""  # noqa: E501
+
+
+def summarize_gpt35_catchy_controversial_headline(text: str) -> str:
+    summary = _summarize_openai_langchain(
+        text,
+        map_prompt=EDUCATED_LAYPERSON_PROMPT,
+        combine_prompt=CATCHY_CONTROVERSIAL_HEADLINE_PROMPT,
+    )
     return summary
 
 
 class SummarizerCallable(t.Protocol):
-    def __call__(self, text: str, **kwargs: t.Any) -> str:
+    __name__: str
+
+    def __call__(self, text: str) -> str:
+        ...
         ...
 
 
-SUMMARIZE_PIPELINE_V1 = "summarize-pipeline-v1"
+SUMMARIZERS: list[SummarizerCallable] = [
+    summarize_gpt35_educated_layperson,
+    summarize_gpt35_high_school,
+    summarize_gpt35_entertaining_blog_post,
+    summarize_gpt35_newspaper_headline,
+    summarize_gpt35_catchy_controversial_headline,
+]
 
 
-SUMMARIZERS: dict[str, SummarizerCallable] = {
-    SUMMARIZE_PIPELINE_V1: summarize_pipeline_v1,
+SUMMARIZERS_BY_NAME: dict[str, SummarizerCallable] = {
+    summarizer.__name__: summarizer for summarizer in SUMMARIZERS
 }
-
-
-def get_summarizer(name: str) -> SummarizerCallable:
-    """Get a summarizer for a given MIME type and version."""
-    return SUMMARIZERS[name]
-
-
-def run_summarizer(name: str, text: str, **kwargs: t.Any) -> str:
-    """Run the summarizer for a given MIME type and version."""
-    return SUMMARIZERS[name](text, **kwargs)

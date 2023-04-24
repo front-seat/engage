@@ -32,7 +32,7 @@ class NonrelatedDocumentTabularInline(NoPermissionAdminMixin, NonrelatedTabularI
 
 class DocumentTextTabularInline(NoPermissionAdminMixin, admin.TabularInline):
     model = DocumentText
-    fields = ("extracted_at", "document", "short_text", "extra")
+    fields = ("extracted_at", "extractor_name", "document", "short_text")
     readonly_fields = fields
     show_change_link = True
     extra = 0
@@ -45,7 +45,7 @@ class DocumentTextTabularInline(NoPermissionAdminMixin, admin.TabularInline):
 
 class DocumentSummaryTabularInline(NoPermissionAdminMixin, admin.TabularInline):
     model = DocumentSummary
-    fields = ("summarized_at", "document", "summary", "extra")
+    fields = ("summarized_at", "summarizer_name", "document", "summary")
     readonly_fields = fields
     show_change_link = True
     extra = 0
@@ -53,7 +53,7 @@ class DocumentSummaryTabularInline(NoPermissionAdminMixin, admin.TabularInline):
 
 class DocumentAdmin(NoPermissionAdminMixin, admin.ModelAdmin):
     list_display = ("title", "kind", "link", "mime_type")
-    fields = ("url_link", "kind", "title", "mime_type", "file")
+    fields = ("url_link", "kind", "title", "mime_type")
     readonly_fields = fields
     inlines = (DocumentTextTabularInline, DocumentSummaryTabularInline)
 
@@ -70,8 +70,8 @@ class DocumentAdmin(NoPermissionAdminMixin, admin.ModelAdmin):
 
 
 class DocumentTextAdmin(NoPermissionAdminMixin, admin.ModelAdmin):
-    list_display = ("extracted_at", "document", "short_text", "extra")
-    fields = ("extracted_at", "document", "extra", "text")
+    list_display = ("extracted_at", "extractor_name", "document", "short_text")
+    fields = ("extracted_at", "extractor_name", "document", "text")
     readonly_fields = fields
 
     def short_text(self, obj):
@@ -81,8 +81,13 @@ class DocumentTextAdmin(NoPermissionAdminMixin, admin.ModelAdmin):
 
 
 class DocumentSummaryAdmin(NoPermissionAdminMixin, admin.ModelAdmin):
-    list_display = ("summarized_at", "document", "short_summary", "extra")
-    fields = ("summarized_at", "document", "extra", "summary")
+    list_display = (
+        "summarized_at",
+        "document",
+        "summarizer_name",
+        "short_summary",
+    )
+    fields = ("summarized_at", "document", "summarizer_name", "summary")
     readonly_fields = fields
 
     def short_summary(self, obj):

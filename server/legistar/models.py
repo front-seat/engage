@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import datetime
+import io
 import json
 import typing as t
 import urllib.parse
@@ -8,7 +9,8 @@ import urllib.parse
 import requests
 from django.db import models
 
-from server.documents.models import Document
+from server.documents.extract import pass_through_text
+from server.documents.models import Document, DocumentText
 
 from .lib.web_schema import (
     ActionRowSchema,
@@ -297,16 +299,6 @@ class MeetingSummary(models.Model):
         """Set the name of the pipeline."""
         self.extra["pipeline"] = {**self.extra.get("pipeline", {}), "name": value}
 
-    @property
-    def pipeline_kwargs(self) -> dict:
-        """Return the kwargs of the pipeline."""
-        return self.extra["pipeline"]["kwargs"]
-
-    @pipeline_kwargs.setter
-    def pipeline_kwargs(self, value: dict):
-        """Set the kwargs of the pipeline."""
-        self.extra["pipeline"] = {**self.extra.get("pipeline", {}), "kwargs": value}
-
     def __str__(self):
         return f"Meeting Summary: {self.meeting}"
 
@@ -352,16 +344,28 @@ class LegislationManager(models.Manager):
                 title=f"legislation-{schema.id}-supporting-{supporting_document.name}",
             )
             documents.append(supporting_document_document)
+        full_text_document = None
         if schema.full_text is not None:
-            full_text_document, _ = Document.objects.get_or_create_from_content(
+            full_text_document, _ = Document.objects.get_or_create_from_url(
                 url=urllib.parse.urljoin(schema.url, "#FullTextDiv"),
                 kind=LegistarDocumentKind.FULL_TEXT,
                 title=f"legislation-{schema.id}-full",
-                content=schema.full_text.encode("utf-8"),
-                mime_type="text/plain",
+                _get_mime_type=lambda url: "text/plain",
             )
             documents.append(full_text_document)
         legislation.documents.set(documents)
+        if schema.full_text is not None and full_text_document is not None:
+            encoded_text = schema.full_text.encode("utf-8")
+
+            # SPECIAL CASE: create a DocumentText immediately. Since we
+            # don't save the full text to disk anymore, we need to do this
+            # right away.
+            DocumentText.objects.get_or_create_from_document(
+                document=full_text_document,
+                extractor=pass_through_text,
+                _reader=lambda document: io.BytesIO(encoded_text),
+            )
+
         return legislation, created
 
 
@@ -527,16 +531,6 @@ class LegislationSummary(models.Model):
     def pipeline_name(self, value: str):
         """Set the pipeline name."""
         self.extra["pipeline"] = {**self.extra.get("pipeline", {}), "name": value}
-
-    @property
-    def pipeline_kwargs(self) -> dict:
-        """Return the pipeline kwargs."""
-        return self.extra["pipeline"]["kwargs"]
-
-    @pipeline_kwargs.setter
-    def pipeline_kwargs(self, value: dict):
-        """Set the pipeline kwargs."""
-        self.extra["pipeline"] = {**self.extra.get("pipeline", {}), "kwargs": value}
 
     class Meta:
         verbose_name = "Legislation Summary"

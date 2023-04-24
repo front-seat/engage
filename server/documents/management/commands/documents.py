@@ -1,11 +1,8 @@
-import sys
-
 import djclick as click
-from django.conf import settings
 
-from server.documents.extract import EXTRACT_PIPELINE_V1, run_extractor
+from server.documents.extract import EXTRACTORS, EXTRACTORS_BY_NAME
 from server.documents.models import Document, DocumentSummary, DocumentText
-from server.documents.summarize import SUMMARIZE_PIPELINE_V1, run_summarizer
+from server.documents.summarize import SUMMARIZERS, SUMMARIZERS_BY_NAME
 
 
 @click.group(invoke_without_command=True)
@@ -26,45 +23,31 @@ def extract():
 
 @extract.command(name="single")
 @click.argument("pk", type=int, required=True)
-@click.argument("extractor", type=str, default=EXTRACT_PIPELINE_V1)
-@click.option("--db", is_flag=True, default=False)
-def extract_single(pk: int, extractor: str, db: bool):
+@click.argument("extractor-name", type=str, default=EXTRACTORS[0])
+def extract_single(pk: int, extractor_name: str):
     """Extract text from a single document."""
+    extractor = EXTRACTORS_BY_NAME[extractor_name]
     document = Document.objects.get(pk=pk)
-    if db:
+    document_text, _ = DocumentText.objects.get_or_create_from_document(
+        document, extractor
+    )
+    click.echo(document_text.text)
+
+
+@extract.command(name="all")
+@click.argument("extractor-name", type=str, default=EXTRACTORS[0])
+def extract_all(extractor_name: str):
+    """Extract text from all documents that don't yet have it."""
+    extractor = EXTRACTORS_BY_NAME[extractor_name]
+    documents_with = DocumentText.objects.filter(
+        extractor_name=extractor_name
+    ).values_list("document_id", flat=True)
+    documents_without = Document.objects.exclude(pk__in=documents_with)
+    for document in documents_without:
         document_text, _ = DocumentText.objects.get_or_create_from_document(
             document, extractor
         )
         click.echo(document_text.text)
-        return
-    with document.file.open("rb") as file:
-        text = run_extractor(name=extractor, io=file, mime_type=document.mime_type)
-    click.echo(text)
-
-
-@extract.command(name="all")
-@click.argument("extractor", type=str, default=EXTRACT_PIPELINE_V1)
-@click.option("--db", is_flag=True, default=False)
-def extract_all(extractor: str, db: bool):
-    """Extract text from all documents that don't yet have it."""
-    documents_with = DocumentText.objects.filter(extractor=extractor).values_list(
-        "document_id", flat=True
-    )
-    documents_without = Document.objects.exclude(pk__in=documents_with)
-    for document in documents_without:
-        if db:
-            document_text, _ = DocumentText.objects.get_or_create_from_document(
-                document, extractor_name=extractor
-            )
-            click.echo(document_text.text)
-            continue
-
-        if settings.VERBOSE:
-            print(f">>>> EXTRACT [nodb]: doc({document}, {extractor})", file=sys.stderr)
-
-        with document.file.open("rb") as file:
-            text = run_extractor(name=extractor, io=file, mime_type=document.mime_type)
-        click.echo(text)
 
 
 @main.group(invoke_without_command=True)
@@ -77,76 +60,39 @@ def summarize():
 
 @summarize.command(name="single")
 @click.argument("pk", type=int, required=True)
-@click.argument("summarizer", type=str, default=SUMMARIZE_PIPELINE_V1)
-@click.option("--temperature", type=float, default=None, required=False)
-@click.option("--map-prompt", type=str, default=None, required=False)
-@click.option("--combine-prompt", type=str, default=None, required=False)
-@click.option("--prompt", type=str, default=None, required=False)
-@click.option("--db", is_flag=True, default=False)
+@click.argument("summarizer-name", type=str, default=SUMMARIZERS[0])
 def summarize_single(
     pk: int,
-    summarizer: str,
-    db: bool,
-    temperature: float | None = None,
-    map_prompt: str | None = None,
-    combine_prompt: str | None = None,
-    prompt: str | None = None,
+    summarizer_name: str,
 ):
     """Summarize text from a single document."""
+    summarizer = SUMMARIZERS_BY_NAME[summarizer_name]
     # XXX for now, select the latest text. This should be improved.
     document_text = DocumentText.objects.filter(document_id=pk).first()
     if document_text is None:
         raise click.ClickException(
             "No extracted text found for document. Run extract first."
         )
-
-    if db:
-        document_summary, _ = DocumentSummary.objects.get_or_create_from_document_text(
-            document_text, summarizer
-        )
-        click.echo(document_summary.summary)
-        return
-    summarizer_kwargs = {}
-    if temperature is not None:
-        summarizer_kwargs["temperature"] = temperature
-    if prompt is not None:
-        summarizer_kwargs["map_prompt"] = prompt.replace("\\n", "\n")
-        summarizer_kwargs["combine_prompt"] = prompt.replace("\\n", "\n")
-    else:
-        if map_prompt is not None:
-            summarizer_kwargs["map_prompt"] = map_prompt.replace("\\n", "\n")
-        if combine_prompt is not None:
-            summarizer_kwargs["combine_prompt"] = combine_prompt.replace("\\n", "\n")
-    summary = run_summarizer(summarizer, document_text.text, **summarizer_kwargs)
-    click.echo(summary)
+    document_summary, _ = DocumentSummary.objects.get_or_create_from_document_text(
+        document_text, summarizer
+    )
+    click.echo(document_summary.summary)
 
 
 @summarize.command(name="all")
-@click.argument("summarizer", type=str, default=SUMMARIZE_PIPELINE_V1)
-@click.option("--db", is_flag=True, default=False)
-def summarize_all(summarizer: str, db: bool):
+@click.argument("summarizer-name", type=str, default=SUMMARIZERS[0])
+def summarize_all(summarizer_name: str):
     """Summarize text from all documents that don't yet have it."""
-    documents_with = DocumentSummary.objects.filter(summarizer=summarizer).values_list(
-        "document_id", flat=True
-    )
+    summarizer = SUMMARIZERS_BY_NAME[summarizer_name]
+    documents_with = DocumentSummary.objects.filter(
+        summarizer_name=summarizer_name
+    ).values_list("document_id", flat=True)
     documents_without = Document.objects.exclude(document_id__in=documents_with)
     for document in documents_without:
         document_text = document.texts.first()
         if document_text is None:
             continue
-        if db:
-            (
-                document_summary,
-                _,
-            ) = DocumentSummary.objects.get_or_create_from_document_text(
-                document_text, summarizer_name=summarizer
-            )
-            click.echo(document_summary.summary)
-            continue
-        if settings.VERBOSE:
-            print(
-                f">>>> SUMMARIZE [nodb]: doc_text({document_text}, {summarizer})",
-                file=sys.stderr,
-            )
-        summary = run_summarizer(summarizer, document_text.text)
-        click.echo(summary)
+        document_summary, _ = DocumentSummary.objects.get_or_create_from_document_text(
+            document_text, summarizer
+        )
+        click.echo(document_summary.summary)

@@ -5,17 +5,22 @@ import mimetypes
 import sys
 import typing as t
 
-import humanize
 import requests
 from django.conf import settings
-from django.core.files.base import ContentFile
 from django.db import models, transaction
 from django.utils.text import slugify
 
-from .extract import run_extractor
-from .summarize import run_summarizer
+from .extract import EXTRACTORS_BY_NAME, ExtractorCallable
+from .summarize import SUMMARIZERS_BY_NAME, SummarizerCallable
 
 OPENAI_ADA_EMBEDDING_DIMENSIONS = 1536
+
+
+def _load_url_mime_type(url: str) -> str:
+    """Load the content type of a URL."""
+    response = requests.head(url)
+    response.raise_for_status()
+    return response.headers["Content-Type"]
 
 
 def _load_url(url: str) -> tuple[bytes, str]:
@@ -31,7 +36,7 @@ class DocumentManager(models.Manager):
         url: str,
         kind: str,
         title: str,
-        loader: t.Callable[[str], tuple[bytes, str]] = _load_url,
+        _get_mime_type: t.Callable[[str], str] = _load_url_mime_type,
     ) -> tuple[Document, bool]:
         """Get or create a document from a URL."""
         # Don't use the default get_or_create() because we want to
@@ -43,42 +48,23 @@ class DocumentManager(models.Manager):
                 return document, False
             if settings.VERBOSE:
                 print(f">>>> CRAWL: get_document({url})", file=sys.stderr)
-            content, mime_type = loader(url)
-            extension = mimetypes.guess_extension(mime_type)
-            if extension is None:
-                raise ValueError(f"Unknown MIME type: {mime_type}")
-            file_name = f"{slugify(title)}{extension}"
-            content_file = ContentFile(content, name=file_name)
+            mime_type = _load_url_mime_type(url)
             if settings.VERBOSE:
-                natural_size = humanize.naturalsize(len(content), format="%.0f")
+                extension = mimetypes.guess_extension(mime_type)
+                if extension is None:
+                    raise ValueError(f"Unknown MIME type: {mime_type}")
+                file_name = f"{slugify(title)}{extension}"
                 print(
-                    f"         : {file_name} ({natural_size})",
+                    f"         : {file_name} (HEAD)",
                     file=sys.stderr,
                 )
-
             document = self.create(
                 url=url,
+                kind=kind,
                 title=title,
                 mime_type=mime_type,
-                kind=kind,
-                file=content_file,
             )
             return document, True
-
-    def get_or_create_from_content(
-        self,
-        url: str,
-        kind: str,
-        title: str,
-        content: bytes,
-        mime_type: str,
-    ) -> tuple[Document, bool]:
-        """Get or create a document from a URL."""
-
-        def _loader(_: str) -> tuple[bytes, str]:
-            return content, mime_type
-
-        return self.get_or_create_from_url(url, kind, title, _loader)
 
 
 class Document(models.Model):
@@ -100,61 +86,66 @@ class Document(models.Model):
     mime_type = models.CharField(
         max_length=255, help_text="The MIME type of the document."
     )
-    file = models.FileField(
-        upload_to="documents",
-        help_text="The downloaded document.",
-    )
+
+    @property
+    def is_pdf(self) -> bool:
+        return self.mime_type == "application/pdf"
+
+    @property
+    def is_text(self) -> bool:
+        return self.mime_type == "text/plain"
+
+    @property
+    def extension(self) -> str:
+        maybe_extension = mimetypes.guess_extension(self.mime_type)
+        if maybe_extension is None:
+            raise ValueError(f"Unknown MIME type: {self.mime_type}")
+        return maybe_extension
+
+    @property
+    def file_name(self) -> str:
+        return f"{slugify(self.title)}{self.extension}"
+
+    def read(
+        self, _loader: t.Callable[[str], tuple[bytes, str]] = _load_url
+    ) -> io.BytesIO:
+        """Read the document from the URL."""
+        content, _ = _loader(self.url)
+        return io.BytesIO(content)
 
     def __str__(self):
         return f"{self.kind}: {self.title}"
 
 
 class DocumentTextManager(models.Manager):
-    def filter_by_extractor(self, extractor_name: str):
-        return self.filter(extra__extractor__name=extractor_name)
-
-    def filter_by_document(self, document: Document):
-        return self.filter(document=document)
-
-    def filter_by_document_and_extractor(self, document: Document, extractor_name: str):
-        return self.filter(document=document, extra__extractor__name=extractor_name)
-
     def get_or_create_from_document(
         self,
         document: Document,
-        extractor_name: str,
-        extractor_kwargs: dict[str, t.Any] | None = None,
+        extractor: ExtractorCallable,
+        _reader: t.Callable[[Document], io.BytesIO] = lambda document: document.read(),
     ) -> tuple[DocumentText, bool]:
         """Get or create a document text from a document."""
         # Don't use the default get_or_create() because we want to
         # use the document and extractor as the unique identifier.
         with transaction.atomic():
-            document_text = self.filter_by_document_and_extractor(
-                document, extractor_name
+            document_text = self.filter(
+                document=document, extractor_name=extractor.__name__
             ).first()
             if document_text is not None:
                 return document_text, False
             if settings.VERBOSE:
                 print(
-                    f">>>> EXTRACT: document({document}, {extractor_name})",
+                    f">>>> EXTRACT: document({document}, {extractor.__name__})",
                     file=sys.stderr,
                 )
-            with document.file.open("rb") as file:
-                text = run_extractor(
-                    name=extractor_name,
-                    io=t.cast(io.BytesIO, file),
-                    mime_type=document.mime_type,
-                    **(extractor_kwargs or {}),
-                )
+            text = extractor(
+                io=_reader(document),
+                mime_type=document.mime_type,
+            )
             document_text = self.create(
                 document=document,
-                extra={
-                    "extractor": {
-                        "name": extractor_name,
-                        "kwargs": extractor_kwargs or {},
-                    }
-                },
                 text=text,
+                extractor_name=extractor.__name__,
             )
             return document_text, True
 
@@ -165,27 +156,12 @@ class DocumentText(models.Model):
     objects = DocumentTextManager()
 
     extracted_at = models.DateTimeField(auto_now_add=True, db_index=True)
-
-    extra = models.JSONField(default=dict, db_index=True, help_text="Extra data.")
-
-    @property
-    def extractor_name(self) -> str:
-        return self.extra["extractor"]["name"]
-
-    @extractor_name.setter
-    def extractor_name(self, value: str):
-        self.extra["extractor"] = {**self.extra.get("extractor", {}), "name": value}
-
-    @property
-    def extractor_kwargs(self) -> dict[str, t.Any]:
-        return self.extra["extractor"].get("kwargs", {})
-
-    @extractor_kwargs.setter
-    def extractor_kwargs(self, value: dict[str, t.Any]):
-        self.extra["extractor"] = {
-            **self.extra.get("extractor", {}),
-            "kwargs": value,
-        }
+    extractor_name = models.CharField(
+        max_length=255,
+        db_index=True,
+        help_text="The name of the extractor used to extract the text.",
+    )
+    text = models.TextField(help_text="The text content of the document.")
 
     document = models.ForeignKey(
         Document,
@@ -193,7 +169,10 @@ class DocumentText(models.Model):
         related_name="texts",
         help_text="The document this text belongs to.",
     )
-    text = models.TextField(help_text="The text content of the document.")
+
+    @property
+    def extractor(self) -> ExtractorCallable:
+        return EXTRACTORS_BY_NAME[self.extractor_name]
 
     def __str__(self):
         return f"Extracted text of: {self.document}"
@@ -201,53 +180,41 @@ class DocumentText(models.Model):
     class Meta:
         ordering = ["-extracted_at"]
 
+        constraints = [
+            models.UniqueConstraint(
+                fields=["document", "extractor_name"],
+                name="unique_document_extractor_name",
+            )
+        ]
+
+        verbose_name_plural = "Document text contents"
+
 
 class DocumentSummaryManager(models.Manager):
-    def filter_by_summarizer(self, summarizer_name: str):
-        return self.filter(extra__summarizer__name=summarizer_name)
-
-    def filter_by_document_text(self, document_text: DocumentText):
-        return self.filter(document_text=document_text)
-
-    def filter_by_document_text_and_summarizer(
-        self, document_text: DocumentText, summarizer_name: str
-    ):
-        return self.filter(
-            document_text=document_text, extra__summarizer__name=summarizer_name
-        )
-
     def get_or_create_from_document_text(
         self,
         document_text: DocumentText,
-        summarizer_name: str,
-        summarizer_kwargs: dict[str, t.Any] | None = None,
+        summarizer: SummarizerCallable,
     ) -> tuple[DocumentSummary, bool]:
         with transaction.atomic():
-            document_summary = self.filter_by_document_text_and_summarizer(
-                document_text, summarizer_name
+            document_summary = self.filter(
+                document_text=document_text, summarizer_name=summarizer.__name__
             ).first()
             if document_summary is not None:
                 return document_summary, False
             if settings.VERBOSE:
                 print(
-                    f">>>> SUMMARIZE: doc_text({document_text}, {summarizer_name})",
+                    f">>>> SUMMARIZE: doc_text({document_text}, {summarizer.__name__})",
                     file=sys.stderr,
                 )
-            summary = run_summarizer(
-                name=summarizer_name,
+            summary = summarizer(
                 text=document_text.text,
-                **(summarizer_kwargs or {}),
             )
             document_summary = self.create(
                 document=document_text.document,
                 document_text=document_text,
-                extra={
-                    "summarizer": {
-                        "name": summarizer_name,
-                        "kwargs": summarizer_kwargs or {},
-                    }
-                },
                 summary=summary,
+                summarizer_name=summarizer.__name__,
             )
             return document_summary, True
 
@@ -258,9 +225,7 @@ class DocumentSummary(models.Model):
     objects = DocumentSummaryManager()
 
     summarized_at = models.DateTimeField(auto_now_add=True, db_index=True)
-
-    extra = models.JSONField(default=dict, db_index=True, help_text="Extra data.")
-
+    summarizer_name = models.CharField(max_length=255, db_index=True)
     summary = models.TextField(help_text="The summary of the document text.")
 
     document = models.ForeignKey(
@@ -278,24 +243,17 @@ class DocumentSummary(models.Model):
     )
 
     @property
-    def summarizer_name(self) -> str:
-        return self.extra["summarizer"]["name"]
-
-    @summarizer_name.setter
-    def summarizer_name(self, value: str):
-        self.extra["summarizer"] = {**self.extra.get("summarizer", {}), "name": value}
-
-    @property
-    def summarizer_kwargs(self) -> dict[str, t.Any]:
-        return self.extra["summarizer"].get("kwargs", {})
-
-    @summarizer_kwargs.setter
-    def summarizer_kwargs(self, value: dict[str, t.Any]):
-        self.extra["summarizer"] = {
-            **self.extra.get("summarizer", {}),
-            "kwargs": value,
-        }
+    def summarizer(self) -> SummarizerCallable:
+        return SUMMARIZERS_BY_NAME[self.summarizer_name]
 
     class Meta:
         ordering = ["-summarized_at"]
+
+        constraints = [
+            models.UniqueConstraint(
+                fields=["document_text", "summarizer_name"],
+                name="unique_document_text_summarizer_name",
+            )
+        ]
+
         verbose_name_plural = "Document summaries"
