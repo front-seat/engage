@@ -1,9 +1,10 @@
 import os
 from pathlib import Path
 
-import dj_database_url
-
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# The root of all baked data
+DATA_DIR = BASE_DIR / "data"
 
 # --------------------------------------------------------------------
 # Security settings
@@ -83,10 +84,10 @@ WSGI_APPLICATION = "server.wsgi.application"
 # --------------------------------------------------------------------
 
 DATABASES = {
-    "default": dj_database_url.config(
-        conn_max_age=600,
-        conn_health_checks=True,
-    ),
+    "default": {
+        "ENGINE": "django.db.backends.sqlite3",
+        "NAME": str(DATA_DIR / "db.sqlite3"),
+    }
 }
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
@@ -116,6 +117,6 @@ OPENAI_ORGANIZATION = os.environ.get("OPENAI_ORGANIZATION")
 
 STATIC_URL = "static/"
 
-# Suggest setting this to /tmp in production
-MEDIA_ROOT = os.environ.get("MEDIA_ROOT", os.path.join(BASE_DIR, "media"))
+# We bake data directly into the image, so we don't need to collect
+MEDIA_ROOT = str(DATA_DIR / "media")
 MEDIA_URL = "media/"
