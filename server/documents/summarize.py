@@ -7,11 +7,24 @@ from langchain.docstore.document import Document
 from langchain.prompts import PromptTemplate
 from langchain.text_splitter import CharacterTextSplitter
 
+# ---------------------------------------------------------------------
+# Base utilities
+# ---------------------------------------------------------------------
 
-def _summarize_openai_langchain(
+
+def _substitute(s: str, substitutions: dict[str, str] | None) -> str:
+    if substitutions is None:
+        return s
+    for key, value in substitutions.items():
+        s = s.replace(key, value)
+    return s
+
+
+def summarize_openai_langchain(
     text: str,
     map_prompt: str,
     combine_prompt: str,
+    substitutions: dict[str, str] | None = None,
     model_name: str = "gpt-3.5-turbo",
     temperature: float = 0.4,
     chain_type: str = "map_reduce",
@@ -41,9 +54,13 @@ def _summarize_openai_langchain(
             raise ValueError("Unable to split text into small enough chunks.")
 
     documents = [Document(page_content=text) for text in texts]
-    map_prompt_template = PromptTemplate(template=map_prompt, input_variables=["text"])
+    final_map_prompt = _substitute(map_prompt, substitutions)
+    map_prompt_template = PromptTemplate(
+        template=final_map_prompt, input_variables=["text"]
+    )
+    final_combine_prompt = _substitute(combine_prompt, substitutions)
     combine_prompt_template = PromptTemplate(
-        template=combine_prompt, input_variables=["text"]
+        template=final_combine_prompt, input_variables=["text"]
     )
     chain = load_summarize_chain(
         llm,
@@ -55,6 +72,17 @@ def _summarize_openai_langchain(
     return summary
 
 
+# ---------------------------------------------------------------------
+# Full summary prompts
+# ---------------------------------------------------------------------
+
+CONCISE_SUMMARY_PROMPT = """Write a concise summary of the following text. Include all the important details:
+
+"{text}"
+
+CONCISE_SUMMARY:"""  # noqa: E501
+
+
 EDUCATED_LAYPERSON_PROMPT = """Write a charming, concise, and engaging summary of the following text. Target your summary at a highly educated layperson:
 
 
@@ -64,15 +92,6 @@ EDUCATED_LAYPERSON_PROMPT = """Write a charming, concise, and engaging summary o
 ENGAGING_SUMMARY:"""  # noqa: E501
 
 
-def summarize_gpt35_educated_layperson(text: str) -> str:
-    summary = _summarize_openai_langchain(
-        text,
-        map_prompt=EDUCATED_LAYPERSON_PROMPT,
-        combine_prompt=EDUCATED_LAYPERSON_PROMPT,
-    )
-    return summary
-
-
 HIGH_SCHOOL_PROMPT = """Write an engaging summary of the following text that's perfect for a high school student's reading level and attention span:
 
 "{text}"
@@ -80,30 +99,16 @@ HIGH_SCHOOL_PROMPT = """Write an engaging summary of the following text that's p
 HIGH_SCHOOL_SUMMARY:"""  # noqa: E501
 
 
-def summarize_gpt35_high_school(text: str) -> str:
-    summary = _summarize_openai_langchain(
-        text,
-        map_prompt=HIGH_SCHOOL_PROMPT,
-        combine_prompt=HIGH_SCHOOL_PROMPT,
-    )
-    return summary
-
-
-ENTERTAINING_BLOG_POST_PROMPT = """Write an entertaining summary of the following text. Make it perfect for a blog post that we hope gets lots of shares:
+ENTERTAINING_BLOG_POST_PROMPT = """Write an entertaining summary of the following text. Make it perfect for a blog post that we hope goes viral and gets lots of clicks:
 
 "{text}"
 
 ENTERTAINING_BLOG_POST_SUMMARY:"""  # noqa: E501
 
 
-def summarize_gpt35_entertaining_blog_post(text: str) -> str:
-    summary = _summarize_openai_langchain(
-        text,
-        map_prompt=ENTERTAINING_BLOG_POST_PROMPT,
-        combine_prompt=ENTERTAINING_BLOG_POST_PROMPT,
-    )
-    return summary
-
+# ---------------------------------------------------------------------
+# Headline prompts
+# ---------------------------------------------------------------------
 
 NEWSPAPER_HEADLINE_PROMPT = """Write an engaging one-sentence newspaper headline for the following text. Assume your reader is a highly educated layperson:
 
@@ -112,36 +117,92 @@ NEWSPAPER_HEADLINE_PROMPT = """Write an engaging one-sentence newspaper headline
 ENGAGING_HEADLINE:"""  # noqa: E501
 
 
-def summarize_gpt35_newspaper_headline(text: str) -> str:
-    summary = _summarize_openai_langchain(
-        text,
-        map_prompt=EDUCATED_LAYPERSON_PROMPT,
-        combine_prompt=NEWSPAPER_HEADLINE_PROMPT,
-    )
-    return summary
-
-
-CATCHY_CONTROVERSIAL_HEADLINE_PROMPT = """Write a catchy, controversial one-sentence headline for the following text. Try and write something that will get lots of clicks:
+CATCHY_CONTROVERSIAL_HEADLINE_PROMPT = """Write a catchy, controversial one-sentence headline for the following text. Try and write something that will go viral and get of clicks:
 
 "{text}"
 
 CATCHY_HEADLINE:"""  # noqa: E501
 
 
-def summarize_gpt35_catchy_controversial_headline(text: str) -> str:
-    summary = _summarize_openai_langchain(
+# ---------------------------------------------------------------------
+# Summarizers
+# ---------------------------------------------------------------------
+
+
+def summarize_gpt35_educated_layperson(
+    text: str, substitutions: dict[str, str] | None = None
+) -> str:
+    assert substitutions is None, "substitutions not supported by this summarizer"
+    summary = summarize_openai_langchain(
         text,
         map_prompt=EDUCATED_LAYPERSON_PROMPT,
-        combine_prompt=CATCHY_CONTROVERSIAL_HEADLINE_PROMPT,
+        combine_prompt=EDUCATED_LAYPERSON_PROMPT,
+        substitutions=substitutions,
     )
     return summary
+
+
+def summarize_gpt35_high_school(
+    text: str, substitutions: dict[str, str] | None = None
+) -> str:
+    assert substitutions is None, "substitutions not supported by this summarizer"
+    summary = summarize_openai_langchain(
+        text,
+        map_prompt=CONCISE_SUMMARY_PROMPT,
+        combine_prompt=HIGH_SCHOOL_PROMPT,
+        substitutions=substitutions,
+    )
+    return summary
+
+
+def summarize_gpt35_entertaining_blog_post(
+    text: str, substitutions: dict[str, str] | None = None
+) -> str:
+    assert substitutions is None, "substitutions not supported by this summarizer"
+    summary = summarize_openai_langchain(
+        text,
+        map_prompt=CONCISE_SUMMARY_PROMPT,
+        combine_prompt=ENTERTAINING_BLOG_POST_PROMPT,
+        substitutions=substitutions,
+    )
+    return summary
+
+
+def summarize_gpt35_newspaper_headline(
+    text: str, substitutions: dict[str, str] | None = None
+) -> str:
+    assert substitutions is None, "substitutions not supported by this summarizer"
+    summary = summarize_openai_langchain(
+        text,
+        map_prompt=EDUCATED_LAYPERSON_PROMPT,
+        combine_prompt=NEWSPAPER_HEADLINE_PROMPT,
+        substitutions=substitutions,
+    )
+    return summary
+
+
+def summarize_gpt35_catchy_controversial_headline(
+    text: str, substitutions: dict[str, str] | None = None
+) -> str:
+    assert substitutions is None, "substitutions not supported by this summarizer"
+    summary = summarize_openai_langchain(
+        text,
+        map_prompt=CONCISE_SUMMARY_PROMPT,
+        combine_prompt=CATCHY_CONTROVERSIAL_HEADLINE_PROMPT,
+        substitutions=substitutions,
+    )
+    return summary
+
+
+# ---------------------------------------------------------------------
+# External utilities
+# ---------------------------------------------------------------------
 
 
 class SummarizerCallable(t.Protocol):
     __name__: str
 
-    def __call__(self, text: str) -> str:
-        ...
+    def __call__(self, text: str, substitutions: dict[str, str] | None = None) -> str:
         ...
 
 

@@ -133,14 +133,6 @@ def extract_pipeline_v1(io: io.BytesIO, mime_type: str) -> str:
         raise ValueError(f"Unrecognized MIME type {mime_type}.")
 
 
-def pass_through_text(io: io.BytesIO, mime_type: str) -> str:
-    """Pass through text without any processing."""
-    if mime_type != "text/plain":
-        raise ValueError(f"Unrecognized MIME type {mime_type}.")
-    data = io.read()
-    return data.decode("utf-8")
-
-
 class ExtractorCallable(t.Protocol):
     __name__: str
 
@@ -150,7 +142,6 @@ class ExtractorCallable(t.Protocol):
 
 EXTRACTORS: list[ExtractorCallable] = [
     extract_pipeline_v1,
-    pass_through_text,
 ]
 
 

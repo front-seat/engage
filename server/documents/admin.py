@@ -4,6 +4,7 @@ from nonrelated_inlines.admin import NonrelatedTabularInline
 
 from server.admin import admin_site
 from server.lib.admin import NoPermissionAdminMixin
+from server.lib.truncate import truncate_str
 
 from .models import Document, DocumentSummary, DocumentText
 
@@ -38,7 +39,7 @@ class DocumentTextTabularInline(NoPermissionAdminMixin, admin.TabularInline):
     extra = 0
 
     def short_text(self, obj):
-        return obj.text[:255] + "..." if len(obj.text) > 100 else obj.text
+        return truncate_str(obj.text, 100)
 
     short_text.short_description = "Text"
 
@@ -53,7 +54,7 @@ class DocumentSummaryTabularInline(NoPermissionAdminMixin, admin.TabularInline):
 
 class DocumentAdmin(NoPermissionAdminMixin, admin.ModelAdmin):
     list_display = ("title", "kind", "link", "mime_type")
-    fields = ("url_link", "kind", "title", "mime_type")
+    fields = ("url_link", "kind", "title", "mime_type", "raw_content")
     readonly_fields = fields
     inlines = (DocumentTextTabularInline, DocumentSummaryTabularInline)
 
@@ -75,7 +76,7 @@ class DocumentTextAdmin(NoPermissionAdminMixin, admin.ModelAdmin):
     readonly_fields = fields
 
     def short_text(self, obj):
-        return obj.text[:100] + "..." if len(obj.text) > 100 else obj.text
+        return truncate_str(obj.text, 100)
 
     short_text.short_description = "Text"
 
@@ -91,7 +92,7 @@ class DocumentSummaryAdmin(NoPermissionAdminMixin, admin.ModelAdmin):
     readonly_fields = fields
 
     def short_summary(self, obj):
-        return obj.summary[:100] + "..." if len(obj.summary) > 100 else obj.summary
+        return truncate_str(obj.summary, 100)
 
     short_summary.short_description = "Summary"
 

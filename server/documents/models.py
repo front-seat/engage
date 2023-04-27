@@ -36,6 +36,7 @@ class DocumentManager(models.Manager):
         url: str,
         kind: str,
         title: str,
+        raw_content: bytes | None = None,
         _get_mime_type: t.Callable[[str], str] = _load_url_mime_type,
     ) -> tuple[Document, bool]:
         """Get or create a document from a URL."""
@@ -63,6 +64,7 @@ class DocumentManager(models.Manager):
                 kind=kind,
                 title=title,
                 mime_type=mime_type,
+                raw_content=raw_content,
             )
             return document, True
 
@@ -86,6 +88,14 @@ class Document(models.Model):
     mime_type = models.CharField(
         max_length=255, help_text="The MIME type of the document."
     )
+    raw_content = models.BinaryField(
+        blank=True,
+        null=True,
+        default=None,
+        help_text="""If the content was obtained via means other than the URL, 
+(for instance, was obtained by grabbing a piece of the HTML content at the URL)
+, then this field contains the raw text of the document.""",
+    )
 
     @property
     def is_pdf(self) -> bool:
@@ -94,6 +104,10 @@ class Document(models.Model):
     @property
     def is_text(self) -> bool:
         return self.mime_type == "text/plain"
+
+    @property
+    def has_raw_content(self) -> bool:
+        return self.raw_content is not None
 
     @property
     def extension(self) -> str:
@@ -109,7 +123,9 @@ class Document(models.Model):
     def read(
         self, _loader: t.Callable[[str], tuple[bytes, str]] = _load_url
     ) -> io.BytesIO:
-        """Read the document from the URL."""
+        """Read the document from the raw_content, or the URL."""
+        if self.raw_content is not None:
+            return io.BytesIO(self.raw_content)
         content, _ = _loader(self.url)
         return io.BytesIO(content)
 

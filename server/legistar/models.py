@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import datetime
-import io
 import json
 import typing as t
 import urllib.parse
@@ -9,8 +8,8 @@ import urllib.parse
 import requests
 from django.db import models
 
-from server.documents.extract import pass_through_text
-from server.documents.models import Document, DocumentText
+from server.documents.models import Document
+from server.lib.truncate import truncate_str
 
 from .lib.web_schema import (
     ActionRowSchema,
@@ -142,7 +141,6 @@ class Meeting(models.Model):
     documents = models.ManyToManyField(
         Document,
         related_name="meetings",
-        help_text="The documents associated with the meeting.",
     )
 
     @property
@@ -229,44 +227,27 @@ class Meeting(models.Model):
 class MeetingSummaryManager(models.Manager):
     """A manager for meeting summaries."""
 
-    def filter_by_pipeline(self, pipeline_name: str):
-        """Filter by the pipeline name."""
-        return self.filter(extra__pipeline__name=pipeline_name)
-
-    def filter_by_meeting(self, meeting: Meeting):
-        """Filter by the meeting."""
-        return self.filter(meeting=meeting)
-
-    def filter_by_meeting_and_pipeline(self, meeting: Meeting, pipeline_name: str):
-        """Filter by the meeting and pipeline name."""
-        return self.filter(meeting=meeting, extra__pipeline__name=pipeline_name)
-
     def get_or_create_from_meeting(
         self,
         meeting: Meeting,
-        pipeline_name: str,
-        pipeline_kwargs: dict[str, t.Any] | None = None,
+        summarizer: t.Any,  # TODO
     ) -> tuple[MeetingSummary, bool]:
-        # CONSIDER: *so* very similar to LegislationSummaryManager
-        # CONSIDER: circular nonsense
-        from .pipelines import run_meeting_pipeline
+        # TODO: fix this circular nonsense
+        from .pipelines import MeetingSummarizerCallable
+
+        assert isinstance(summarizer, MeetingSummarizerCallable)
 
         # CONSIDER: this is not atomic.
-        summary = self.filter_by_meeting_and_pipeline(meeting, pipeline_name).first()
+        summary = self.filter(
+            meeting=meeting, summarizer_name=summarizer.__name__
+        ).first()
         if summary is not None:
             return summary, False
-        summary_text = run_meeting_pipeline(
-            name=pipeline_name, meeting=meeting, **(pipeline_kwargs or {})
-        )
+        summary_text = summarizer(meeting)
         summary = self.create(
             meeting=meeting,
             summary=summary_text,
-            extra={
-                "pipeline": {
-                    "name": pipeline_name,
-                    "kwargs": (pipeline_kwargs or {}),
-                }
-            },
+            summarizer_name=summarizer.__name__,
         )
         return summary, True
 
@@ -287,17 +268,15 @@ class MeetingSummary(models.Model):
 
     summary = models.TextField(help_text="The summary of the meeting.")
 
-    extra = models.JSONField(default=dict, db_index=True, help_text="Extra data.")
+    summarizer_name = models.CharField(
+        max_length=255, help_text="The name of the MeetingSummarizerCallable."
+    )
 
     @property
-    def pipeline_name(self) -> str:
-        """Return the name of the pipeline."""
-        return self.extra["pipeline"]["name"]
+    def summarizer(self):
+        from .pipelines import MEETING_SUMMARIZERS_BY_NAME
 
-    @pipeline_name.setter
-    def pipeline_name(self, value: str):
-        """Set the name of the pipeline."""
-        self.extra["pipeline"] = {**self.extra.get("pipeline", {}), "name": value}
+        return MEETING_SUMMARIZERS_BY_NAME[self.summarizer_name]
 
     def __str__(self):
         return f"Meeting Summary: {self.meeting}"
@@ -306,6 +285,13 @@ class MeetingSummary(models.Model):
         verbose_name = "Meeting Summary"
         verbose_name_plural = "Meeting Summaries"
         ordering = ["-created_at"]
+
+        constraints = [
+            models.UniqueConstraint(
+                fields=["meeting", "summarizer_name"],
+                name="unique_meeting_summary_meeting_summarizer_name",
+            ),
+        ]
 
 
 class LegislationManager(models.Manager):
@@ -350,21 +336,11 @@ class LegislationManager(models.Manager):
                 url=urllib.parse.urljoin(schema.url, "#FullTextDiv"),
                 kind=LegistarDocumentKind.FULL_TEXT,
                 title=f"legislation-{schema.id}-full",
+                raw_content=schema.full_text.encode("utf-8"),
                 _get_mime_type=lambda url: "text/plain",
             )
             documents.append(full_text_document)
         legislation.documents.set(documents)
-        if schema.full_text is not None and full_text_document is not None:
-            encoded_text = schema.full_text.encode("utf-8")
-
-            # SPECIAL CASE: create a DocumentText immediately. Since we
-            # don't save the full text to disk anymore, we need to do this
-            # right away.
-            DocumentText.objects.get_or_create_from_document(
-                document=full_text_document,
-                extractor=pass_through_text,
-                _reader=lambda document: io.BytesIO(encoded_text),
-            )
 
         return legislation, created
 
@@ -440,7 +416,7 @@ class Legislation(models.Model):
     @property
     def truncated_title(self) -> str:
         """Return the truncated title for the legislation."""
-        return self.title[:48] + "..." if len(self.title) > 48 else self.title
+        return truncate_str(self.title, 48)
 
     def __str__(self):
         return f"Legislation: {self.record_no} - {self.truncated_title}"
@@ -457,49 +433,29 @@ class Legislation(models.Model):
 
 
 class LegislationSummaryManager(models.Manager):
-    def filter_by_pipeline(self, pipeline_name: str) -> models.QuerySet:
-        """Return the query set filtered by the pipeline."""
-        return self.filter(extra__pipeline__name=pipeline_name)
-
-    def filter_by_legislation(self, legislation: Legislation):
-        """Return the query set filtered by the legislation."""
-        return self.filter(legislation=legislation)
-
-    def filter_by_legislation_and_pipeline(
-        self, legislation: Legislation, pipeline_name: str
-    ):
-        """Return the query set filtered by the legislation and pipeline."""
-        return self.filter(legislation=legislation, extra__pipeline__name=pipeline_name)
-
     def get_or_create_from_legislation(
         self,
         legislation: Legislation,
-        pipeline_name: str,
-        pipeline_kwargs: dict[str, t.Any] | None = None,
+        summarizer: t.Any,
     ) -> tuple[LegislationSummary, bool]:
         """Get or create a legislation summary from the legislation."""
         # CONSIDER: so very similar to MeetingSummaryManager
         # CONSIDER: circular nonsense
-        from .pipelines import run_legislation_pipeline
+        from .pipelines import LegislationSummarizerCallable
+
+        assert isinstance(summarizer, LegislationSummarizerCallable)
 
         # CONSIDER: this is not atomic
-        summary = self.filter_by_legislation_and_pipeline(
-            legislation, pipeline_name
+        summary = self.filter(
+            legislation=legislation, summarizer_name=summarizer.__name__
         ).first()
         if summary is not None:
             return summary, False
-        summary_text = run_legislation_pipeline(
-            name=pipeline_name, legislation=legislation, **(pipeline_kwargs or {})
-        )
+        summary_text = summarizer(legislation)
         summary = self.create(
             legislation=legislation,
             summary=summary_text,
-            extra={
-                "pipeline": {
-                    "name": pipeline_name,
-                    "kwargs": (pipeline_kwargs or {}),
-                }
-            },
+            summarizer_name=summarizer.__name__,
         )
         return summary, True
 
@@ -519,23 +475,28 @@ class LegislationSummary(models.Model):
     )
 
     summary = models.TextField(help_text="The summary of the legislation.")
-
-    extra = models.JSONField(default=dict, db_index=True, help_text="Extra data.")
+    summarizer_name = models.CharField(
+        max_length=255, help_text="The name of the summarizer."
+    )
 
     @property
-    def pipeline_name(self) -> str:
-        """Return the pipeline name."""
-        return self.extra["pipeline"]["name"]
+    def summarizer(self):
+        """Return the summarizer."""
+        from .pipelines import LEGISLATION_SUMMARIZERS_BY_NAME
 
-    @pipeline_name.setter
-    def pipeline_name(self, value: str):
-        """Set the pipeline name."""
-        self.extra["pipeline"] = {**self.extra.get("pipeline", {}), "name": value}
+        return LEGISLATION_SUMMARIZERS_BY_NAME[self.summarizer_name]
 
     class Meta:
         verbose_name = "Legislation Summary"
         verbose_name_plural = "Legislation Summaries"
         ordering = ["-created_at"]
+
+        constraints = [
+            models.UniqueConstraint(
+                fields=["legislation", "summarizer_name"],
+                name="unique_legislation_summary_legislation_summarizer",
+            ),
+        ]
 
 
 class ActionManager(models.Manager):

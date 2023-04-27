@@ -7,6 +7,7 @@ from nonrelated_inlines.admin import NonrelatedTabularInline
 from server.admin import admin_site
 from server.documents.admin import NonrelatedDocumentTabularInline
 from server.lib.admin import NoPermissionAdminMixin
+from server.lib.truncate import truncate_str
 
 from .models import Action, Legislation, LegislationSummary, Meeting, MeetingSummary
 
@@ -40,12 +41,7 @@ class NonrelatedActionTabularInline(NoPermissionAdminMixin, NonrelatedTabularInl
         return obj.actions
 
     def title(self, action: Action):
-        # Truncate to 32 characters
-        return (
-            action.schema.title[:32] + "..."
-            if len(action.schema.title) > 32
-            else action.schema.title
-        )
+        return truncate_str(action.schema.title, 32)
 
     def result(self, action: Action):
         return action.schema.result or ""
@@ -120,7 +116,7 @@ class DepartmentNameListFilter(admin.SimpleListFilter):
 
 class MeetingSummaryTabularInline(NoPermissionAdminMixin, admin.TabularInline):
     model = MeetingSummary
-    fields = ("created_at", "summary", "extra")
+    fields = ("created_at", "summary", "summarizer_name")
     readonly_fields = fields
     show_change_link = True
     extra = 0
@@ -175,23 +171,19 @@ class MeetingAdmin(NoPermissionAdminMixin, admin.ModelAdmin):
         meeting_summary = obj.summaries.first()
         if meeting_summary is None:
             return ""
-        return (
-            meeting_summary.summary[:256] + "..."
-            if len(meeting_summary.summary) > 256
-            else meeting_summary.summary
-        )
+        return truncate_str(meeting_summary.summary, 256)
 
 
 class MeetingSummaryAdmin(NoPermissionAdminMixin, admin.ModelAdmin):
-    list_display = ("created_at", "meeting", "summary", "extra")
-    fields = ("created_at", "meeting", "summary", "extra")
+    list_display = ("created_at", "meeting", "summary", "summarizer_name")
+    fields = ("created_at", "meeting", "summary", "summarizer_name")
     readonly_fields = fields
     show_change_link = True
 
 
 class LegislationSummaryTabularInline(NoPermissionAdminMixin, admin.TabularInline):
     model = LegislationSummary
-    fields = ("created_at", "summary", "extra")
+    fields = ("created_at", "summary", "summarizer_name")
     readonly_fields = fields
     show_change_link = True
     extra = 0
@@ -222,8 +214,8 @@ class LegislationAdmin(NoPermissionAdminMixin, admin.ModelAdmin):
 
 
 class LegislationSummaryAdmin(NoPermissionAdminMixin, admin.ModelAdmin):
-    list_display = ("created_at", "legislation", "summary", "extra")
-    fields = ("created_at", "legislation", "summary", "extra")
+    list_display = ("created_at", "legislation", "summary", "summarizer_name")
+    fields = ("created_at", "legislation", "summary", "summarizer_name")
     readonly_fields = fields
 
 
