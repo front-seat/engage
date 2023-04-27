@@ -132,7 +132,7 @@ def _summarize_legislation(
 
 
 # ---------------------------------------------------------------------
-# Legislation summarizers
+# Legislation joiners
 # ---------------------------------------------------------------------
 
 
@@ -189,6 +189,11 @@ def _join_legislation_summaries_gpt35_catchy_controversial_headline(
         combine_prompt=LEGISLATION_CATCHY_CONTROVERSIAL_HEADLINE_PROMPT,
         substitutions=substitutions,
     )
+
+
+# ---------------------------------------------------------------------
+# Legislation summarizers
+# ---------------------------------------------------------------------
 
 
 def summarize_legislation_gpt35_educated_layperson(legislation: Legislation) -> str:
@@ -364,8 +369,118 @@ def _summarize_meeting(
 
 
 # ---------------------------------------------------------------------
+# Meeting joiners
+# ---------------------------------------------------------------------
+
+
+def _join_meeting_summaries_gpt35_educated_layperson(
+    text: str, substitutions: dict[str, str] | None = None
+) -> str:
+    return summarize_openai_langchain(
+        text,
+        map_prompt=EDUCATED_LAYPERSON_PROMPT,
+        combine_prompt=MEETING_EDUCATED_LAYPERSON_PROMPT,
+        substitutions=substitutions,
+    )
+
+
+def _join_meeting_summaries_gpt35_high_school(
+    text: str, substitutions: dict[str, str] | None = None
+) -> str:
+    return summarize_openai_langchain(
+        text,
+        map_prompt=HIGH_SCHOOL_PROMPT,
+        combine_prompt=MEETING_HIGH_SCHOOL_PROMPT,
+        substitutions=substitutions,
+    )
+
+
+def _join_meeting_summaries_gpt35_entertaining_blog_post(
+    text: str, substitutions: dict[str, str] | None = None
+) -> str:
+    return summarize_openai_langchain(
+        text,
+        map_prompt=CONCISE_SUMMARY_PROMPT,
+        combine_prompt=MEETING_ENTERTAINING_BLOG_POST_PROMPT,
+        substitutions=substitutions,
+    )
+
+
+def _join_meeting_summaries_gpt35_newspaper_headline(
+    text: str, substitutions: dict[str, str] | None = None
+) -> str:
+    return summarize_openai_langchain(
+        text,
+        map_prompt=CONCISE_SUMMARY_PROMPT,
+        combine_prompt=MEETING_NEWSPAPER_HEADLINE_PROMPT,
+        substitutions=substitutions,
+    )
+
+
+def _join_meeting_summaries_gpt35_catchy_controversial_headline(
+    text: str, substitutions: dict[str, str] | None = None
+) -> str:
+    return summarize_openai_langchain(
+        text,
+        map_prompt=CONCISE_SUMMARY_PROMPT,
+        combine_prompt=MEETING_CATCHY_CONTROVERSIAL_HEADLINE_PROMPT,
+        substitutions=substitutions,
+    )
+
+
+# ---------------------------------------------------------------------
 # Meeting summarizers
 # ---------------------------------------------------------------------
+
+
+def summarize_meeting_gpt35_educated_layperson(meeting: Meeting) -> str:
+    return _summarize_meeting(
+        meeting,
+        document_summarizer=summarize_gpt35_educated_layperson,
+        legislation_summarizer=summarize_legislation_gpt35_educated_layperson,
+        join_summarizer=_join_meeting_summaries_gpt35_educated_layperson,
+        verbose_name="gpt35_educated_layperson",
+    )
+
+
+def summarize_meeting_gpt35_high_school(meeting: Meeting) -> str:
+    return _summarize_meeting(
+        meeting,
+        document_summarizer=summarize_gpt35_high_school,
+        legislation_summarizer=summarize_legislation_gpt35_high_school,
+        join_summarizer=_join_meeting_summaries_gpt35_high_school,
+        verbose_name="gpt35_high_school",
+    )
+
+
+def summarize_meeting_gpt35_entertaining_blog_post(meeting: Meeting) -> str:
+    return _summarize_meeting(
+        meeting,
+        document_summarizer=summarize_gpt35_entertaining_blog_post,
+        legislation_summarizer=summarize_legislation_gpt35_educated_layperson,
+        join_summarizer=_join_meeting_summaries_gpt35_entertaining_blog_post,
+        verbose_name="gpt35_entertaining_blog_post",
+    )
+
+
+def summarize_meeting_gpt35_newspaper_headline(meeting: Meeting) -> str:
+    return _summarize_meeting(
+        meeting,
+        document_summarizer=summarize_gpt35_educated_layperson,
+        legislation_summarizer=summarize_legislation_gpt35_educated_layperson,
+        join_summarizer=_join_meeting_summaries_gpt35_newspaper_headline,
+        verbose_name="gpt35_newspaper_headline",
+    )
+
+
+def summarize_meeting_gpt35_catchy_controversial_headline(meeting: Meeting) -> str:
+    return _summarize_meeting(
+        meeting,
+        document_summarizer=summarize_gpt35_educated_layperson,
+        legislation_summarizer=summarize_legislation_gpt35_educated_layperson,
+        join_summarizer=_join_meeting_summaries_gpt35_catchy_controversial_headline,
+        verbose_name="gpt35_catchy_controversial_headline",
+    )
 
 
 # ---------------------------------------------------------------------
@@ -382,6 +497,10 @@ class MeetingSummarizerCallable(t.Protocol):
 
 MEETING_SUMMARIZERS: list[MeetingSummarizerCallable] = [
     summarize_meeting_gpt35_educated_layperson,
+    summarize_meeting_gpt35_high_school,
+    summarize_meeting_gpt35_entertaining_blog_post,
+    summarize_meeting_gpt35_newspaper_headline,
+    summarize_meeting_gpt35_catchy_controversial_headline,
 ]
 
 MEETING_SUMMARIZERS_BY_NAME: dict[str, MeetingSummarizerCallable] = {

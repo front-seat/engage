@@ -23,7 +23,12 @@ from server.legistar.models import (
     Meeting,
     MeetingSummary,
 )
-from server.legistar.pipelines import LEGISLATION_PIPELINE_V1, MEETING_PIPELINE_V1
+from server.legistar.pipelines import (
+    LEGISLATION_SUMMARIZERS,
+    LEGISLATION_SUMMARIZERS_BY_NAME,
+    MEETING_SUMMARIZERS,
+    MEETING_SUMMARIZERS_BY_NAME,
+)
 
 
 def _common_params(func):
@@ -458,32 +463,39 @@ def crawl_calendar(
 
 
 @main.group(invoke_without_command=True)
-def pipeline():
-    """Run a pipeline on legistar data."""
+def summarize():
+    """Run a summarizer on legistar data."""
     context = click.get_current_context()
     if context.invoked_subcommand is None:
         click.echo(context.get_help())
 
 
-@pipeline.command()
+@summarize.command()
 @click.argument("pk", type=int, required=True)
-@click.argument("pipeline", type=str, default=MEETING_PIPELINE_V1)
-def summarize_meeting(pk: int, pipeline: str):
+@click.argument("summarizer-name", type=str, default=MEETING_SUMMARIZERS[0])
+def meeting(pk: int, summarizer_name: str):
     """Summarize a meeting."""
+    summarizer = MEETING_SUMMARIZERS_BY_NAME[summarizer_name]
     meeting = Meeting.objects.get(pk=pk)
     meeting_summary, _ = MeetingSummary.objects.get_or_create_from_meeting(
-        meeting, pipeline
+        meeting, summarizer
     )
     click.echo(meeting_summary.summary)
 
 
-@pipeline.command()
+@summarize.command()
 @click.argument("pk", type=int, required=True)
-@click.argument("pipeline", type=str, default=LEGISLATION_PIPELINE_V1)
-def summarize_legislation(pk: int, pipeline: str):
+@click.argument("summarizer-name", type=str, default=LEGISLATION_SUMMARIZERS[0])
+def legislation(pk: int, summarizer_name: str):
     """Summarize a legislation item."""
+    summarizer = LEGISLATION_SUMMARIZERS_BY_NAME[summarizer_name]
     legislation = Legislation.objects.get(pk=pk)
     legislation_summary, _ = LegislationSummary.objects.get_or_create_from_legislation(
-        legislation, pipeline
+        legislation, summarizer
+    )
+    click.echo(legislation_summary.summary)
+    legislation = Legislation.objects.get(pk=pk)
+    legislation_summary, _ = LegislationSummary.objects.get_or_create_from_legislation(
+        legislation, summarizer
     )
     click.echo(legislation_summary.summary)
