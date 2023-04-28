@@ -293,3 +293,5 @@ dist
 # Council Data Project
 cdp-datasets/
 
+
+.DS_Store

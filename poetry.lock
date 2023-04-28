@@ -481,6 +481,22 @@ test-randomorder = ["pytest-randomly"]
 tox = ["tox"]
 
 [[package]]
+name = "cssbeautifier"
+version = "1.14.7"
+description = "CSS unobfuscator and beautifier."
+category = "dev"
+optional = false
+python-versions = "*"
+files = [
+    {file = "cssbeautifier-1.14.7.tar.gz", hash = "sha256:be7f1ea7a7b009f0172c2c0d0bebb2d136346e786f7182185ea944affb52135a"},
+]
+
+[package.dependencies]
+editorconfig = ">=0.12.2"
+jsbeautifier = "*"
+six = ">=1.13.0"
+
+[[package]]
 name = "dataclasses-json"
 version = "0.5.7"
 description = "Easily serialize dataclasses to and from JSON"
@@ -541,6 +557,26 @@ dev = ["Fabric", "Sphinx", "check-manifest", "flake8", "livereload", "mccabe", "
 test = ["coverage (<5)", "pytest", "pytest-cov", "pytest-django", "pytest-flake8"]
 
 [[package]]
+name = "django-distill"
+version = "3.1.3"
+description = "Static site renderer and publisher for Django."
+category = "main"
+optional = false
+python-versions = "*"
+files = [
+    {file = "django-distill-3.1.3.tar.gz", hash = "sha256:3c14e85e1197f4c11dddc5caf9e4a13669d83ab9654c64855e6217dea7619678"},
+]
+
+[package.dependencies]
+django = "*"
+requests = "*"
+
+[package.extras]
+amazon = ["boto3"]
+google = ["google-api-python-client", "google-cloud-storage"]
+microsoft = ["azure-storage-blob"]
+
+[[package]]
 name = "django-nonrelated-inlines"
 version = "0.2"
 description = "Django admin inlines for unrelated models"
@@ -594,6 +630,42 @@ files = [
 [package.dependencies]
 django = "*"
 typing-extensions = "*"
+
+[[package]]
+name = "djlint"
+version = "1.25.0"
+description = "HTML Template Linter and Formatter"
+category = "dev"
+optional = false
+python-versions = ">=3.8.0,<4.0.0"
+files = [
+    {file = "djlint-1.25.0-py3-none-any.whl", hash = "sha256:5d4ca41b40e8986773043eb7b857654154da91337df7c6c9aeeca256d5f0459a"},
+    {file = "djlint-1.25.0.tar.gz", hash = "sha256:1b9e5265e51c224ef5c6b8d434151293943ddae8602fb544063f33039738d17c"},
+]
+
+[package.dependencies]
+click = ">=8.0.1,<9.0.0"
+colorama = ">=0.4.4,<0.5.0"
+cssbeautifier = ">=1.14.4,<2.0.0"
+html-tag-names = ">=0.1.2,<0.2.0"
+html-void-elements = ">=0.1.0,<0.2.0"
+jsbeautifier = ">=1.14.4,<2.0.0"
+pathspec = ">=0.11.0,<0.12.0"
+PyYAML = ">=6.0,<7.0"
+regex = ">=2023.0.0,<2024.0.0"
+tqdm = ">=4.62.2,<5.0.0"
+
+[[package]]
+name = "editorconfig"
+version = "0.12.3"
+description = "EditorConfig File Locator and Interpreter for Python"
+category = "dev"
+optional = false
+python-versions = "*"
+files = [
+    {file = "EditorConfig-0.12.3-py3-none-any.whl", hash = "sha256:6b0851425aa875b08b16789ee0eeadbd4ab59666e9ebe728e526314c4a2e52c1"},
+    {file = "EditorConfig-0.12.3.tar.gz", hash = "sha256:57f8ce78afcba15c8b18d46b5170848c88d56fd38f05c2ec60dbbfcb8996e89e"},
+]
 
 [[package]]
 name = "frozenlist"
@@ -754,6 +826,30 @@ docs = ["Sphinx", "docutils (<0.18)"]
 test = ["objgraph", "psutil"]
 
 [[package]]
+name = "html-tag-names"
+version = "0.1.2"
+description = "List of known HTML tag names"
+category = "dev"
+optional = false
+python-versions = ">=3.7,<4.0"
+files = [
+    {file = "html-tag-names-0.1.2.tar.gz", hash = "sha256:04924aca48770f36b5a41c27e4d917062507be05118acb0ba869c97389084297"},
+    {file = "html_tag_names-0.1.2-py3-none-any.whl", hash = "sha256:eeb69ef21078486b615241f0393a72b41352c5219ee648e7c61f5632d26f0420"},
+]
+
+[[package]]
+name = "html-void-elements"
+version = "0.1.0"
+description = "List of HTML void tag names."
+category = "dev"
+optional = false
+python-versions = ">=3.7,<4.0"
+files = [
+    {file = "html-void-elements-0.1.0.tar.gz", hash = "sha256:931b88f84cd606fee0b582c28fcd00e41d7149421fb673e1e1abd2f0c4f231f0"},
+    {file = "html_void_elements-0.1.0-py3-none-any.whl", hash = "sha256:784cf39db03cdeb017320d9301009f8f3480f9d7b254d0974272e80e0cb5e0d2"},
+]
+
+[[package]]
 name = "humanize"
 version = "4.6.0"
 description = "Python humanize utilities"
@@ -797,6 +893,21 @@ colors = ["colorama (>=0.4.3)"]
 pipfile-deprecated-finder = ["pip-shims (>=0.5.2)", "pipreqs", "requirementslib"]
 plugins = ["setuptools"]
 requirements-deprecated-finder = ["pip-api", "pipreqs"]
+
+[[package]]
+name = "jsbeautifier"
+version = "1.14.7"
+description = "JavaScript unobfuscator and beautifier."
+category = "dev"
+optional = false
+python-versions = "*"
+files = [
+    {file = "jsbeautifier-1.14.7.tar.gz", hash = "sha256:77993254db1ff6f84eb6e1d75e3b6b72cba2ef20813a585b2d81e8e5e3c713c6"},
+]
+
+[package.dependencies]
+editorconfig = ">=0.12.2"
+six = ">=1.13.0"
 
 [[package]]
 name = "langchain"
@@ -1988,4 +2099,4 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.11"
-content-hash = "47dfbed60513d50e32cc65ec89abf4a0759d2dbae935f1204ef858c7464f351a"
+content-hash = "612748f6345981f2a8a01a7f93ea933833c5cb266a1c0422198de6b8f23ee894"

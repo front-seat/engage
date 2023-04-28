@@ -7,5 +7,9 @@
       "source.fixAll": true,
       "source.organizeImports": true
     }
+  },
+  "[django-html]": {
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "monosans.djlint"
   }
 }

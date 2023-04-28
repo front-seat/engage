@@ -1,0 +1,55 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="keywords"
+          content="Upcoming meetings of the Seattle City Council.">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Upcoming at the Seattle City Council</title>
+    <meta name="description"
+          content="A simple HTML5 Template for new projects.">
+    <meta name="author" content="Dave Peck">
+    <meta property="og:title" content="Upcoming at the Seattle City Council">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://scc.frontseat.org/">
+    <meta property="og:description"
+          content="Brief summaries of all upcoming meetings of the Seattle City Council.">
+    <meta property="og:image" content="/scc-logo.png">
+    <link rel="icon" href="/favicon.ico">
+    <link rel="stylesheet" href="{% static 'site.css' %}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Work+Sans:ital,wght@0,400;0,500;0,600;0,700;1,900&display=swap"
+          rel="stylesheet">
+    <script src="{% static 'site.js' %}"></script>
+  </head>
+  <body>
+    {% block summarization-style-form %}
+      <form id="summarization-style-form">
+        <div>
+          <label for="filter">Summarization style:</label>
+          <select name="filter" id="filter">
+            <option value="educated-layperson">Educated layperson</option>
+            <option value="high-school">High school</option>
+            <option value="catchy-clickbait">Catchy clickbait</option>
+          </select>
+        </div>
+      </form>
+    {% endblock summarization-style-form %}
+    {% block main %}
+      <main>
+        {% block title %}
+          <section class="title">
+            <h1 class="big-title">Upcoming at the Seattle City Council</h1>
+            <p class="big-subtitle">
+              A <a href="https://frontseat.org/" target="_blank">Front Seat</a> experiment.
+            </p>
+          </section>
+        {% endblock title %}
+        {% block content %}
+        {% endblock content %}
+      </main>
+    {% endblock main %}
+  </body>
+</html>

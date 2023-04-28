@@ -1,0 +1,5 @@
+{% extends "base.dhtml" %}
+{% block content %}
+  <h1>You found the legislation!</h1>
+  <p>Context: {{ context }}</p>
+{% endblock content %}

@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "django_distill",
     "server.legistar",
     "server.documents",
 ]
@@ -116,7 +117,17 @@ OPENAI_ORGANIZATION = os.environ.get("OPENAI_ORGANIZATION")
 # --------------------------------------------------------------------
 
 STATIC_URL = "static/"
+STATIC_ROOT = str(BASE_DIR / "server" / "static")
 
 # We bake data directly into the image, so we don't need to collect
 MEDIA_ROOT = str(DATA_DIR / "media")
 MEDIA_URL = "media/"
+
+
+# --------------------------------------------------------------------
+# Static site generation
+# --------------------------------------------------------------------
+
+# We use django-distill to generate a static site
+# https://django-distill.readthedocs.io/en/latest/
+DISTILL_DIR = str(BASE_DIR / "dist")
