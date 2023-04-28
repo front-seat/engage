@@ -30,6 +30,10 @@ from server.legistar.pipelines import (
     MEETING_SUMMARIZERS_BY_NAME,
 )
 
+# -----------------------------------------------------------------------------
+# Common parameters
+# -----------------------------------------------------------------------------
+
 
 def _common_params(func):
     """Define common parameters for all commands."""
@@ -80,6 +84,11 @@ def _common_api_params(func):
 _common_scraper_params = _common_params
 
 
+# -----------------------------------------------------------------------------
+# Utilities
+# -----------------------------------------------------------------------------
+
+
 def _echo_response(
     data: list | dict | PydanticBase, lines: bool = False, indent: int | None = 2
 ):
@@ -98,12 +107,22 @@ def _echo_response(
         click.echo(json.dumps(data, indent=None if lines else indent))
 
 
+# -----------------------------------------------------------------------------
+# Top-level command group ("main")
+# -----------------------------------------------------------------------------
+
+
 @click.group(invoke_without_command=True)
 def main():
     """Work with data on the Legistar website."""
     context = click.get_current_context()
     if context.invoked_subcommand is None:
         click.echo(context.get_help())
+
+
+# -----------------------------------------------------------------------------
+# API Commands
+# -----------------------------------------------------------------------------
 
 
 @main.command()
@@ -266,6 +285,11 @@ def get_upcoming_matters(
     _echo_response(response, lines)
 
 
+# -----------------------------------------------------------------------------
+# Scraper Commands
+# -----------------------------------------------------------------------------
+
+
 @main.command()
 @_common_scraper_params
 def get_calendar_rows(
@@ -393,15 +417,11 @@ def get_action(
     help="Only return events on or after this date (YYYY-MM-DD or `today`).",
     default=None,
 )
-@click.option(
-    "--db", is_flag=True, help="Update database, including attachments.", default=False
-)
 @_common_scraper_params
 def crawl_calendar(
     customer: str,
     lines: bool,
     start: str | None,
-    db: bool,
 ):
     """Get all events."""
 
@@ -458,8 +478,12 @@ def crawl_calendar(
     crawler = LegistarCalendarCrawler(customer, start_date=start_date)
     for item in crawler.crawl():
         _echo_response(item, lines)
-        if db:
-            _update_db(item)
+        _update_db(item)
+
+
+# -----------------------------------------------------------------------------
+# Summarization command group
+# -----------------------------------------------------------------------------
 
 
 @main.group(invoke_without_command=True)
@@ -470,10 +494,10 @@ def summarize():
         click.echo(context.get_help())
 
 
-@summarize.command()
+@summarize.command(name="meeting")
 @click.argument("pk", type=int, required=True)
 @click.argument("summarizer-name", type=str, default=MEETING_SUMMARIZERS[0])
-def meeting(pk: int, summarizer_name: str):
+def summarize_meeting(pk: int, summarizer_name: str):
     """Summarize a meeting."""
     summarizer = MEETING_SUMMARIZERS_BY_NAME[summarizer_name]
     meeting = Meeting.objects.get(pk=pk)
@@ -483,10 +507,31 @@ def meeting(pk: int, summarizer_name: str):
     click.echo(meeting_summary.summary)
 
 
-@summarize.command()
+@summarize.command(name="all-meetings")
+def summarize_all_meetings(summarizer_name: str):
+    """Summarize all non-canceled meetings with all available summarizers."""
+    summarizer = MEETING_SUMMARIZERS_BY_NAME[summarizer_name]
+    meetings = Meeting.objects.active()
+    for summarizer in MEETING_SUMMARIZERS:
+        if settings.verbose:
+            click.echo(f">>>> ALL-MEETINGS: Starting with {summarizer.__name__}.")
+        for meeting in meetings:
+            meeting_summary, _ = MeetingSummary.objects.get_or_create_from_meeting(
+                meeting, summarizer
+            )
+            if settings.verbose:
+                click.echo(
+                    f">>>> ALL-MEETINGS: Sum {meeting} via {summarizer.__name__}"
+                )
+            click.echo(meeting_summary.summary)
+            if settings.verbose:
+                click.echo("\n\n")
+
+
+@summarize.command(name="legislation")
 @click.argument("pk", type=int, required=True)
 @click.argument("summarizer-name", type=str, default=LEGISLATION_SUMMARIZERS[0])
-def legislation(pk: int, summarizer_name: str):
+def summarize_legislation(pk: int, summarizer_name: str):
     """Summarize a legislation item."""
     summarizer = LEGISLATION_SUMMARIZERS_BY_NAME[summarizer_name]
     legislation = Legislation.objects.get(pk=pk)
@@ -494,8 +539,26 @@ def legislation(pk: int, summarizer_name: str):
         legislation, summarizer
     )
     click.echo(legislation_summary.summary)
-    legislation = Legislation.objects.get(pk=pk)
-    legislation_summary, _ = LegislationSummary.objects.get_or_create_from_legislation(
-        legislation, summarizer
-    )
-    click.echo(legislation_summary.summary)
+
+
+@summarize.command(name="all-legislation")
+def summarize_all_legislation(summarizer_name: str):
+    """Summarize all legislation items with all available summarizers."""
+    legislation = Legislation.objects.all()
+    for summarizer in LEGISLATION_SUMMARIZERS:
+        if settings.verbose:
+            click.echo(f">>>> ALL-LEGISLATION: Starting with {summarizer.__name__}.")
+        for legislation in legislation:
+            (
+                legislation_summary,
+                _,
+            ) = LegislationSummary.objects.get_or_create_from_legislation(
+                legislation, summarizer
+            )
+            if settings.VERBOSE:
+                click.echo(
+                    f">>>> ALL-LEGISLATION: Sum {legislation} via {summarizer.__name__}"
+                )
+            click.echo(legislation_summary.summary)
+            if settings.VERBOSE:
+                click.echo("\n\n")

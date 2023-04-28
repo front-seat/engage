@@ -117,6 +117,13 @@ NEWSPAPER_HEADLINE_PROMPT = """Write an engaging one-sentence newspaper headline
 ENGAGING_HEADLINE:"""  # noqa: E501
 
 
+HIGH_SCHOOL_ESSAY_TITLE_PROMPT = """Write a short title for an essay written by a high school student about the following text:
+
+"{text}"
+
+HIGH_SCHOOL_ESSAY_TITLE:"""  # noqa: E501
+
+
 CATCHY_CONTROVERSIAL_HEADLINE_PROMPT = """Write a catchy, controversial one-sentence headline for the following text. Try and write something that will go viral and get of clicks:
 
 "{text}"
@@ -127,6 +134,19 @@ CATCHY_HEADLINE:"""  # noqa: E501
 # ---------------------------------------------------------------------
 # Summarizers
 # ---------------------------------------------------------------------
+
+
+def summarize_gpt35_concise(
+    text: str, substitutions: dict[str, str] | None = None
+) -> str:
+    assert substitutions is None, "substitutions not supported by this summarizer"
+    summary = summarize_openai_langchain(
+        text,
+        map_prompt=CONCISE_SUMMARY_PROMPT,
+        combine_prompt=CONCISE_SUMMARY_PROMPT,
+        substitutions=substitutions,
+    )
+    return summary
 
 
 def summarize_gpt35_educated_layperson(
@@ -176,6 +196,19 @@ def summarize_gpt35_newspaper_headline(
         text,
         map_prompt=EDUCATED_LAYPERSON_PROMPT,
         combine_prompt=NEWSPAPER_HEADLINE_PROMPT,
+        substitutions=substitutions,
+    )
+    return summary
+
+
+def summarize_gpt35_high_school_essay_title(
+    text: str, substitutions: dict[str, str] | None = None
+) -> str:
+    assert substitutions is None, "substitutions not supported by this summarizer"
+    summary = summarize_openai_langchain(
+        text,
+        map_prompt=CONCISE_SUMMARY_PROMPT,
+        combine_prompt=HIGH_SCHOOL_ESSAY_TITLE_PROMPT,
         substitutions=substitutions,
     )
     return summary
