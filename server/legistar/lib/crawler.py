@@ -121,4 +121,3 @@ class LegistarCalendarCrawler:
             yield legislation
         for action in self.iter_actions():
             yield action
-            yield action

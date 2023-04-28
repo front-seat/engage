@@ -4,7 +4,7 @@ import typing as t
 import pdfplumber
 
 
-def clean_sequential_line_numbers_v1(text: str) -> str:
+def _clean_sequential_line_numbers_v1(text: str) -> str:
     """Try to find and remove sequential line numbers from a string. v1."""
     # We mostly pass through the text, but we do some cleaning.
     # In particular, we look for lines that start with a number and a space:
@@ -83,7 +83,7 @@ def clean_sequential_line_numbers_v1(text: str) -> str:
     return "\n".join(cleaned_lines)
 
 
-def clean_headers_footers_v1(text: str) -> str:
+def _clean_headers_footers_v1(text: str) -> str:
     """Clean common headers/footers found in extracted PDF content. v1."""
     # Look for a line that starts with "Template last revised"; if we find it,
     # remove that line and (assuming we don't go out of bounds), the next 3.
@@ -99,58 +99,53 @@ def clean_headers_footers_v1(text: str) -> str:
     return "\n".join(lines)
 
 
-def pdf_clean_v1(text: str) -> str:
+def _pdf_clean_v1(text: str) -> str:
     """Clean a string extracted from a PDF using pdfPlumber."""
-    text = clean_sequential_line_numbers_v1(text)
-    text = clean_headers_footers_v1(text)
+    text = _clean_sequential_line_numbers_v1(text)
+    text = _clean_headers_footers_v1(text)
     return text
 
 
-def extract_text_v1(io: io.BytesIO) -> str:
+def _extract_text_v1(io: io.BytesIO) -> str:
     """Extract text from a text document. Piece of cake!"""
     data = io.read()
     return data.decode("utf-8")
 
 
-def extract_pdf_plumber_v1(io: io.BytesIO) -> str:
+def _extract_pdf_plumber_v1(io: io.BytesIO) -> str:
     """Extract text from a document using pdfPlumber. v1."""
     with pdfplumber.open(io) as pdf:
         texts = []
         for page in pdf.pages:
             text = page.extract_text()
-            text = pdf_clean_v1(text)
+            text = _pdf_clean_v1(text)
             texts.append(text)
         return "\n".join(texts)
 
 
-def extract_pipeline_v1(io: io.BytesIO, mime_type: str, **kwargs: t.Any) -> str:
+def extract_pipeline_v1(io: io.BytesIO, mime_type: str) -> str:
     """Extract text from a document using a pipeline of extractors. v1."""
     if mime_type == "application/pdf":
-        return extract_pdf_plumber_v1(io)
+        return _extract_pdf_plumber_v1(io)
     elif mime_type == "text/plain":
-        return extract_text_v1(io)
+        return _extract_text_v1(io)
     else:
         raise ValueError(f"Unrecognized MIME type {mime_type}.")
 
 
-EXTRACT_PIPELINE_V1 = "extract-pipeline-v1"
-
-
+@t.runtime_checkable
 class ExtractorCallable(t.Protocol):
-    def __call__(self, io: io.BytesIO, mime_type: str, **kwargs: t.Any) -> str:
+    __name__: str
+
+    def __call__(self, io: io.BytesIO, mime_type: str) -> str:
         ...
 
 
-EXTRACTORS: dict[str, ExtractorCallable] = {
-    EXTRACT_PIPELINE_V1: extract_pipeline_v1,
+EXTRACTORS: list[ExtractorCallable] = [
+    extract_pipeline_v1,
+]
+
+
+EXTRACTORS_BY_NAME: dict[str, ExtractorCallable] = {
+    extractor.__name__: extractor for extractor in EXTRACTORS
 }
-
-
-def get_extractor(name: str) -> ExtractorCallable:
-    """Get an extractor for a given MIME type and version."""
-    return EXTRACTORS[name]
-
-
-def run_extractor(name: str, io: io.BytesIO, mime_type: str, **kwargs: t.Any) -> str:
-    """Run the extractor for a given MIME type and version."""
-    return EXTRACTORS[name](io, mime_type, **kwargs)

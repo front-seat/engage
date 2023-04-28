@@ -2,24 +2,25 @@
 
 # Squash and recreate all migrations.
 
-# First, delete all files in server/documents/migrations except __init__.py
-rm -f server/documents/migrations/[0-9]*.py
-rm -rf server/documents/migrations/__pycache__
+# Delete our database
+rm -f data/db.sqlite3
+
+# Delete all migrations
+rm -rf server/documents/migrations
 rm -rf server/legistar/migrations
 
-# Now use a heredoc to recreate server/documents/migrations/0001_initial.py
-cat <<EOF > server/documents/migrations/0001_initial.py
-from django.db import migrations
-from pgvector.django import VectorExtension
-
-
-class Migration(migrations.Migration):
-    initial = True
-    dependencies = []
-    operations = [VectorExtension()]
-
-EOF
-
-# Finally, run makemigrations
+# Run new makemigrations
 python manage.py makemigrations documents --name models
 python manage.py makemigrations legistar
+
+# Run new migrate
+python manage.py migrate
+
+# Create a superuser. You must have your environment variables set.
+# Check that DJANGO_SUPERUSER_EMAIL is set.
+if [ -z "$DJANGO_SUPERUSER_EMAIL" ]; then
+  echo "DJANGO_SUPERUSER_EMAIL is not set. Will not create a superuser."
+  exit 0
+fi
+
+python manage.py createsuperuser --noinput

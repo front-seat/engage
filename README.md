@@ -2,17 +2,46 @@
 
 This repository currently contains early bits of disorganized research code to:
 
-- Download documents related to the Seattle city council (agendas, minutes, transcripts) and grab their text
-- Embed the documents and store it in a vector database (pgvector, OpenAI)
-- Summarize document content (zero-shot, using LLMs with LangChain+map-reduce)
-- Allow querying over the documents
+- Crawl the Seattle city council Legistar website, starting with the event calendar, and index its content.
+- Extract text from Seattle city council PDF documents
+- Generate LLM summaries for individual ordinances, appointment packets, etc.
+- Generate unified summaries for legislative actions and future council meetings
+- Build embeddings via [FAISS](https://faiss.ai/)
+- Build static sites containing these summaries and links to go deeper
 
-FUTURE:
+We use the ["baked data" pattern](https://simonwillison.net/2021/Jul/28/baked-data/) for this project. Namely, `data/db.sqlite3` contains our current index; when we update our index (say, by crawling the Legistar website again), we also update this file _and check it back in_.
 
-- _Optional_. Use spaCY, NLTK, or BERT to perform extractive summarization. Consider how extractive summaries can be fed as input to LLMs for final abstracting summarization.
+We run new crawls, generate static site content, and update GitHub Pages (our deployment mechanism) entirely via GitHub actions.
 
-As of this writing, everything interesting happens on the command-line.
+We also generate static content and make it available to GitHub pages.
 
-Because I'm using the Django admin interface to poke at the database, there are the earliest trappings of a web project too.
+As of this writing, everything interesting happens on the command-line. Documentation for our command line exposure is forthcoming.
 
-Bottom line: this is a (small-ish) ball of yarn for now; I'll tease things apart later, once we have a little more clarity about what we're building, and when/if it matters.
+### URL hierarchy for static site.
+
+_notes to myself_
+
+Available summary style slugs:
+
+- `educated-layperson`
+- `high-school`
+- `catchy-clickbait`
+
+I'm trying to avoid doing too much work here, so the hierarchy is:
+
+/ --> meta-equiv redirect to /calendar/educated-layperson/
+
+/calendar/<summary-style-slug>/
+Shows all upcoming non-canceled meetings in the appropriate style.
+
+/meeting/<id>/<summary-style-slug>/
+Shows a full summary of the meeting and headlines for each legislative action
+Links to the SCC legistar meeting page
+
+/legislation/<id>/<summary-style-slug>/
+Shows a full summary of the legislation + headlines for each affiliated document
+Links to the SCC legistar legislation page
+
+/document/<id>/<summary-style-slug>/
+Shows a full summary of the document
+Links to the original document
