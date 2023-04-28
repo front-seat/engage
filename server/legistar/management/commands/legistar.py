@@ -42,7 +42,7 @@ def _common_params(func):
     @click.option(
         "--lines",
         is_flag=True,
-        default=False,
+        default=True,
         help="If set, each item in a list is dumped on a separate line.",
     )
     @wraps(func)
@@ -508,12 +508,11 @@ def summarize_meeting(pk: int, summarizer_name: str):
 
 
 @summarize.command(name="all-meetings")
-def summarize_all_meetings(summarizer_name: str):
+def summarize_all_meetings():
     """Summarize all non-canceled meetings with all available summarizers."""
-    summarizer = MEETING_SUMMARIZERS_BY_NAME[summarizer_name]
     meetings = Meeting.objects.active()
     for summarizer in MEETING_SUMMARIZERS:
-        if settings.verbose:
+        if settings.VERBOSE:
             click.echo(f">>>> ALL-MEETINGS: Starting with {summarizer.__name__}.")
         for meeting in meetings:
             meeting_summary, _ = MeetingSummary.objects.get_or_create_from_meeting(
@@ -542,11 +541,11 @@ def summarize_legislation(pk: int, summarizer_name: str):
 
 
 @summarize.command(name="all-legislation")
-def summarize_all_legislation(summarizer_name: str):
+def summarize_all_legislation():
     """Summarize all legislation items with all available summarizers."""
     legislation = Legislation.objects.all()
     for summarizer in LEGISLATION_SUMMARIZERS:
-        if settings.verbose:
+        if settings.VERBOSE:
             click.echo(f">>>> ALL-LEGISLATION: Starting with {summarizer.__name__}.")
         for legislation in legislation:
             (
