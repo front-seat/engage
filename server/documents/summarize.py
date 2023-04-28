@@ -241,6 +241,7 @@ class SummarizerCallable(t.Protocol):
 
 
 SUMMARIZERS: list[SummarizerCallable] = [
+    summarize_gpt35_concise,
     summarize_gpt35_educated_layperson,
     summarize_gpt35_high_school,
     summarize_gpt35_entertaining_blog_post,

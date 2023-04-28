@@ -83,10 +83,12 @@ def summarize_single(
 
 
 @summarize.command(name="all")
-def summarize_all():
+@summarize.option("--ignore-kinds", type=str, default="agenda,agenda_packet")
+def summarize_all(ignore_kinds: str = "agenda,agenda_packet"):
     """Extract and summarize text from all documents using all summarizers."""
     extractor = EXTRACTORS[0]
-    documents = Document.objects.all()
+    ignore_kinds_set = set(ik.strip() for ik in ignore_kinds.split(","))
+    documents = Document.objects.all().exclude(kind__in=ignore_kinds_set)
     for summarizer in SUMMARIZERS:
         if settings.VERBOSE:
             print(f">>>> ALL-DOCS: Using {summarizer.__name__}", file=sys.stderr)
