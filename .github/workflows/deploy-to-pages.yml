@@ -61,6 +61,12 @@ jobs:
         run: npm install
       - name: Build static site
         run: poetry run python manage.py distill-local --force --collectstatic
+        env:
+          BASE_URL: https://scc.frontseat.org
+          DEBUG: NO
+          SECURE_SSL_REDIRECT: NO
+          SECRET_KEY: lolwhatnope-super-secret-doesnt-matter
+          EMAIL_BACKEND: django.core.mail.backends.console.EmailBackend
       - name: Upload artifact to pages
         uses: actions/upload-pages-artifact@v1
         with:
