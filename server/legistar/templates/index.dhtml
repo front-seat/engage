@@ -15,8 +15,8 @@
     <meta property="og:url" content="https://scc.frontseat.org/">
     <meta property="og:description"
           content="Brief summaries of all upcoming meetings of the Seattle City Council.">
-    <meta property="og:image" content="/scc-logo.png">
-    <link rel="icon" href="/favicon.ico">
+    <meta property="og:image" content="{% static 'scc-logo.png' %}">
+    <link rel="icon" href="{% static 'favicon.ico' %}">
     <link rel="stylesheet" href="{% static 'site.css' %}">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

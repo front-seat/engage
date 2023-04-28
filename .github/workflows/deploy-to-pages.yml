@@ -60,7 +60,7 @@ jobs:
       - name: Install node dependencies
         run: npm install
       - name: Build static site
-        run: poetry run python manage.py distill-local --force
+        run: poetry run python manage.py distill-local --force --collectstatic
       - name: Upload artifact to pages
         uses: actions/upload-pages-artifact@v1
         with:

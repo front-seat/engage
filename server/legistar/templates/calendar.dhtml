@@ -1,5 +1,6 @@
 {% extends "base.dhtml" %}
 {% block content %}
-  <h1>You found the calendar!</h1>
-  <p>Context: {{ context }}</p>
+  {% for meeting_description in meeting_descriptions %}
+    {% include "calendar_meeting_description.dhtml" with meeting_description=meeting_description %}
+  {% endfor %}
 {% endblock content %}

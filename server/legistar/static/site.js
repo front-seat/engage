@@ -31,7 +31,8 @@ function doNothing(event) {
 document.addEventListener("DOMContentLoaded", function () {
   // get the current filter from the URL. It will be the final path component
   // of the URL, so split the URL on "/" and get the last element
-  let filter = window.location.pathname.split("/").pop();
+  const splits = window.location.pathname.split("/");
+  let filter = splits[splits.length - 2];
 
   // make sure it is one of the valid filters, which are:
   // `educated-layperson`, `high-school`, and `catchy-clickbait`
@@ -52,3 +53,4 @@ document.addEventListener("DOMContentLoaded", function () {
   // set up the event handler for when the form is changed
   form.addEventListener("change", changeSummarizationStyle);
 });
+

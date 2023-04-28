@@ -2,6 +2,7 @@ from django_distill import distill_path
 
 from . import views
 
+app_name = "legistar"
 urlpatterns = [
     distill_path(
         "calendar/<slug:style>/",
