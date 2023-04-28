@@ -60,11 +60,11 @@ jobs:
       - name: Install node dependencies
         run: npm install
       - name: Build static site
-        run: echo TODO
+        run: poetry run python manage.py distill-local --force
       - name: Upload artifact to pages
         uses: actions/upload-pages-artifact@v1
         with:
-          path: ./out
+          path: ./dist
 
   # Deployment job
   deploy:
