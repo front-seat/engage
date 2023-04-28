@@ -330,7 +330,6 @@ class LegislationManager(models.Manager):
                 title=f"legislation-{schema.id}-supporting-{supporting_document.name}",
             )
             documents.append(supporting_document_document)
-        full_text_document = None
         if schema.full_text is not None:
             full_text_document, _ = Document.objects.get_or_create_from_url(
                 url=urllib.parse.urljoin(schema.url, "#FullTextDiv"),

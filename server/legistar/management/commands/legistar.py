@@ -513,18 +513,22 @@ def summarize_all_meetings():
     meetings = Meeting.objects.active()
     for summarizer in MEETING_SUMMARIZERS:
         if settings.VERBOSE:
-            click.echo(f">>>> ALL-MEETINGS: Starting with {summarizer.__name__}.")
+            click.echo(
+                f">>>> ALL-MEETINGS: Starting with {summarizer.__name__}.",
+                file=sys.stderr,
+            )
         for meeting in meetings:
             meeting_summary, _ = MeetingSummary.objects.get_or_create_from_meeting(
                 meeting, summarizer
             )
             if settings.verbose:
                 click.echo(
-                    f">>>> ALL-MEETINGS: Sum {meeting} via {summarizer.__name__}"
+                    f">>>> ALL-MEETINGS: Sum {meeting} w/ {summarizer.__name__}",
+                    file=sys.stderr,
                 )
             click.echo(meeting_summary.summary)
             if settings.verbose:
-                click.echo("\n\n")
+                click.echo("\n\n", file=sys.stderr)
 
 
 @summarize.command(name="legislation")
@@ -543,11 +547,14 @@ def summarize_legislation(pk: int, summarizer_name: str):
 @summarize.command(name="all-legislation")
 def summarize_all_legislation():
     """Summarize all legislation items with all available summarizers."""
-    legislation = Legislation.objects.all()
+    legislations = Legislation.objects.all()
     for summarizer in LEGISLATION_SUMMARIZERS:
         if settings.VERBOSE:
-            click.echo(f">>>> ALL-LEGISLATION: Starting with {summarizer.__name__}.")
-        for legislation in legislation:
+            click.echo(
+                f">>>> ALL-LEGISLATION: Using {summarizer.__name__}.",
+                file=sys.stderr,
+            )
+        for legislation in legislations:
             (
                 legislation_summary,
                 _,
@@ -556,8 +563,9 @@ def summarize_all_legislation():
             )
             if settings.VERBOSE:
                 click.echo(
-                    f">>>> ALL-LEGISLATION: Sum {legislation} via {summarizer.__name__}"
+                    f">>>> ALL-LEGISLATION: Sum {legislation} w/ {summarizer.__name__}",
+                    file=sys.stderr,
                 )
             click.echo(legislation_summary.summary)
             if settings.VERBOSE:
-                click.echo("\n\n")
+                click.echo("\n\n", file=sys.stderr)

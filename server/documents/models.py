@@ -20,7 +20,9 @@ def _load_url_mime_type(url: str) -> str:
     """Load the content type of a URL."""
     response = requests.head(url)
     response.raise_for_status()
-    return response.headers["Content-Type"]
+    raw_content_type = response.headers["Content-Type"]
+    mime_type, *_ = raw_content_type.split(";")
+    return mime_type
 
 
 def _load_url(url: str) -> tuple[bytes, str]:
@@ -49,7 +51,7 @@ class DocumentManager(models.Manager):
                 return document, False
             if settings.VERBOSE:
                 print(f">>>> CRAWL: get_document({url})", file=sys.stderr)
-            mime_type = _load_url_mime_type(url)
+            mime_type = _get_mime_type(url)
             if settings.VERBOSE:
                 extension = mimetypes.guess_extension(mime_type)
                 if extension is None:

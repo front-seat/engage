@@ -1,4 +1,7 @@
+import sys
+
 import djclick as click
+from django.conf import settings
 
 from server.documents.extract import EXTRACTORS, EXTRACTORS_BY_NAME
 from server.documents.models import Document, DocumentSummary, DocumentText
@@ -80,19 +83,28 @@ def summarize_single(
 
 
 @summarize.command(name="all")
-@click.argument("summarizer-name", type=str, default=SUMMARIZERS[0])
-def summarize_all(summarizer_name: str):
-    """Summarize text from all documents that don't yet have it."""
-    summarizer = SUMMARIZERS_BY_NAME[summarizer_name]
-    documents_with = DocumentSummary.objects.filter(
-        summarizer_name=summarizer_name
-    ).values_list("document_id", flat=True)
-    documents_without = Document.objects.exclude(document_id__in=documents_with)
-    for document in documents_without:
-        document_text = document.texts.first()
-        if document_text is None:
-            continue
-        document_summary, _ = DocumentSummary.objects.get_or_create_from_document_text(
-            document_text, summarizer
-        )
-        click.echo(document_summary.summary)
+def summarize_all():
+    """Extract and summarize text from all documents using all summarizers."""
+    extractor = EXTRACTORS[0]
+    documents = Document.objects.all()
+    for summarizer in SUMMARIZERS:
+        if settings.VERBOSE:
+            print(f">>>> ALL-DOCS: Using {summarizer.__name__}", file=sys.stderr)
+        for document in documents:
+            document_text, _ = DocumentText.objects.get_or_create_from_document(
+                document, extractor=extractor
+            )
+            (
+                document_summary,
+                _,
+            ) = DocumentSummary.objects.get_or_create_from_document_text(
+                document_text, summarizer=summarizer
+            )
+            if settings.VERBOSE:
+                print(
+                    f">>>> ALL-DOCS: Sum {document} w/ {summarizer.__name__}",
+                    file=sys.stderr,
+                )
+            click.echo(document_summary.summary)
+            if settings.VERBOSE:
+                print("\n\n", file=sys.stderr)
