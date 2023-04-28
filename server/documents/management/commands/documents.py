@@ -83,7 +83,7 @@ def summarize_single(
 
 
 @summarize.command(name="all")
-@summarize.option("--ignore-kinds", type=str, default="agenda,agenda_packet")
+@click.option("--ignore-kinds", type=str, default="agenda,agenda_packet")
 def summarize_all(ignore_kinds: str = "agenda,agenda_packet"):
     """Extract and summarize text from all documents using all summarizers."""
     extractor = EXTRACTORS[0]

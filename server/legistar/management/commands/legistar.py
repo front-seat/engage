@@ -521,13 +521,13 @@ def summarize_all_meetings():
             meeting_summary, _ = MeetingSummary.objects.get_or_create_from_meeting(
                 meeting, summarizer
             )
-            if settings.verbose:
+            if settings.VERBOSE:
                 click.echo(
                     f">>>> ALL-MEETINGS: Sum {meeting} w/ {summarizer.__name__}",
                     file=sys.stderr,
                 )
             click.echo(meeting_summary.summary)
-            if settings.verbose:
+            if settings.VERBOSE:
                 click.echo("\n\n", file=sys.stderr)
 
 

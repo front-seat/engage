@@ -92,7 +92,7 @@ EDUCATED_LAYPERSON_PROMPT = """Write a charming, concise, and engaging summary o
 ENGAGING_SUMMARY:"""  # noqa: E501
 
 
-HIGH_SCHOOL_PROMPT = """Write an engaging summary of the following text that's perfect for a high school student's reading level and attention span:
+HIGH_SCHOOL_PROMPT = """Pretend you're a high school student writing a summary of the following text for a school assignment. Write a summary that's clear and easy to understand:
 
 "{text}"
 

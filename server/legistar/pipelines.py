@@ -62,7 +62,7 @@ LEGISLATION_EDUCATED_LAYPERSON_PROMPT = """The following is a set of description
 ENGAGING_CITY_COUNCIL_LEGISLATIVE_ACTION_SUMMARY:"""  # noqa: E501
 
 
-LEGISLATION_HIGH_SCHOOL_PROMPT = """The following is a set of descriptions of documents related to a single legislative action taken a city council body. Write an engaging summary of the legislative effort, which is titled "<<title>>", that's perfect for a high school student's reading level and attention span.
+LEGISLATION_HIGH_SCHOOL_PROMPT = """The following is a set of descriptions of documents related to a single legislative action taken a city council body. Pretend you're a high school student writing a summary of the legislative effort, which is called "<<title>>". Write a summary that's clear and easy to understand:
 
 "{text}"
 
@@ -83,7 +83,7 @@ LEGISLATION_NEWSPAPER_HEADLINE_PROMPT = """The following is a set of description
 NEWSPAPER_HEADLINE_CITY_COUNCIL_LEGISLATIVE_ACTION_SUMMARY:"""  # noqa: E501
 
 
-LEGISLATION_HIGH_SCHOOL_ESSAY_TITLE_PROMPT = """The following is a set of descriptions of documents related to a single legislative action taken a city council body. Write a short title for an essay written by a school student about the legislative effort, which is called "<<title>>".
+LEGISLATION_HIGH_SCHOOL_ESSAY_TITLE_PROMPT = """The following is a set of descriptions of documents related to a single legislative action taken a city council body. Write a short title for an essay written by a high-school student about the legislative effort, which is called "<<title>>".
 
 "{text}"
 
@@ -312,7 +312,7 @@ MEETING_EDUCATED_LAYPERSON_PROMPT = """The following is a set of descriptions of
 ENGAGING_AGENDA_SUMMARY:"""  # noqa: E501
 
 
-MEETING_HIGH_SCHOOL_PROMPT = """The following is a set of descriptions of items on the agenda for an upcoming <<department>> meeting. Write an engaging summary of the agenda that's perfect for a high school student's reading level and attention span.
+MEETING_HIGH_SCHOOL_PROMPT = """The following is a set of descriptions of items on the agenda for an upcoming <<department>> meeting. Pretend you're a high school student writing a summary for a school assignment. Write a summary that's clear and easy to understand:
 
 "{text}"
 
