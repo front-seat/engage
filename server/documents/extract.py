@@ -133,6 +133,7 @@ def extract_pipeline_v1(io: io.BytesIO, mime_type: str) -> str:
         raise ValueError(f"Unrecognized MIME type {mime_type}.")
 
 
+@t.runtime_checkable
 class ExtractorCallable(t.Protocol):
     __name__: str
 

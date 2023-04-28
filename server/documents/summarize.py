@@ -232,6 +232,7 @@ def summarize_gpt35_catchy_controversial_headline(
 # ---------------------------------------------------------------------
 
 
+@t.runtime_checkable
 class SummarizerCallable(t.Protocol):
     __name__: str
 

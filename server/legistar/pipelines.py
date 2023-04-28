@@ -278,6 +278,7 @@ def summarize_legislation_gpt35_catchy_controversial_headline(
 # ---------------------------------------------------------------------
 
 
+@t.runtime_checkable
 class LegislationSummarizerCallable(t.Protocol):
     __name__: str
 
@@ -547,6 +548,7 @@ def summarize_meeting_gpt35_catchy_controversial_headline(meeting: Meeting) -> s
 # ---------------------------------------------------------------------
 
 
+@t.runtime_checkable
 class MeetingSummarizerCallable(t.Protocol):
     __name__: str
 
