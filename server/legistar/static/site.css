@@ -188,6 +188,17 @@ h1 {
   padding-bottom: 1rem;
 }
 
+.header h1 a {
+  color: #000;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.header h1 a:hover {
+  color: #312E81;
+  transition: color 0.2s ease;
+}
+
 h2 {
   font-size: 1.5rem;
   line-height: 1.75rem;
@@ -254,6 +265,7 @@ form {
   border-bottom-left-radius: 8px;
   border-bottom-right-radius: 8px;
   background-color: #ddd;
+  z-index: 50;
 }
 
 form>div {

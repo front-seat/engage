@@ -91,7 +91,7 @@ def _make_legislation_mini_description(legislation: Legislation, style: str) -> 
         "title": legislation.title,
         "truncated_title": legislation.truncated_title,
         "type": legislation.type,
-        "kind": legislation.type.split("(")[0].strip(),
+        "kind": legislation.kind,
         "headline": clean_headline,
         "truncated_headline": truncate_str(clean_headline, 24),
     }
@@ -137,8 +137,8 @@ def _make_document_mini_description(document: Document, style: str) -> dict:
     return {
         "pk": document.pk,
         "url": document.url,
-        "kind": document.kind,
-        "title": document.title,
+        "kind": document.kind.replace("_", " ").title(),
+        "title": document.short_title,
         "truncated_title": document.truncated_title,
         "headline": clean_headline,
         "truncated_headline": truncate_str(clean_headline, 24),
@@ -166,6 +166,7 @@ def _make_legislation_description(legislation: Legislation, style: str) -> dict:
         "title": legislation.title,
         "truncated_title": legislation.truncated_title,
         "type": legislation.type,
+        "kind": legislation.kind,
         "headline": _clean_headline(headline.summary),
         "summary": _summary_as_html(summary.summary),
         "documents": [
@@ -186,13 +187,15 @@ def _make_document_description(document: Document, style: str) -> dict:
     headline = get_object_or_404(
         DocumentSummary, document=document, summarizer_name=headline_summarizer_name
     )
+    clean_headline = _clean_headline(headline.summary)
     return {
         "pk": document.pk,
         "url": document.url,
-        "kind": document.kind,
-        "title": document.title,
+        "kind": document.kind.replace("_", " ").title(),
+        "title": document.short_title,
         "truncated_title": document.truncated_title,
-        "headline": _clean_headline(headline.summary),
+        "headline": clean_headline,
+        "truncated_headline": truncate_str(clean_headline, 24),
         "summary": _summary_as_html(summary.summary),
     }
 

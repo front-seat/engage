@@ -128,6 +128,10 @@ class Document(models.Model):
     def truncated_title(self) -> str:
         return truncate_str(self.title, 48)
 
+    @property
+    def short_title(self) -> str:
+        return self.title.split("-")[-1].strip()
+
     def read(
         self, _loader: t.Callable[[str], tuple[bytes, str]] = _load_url
     ) -> io.BytesIO:

@@ -417,6 +417,11 @@ class Legislation(models.Model):
         """Return the truncated title for the legislation."""
         return truncate_str(self.title, 48)
 
+    @property
+    def kind(self) -> str:
+        """Return the kind of legislation."""
+        return self.type.split("(")[0].strip()
+
     def __str__(self):
         return f"Legislation: {self.record_no} - {self.truncated_title}"
 
