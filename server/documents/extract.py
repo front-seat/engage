@@ -3,6 +3,8 @@ import typing as t
 
 import pdfplumber
 
+from server.lib.truncate import truncate_str
+
 
 def _clean_sequential_line_numbers_v1(text: str) -> str:
     """Try to find and remove sequential line numbers from a string. v1."""
@@ -114,13 +116,19 @@ def _extract_text_v1(io: io.BytesIO) -> str:
 
 def _extract_pdf_plumber_v1(io: io.BytesIO) -> str:
     """Extract text from a document using pdfPlumber. v1."""
-    with pdfplumber.open(io) as pdf:
-        texts = []
-        for page in pdf.pages:
-            text = page.extract_text()
-            text = _pdf_clean_v1(text)
-            texts.append(text)
-        return "\n".join(texts)
+    try:
+        with pdfplumber.open(io) as pdf:
+            texts = []
+            for page in pdf.pages:
+                text = page.extract_text()
+                text = _pdf_clean_v1(text)
+                texts.append(text)
+            return "\n".join(texts)
+    except Exception as e:
+        short_e = truncate_str(str(e), 64)
+        return (
+            f"Please ignore; we were unable to extract content from the PDF: {short_e}"
+        )
 
 
 def extract_pipeline_v1(io: io.BytesIO, mime_type: str) -> str:

@@ -76,7 +76,7 @@ def summarize_openai_langchain(
 # Full summary prompts
 # ---------------------------------------------------------------------
 
-CONCISE_SUMMARY_PROMPT = """Write a concise summary of the following text. Include all the important details:
+CONCISE_SUMMARY_PROMPT = """Write a concise summary of the following text. Include the most important details:
 
 "{text}"
 
@@ -103,12 +103,19 @@ ENTERTAINING_BLOG_POST_PROMPT = """Write an entertaining summary of the followin
 
 "{text}"
 
-ENTERTAINING_BLOG_POST_SUMMARY:"""  # noqa: E501
+CLICKBAIT_BLOG_POST_SUMMARY:"""  # noqa: E501
 
 
 # ---------------------------------------------------------------------
 # Headline prompts
 # ---------------------------------------------------------------------
+
+CONCISE_HEADLINE_PROMPT = """Write a concise and extremely compact headline (one sentence or less) for the following text. Capture only the most salient detail or two:
+
+"{text}"
+
+CONCISE_COMPACT_HEADLINE:"""  # noqa: E501
+
 
 NEWSPAPER_HEADLINE_PROMPT = """Write an engaging one-sentence newspaper headline for the following text. Assume your reader is a highly educated layperson:
 
@@ -124,11 +131,11 @@ HIGH_SCHOOL_ESSAY_TITLE_PROMPT = """Write a short title for an essay written by 
 HIGH_SCHOOL_ESSAY_TITLE:"""  # noqa: E501
 
 
-CATCHY_CONTROVERSIAL_HEADLINE_PROMPT = """Write a catchy, controversial one-sentence headline for the following text. Try and write something that will go viral and get of clicks:
+CATCHY_CONTROVERSIAL_HEADLINE_PROMPT = """Write a catchy one-sentence headline for the following text. Try and write something that will go viral and get lots of clicks:
 
 "{text}"
 
-CATCHY_HEADLINE:"""  # noqa: E501
+CLICKBAIT_HEADLINE:"""  # noqa: E501
 
 
 # ---------------------------------------------------------------------
@@ -183,6 +190,19 @@ def summarize_gpt35_entertaining_blog_post(
         text,
         map_prompt=CONCISE_SUMMARY_PROMPT,
         combine_prompt=ENTERTAINING_BLOG_POST_PROMPT,
+        substitutions=substitutions,
+    )
+    return summary
+
+
+def summarize_gpt35_concise_headline(
+    text: str, substitutions: dict[str, str] | None = None
+) -> str:
+    assert substitutions is None, "substitutions not supported by this summarizer"
+    summary = summarize_openai_langchain(
+        text,
+        map_prompt=CONCISE_SUMMARY_PROMPT,
+        combine_prompt=CONCISE_HEADLINE_PROMPT,
         substitutions=substitutions,
     )
     return summary
@@ -245,6 +265,7 @@ SUMMARIZERS: list[SummarizerCallable] = [
     summarize_gpt35_educated_layperson,
     summarize_gpt35_high_school,
     summarize_gpt35_entertaining_blog_post,
+    summarize_gpt35_concise_headline,
     summarize_gpt35_newspaper_headline,
     summarize_gpt35_high_school_essay_title,
     summarize_gpt35_catchy_controversial_headline,

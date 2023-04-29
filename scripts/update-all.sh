@@ -3,6 +3,9 @@
 BLUE='\033[0;34m'
 NC='\033[0m'
 
+# make sure that if a sub-command exits, this script exits too
+set -e
+
 export VERBOSE=YES
 
 echo "${BLUE}Crawling new seattle city calendar items...${NC}\n\n"

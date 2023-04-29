@@ -36,9 +36,9 @@ document.addEventListener("DOMContentLoaded", function () {
 
   // make sure it is one of the valid filters, which are:
   // `educated-layperson`, `high-school`, and `catchy-clickbait`
-  if (!["educated-layperson", "high-school", "catchy-clickbait"].includes(filter)) {
+  if (!["concise", "educated-layperson", "high-school", "catchy-clickbait"].includes(filter)) {
     // if it is not one of the valid filters, default to `educated-layperson`
-    filter = "educated-layperson";
+    filter = "concise";
   }
 
   // get the form element
