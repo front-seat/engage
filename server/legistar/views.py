@@ -225,7 +225,7 @@ def distill_meetings():
     qs = _meetings_qs()
     for meeting in qs:
         for style in STYLES:
-            yield {"legistar_id": meeting.legistar_id, "style": style}
+            yield {"meeting_id": meeting.legistar_id, "style": style}
 
 
 @require_GET
