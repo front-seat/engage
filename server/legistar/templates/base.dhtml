@@ -40,13 +40,9 @@
     {% block main %}
       <main>
         {% block title %}
-          <section class="title">
-            <h1 class="big-title">Upcoming at the Seattle City Council</h1>
-            <p class="big-subtitle">
-              A <a href="https://frontseat.org/" target="_blank">Front Seat</a> experiment.
-            </p>
-          </section>
         {% endblock title %}
+        {% block breadcrumbs %}
+        {% endblock breadcrumbs %}
         {% block content %}
         {% endblock content %}
       </main>

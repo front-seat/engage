@@ -10,6 +10,8 @@ from django.conf import settings
 from django.db import models, transaction
 from django.utils.text import slugify
 
+from server.lib.truncate import truncate_str
+
 from .extract import EXTRACTORS_BY_NAME, ExtractorCallable
 from .summarize import SUMMARIZERS_BY_NAME, SummarizerCallable
 
@@ -121,6 +123,14 @@ class Document(models.Model):
     @property
     def file_name(self) -> str:
         return f"{slugify(self.title)}{self.extension}"
+
+    @property
+    def truncated_title(self) -> str:
+        return truncate_str(self.title, 48)
+
+    @property
+    def short_title(self) -> str:
+        return self.title.split("-")[-1].strip()
 
     def read(
         self, _loader: t.Callable[[str], tuple[bytes, str]] = _load_url
