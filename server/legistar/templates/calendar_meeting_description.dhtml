@@ -1,4 +1,4 @@
-<article>
+<article class="meeting">
   <div class="header">
     <h1>{{ meeting_description.headline }}</h1>
     <time>{{ meeting_description.date }} at {{ meeting_description.time }}</time>
