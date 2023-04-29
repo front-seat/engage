@@ -246,6 +246,7 @@ SUMMARIZERS: list[SummarizerCallable] = [
     summarize_gpt35_high_school,
     summarize_gpt35_entertaining_blog_post,
     summarize_gpt35_newspaper_headline,
+    summarize_gpt35_high_school_essay_title,
     summarize_gpt35_catchy_controversial_headline,
 ]
 

@@ -1,4 +1,12 @@
 {% extends "base.dhtml" %}
+{% block title %}
+  <section class="title">
+    <h1 class="big-title">Upcoming at the Seattle City Council</h1>
+    <p class="big-subtitle">
+      A <a href="https://frontseat.org/" target="_blank">Front Seat</a> experiment.
+    </p>
+  </section>
+{% endblock title %}
 {% block content %}
   {% for meeting_description in meeting_descriptions %}
     {% include "calendar_meeting_description.dhtml" with meeting_description=meeting_description %}

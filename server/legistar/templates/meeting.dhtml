@@ -1,5 +1,48 @@
 {% extends "base.dhtml" %}
 {% block content %}
-  <h1>You found the meeting!</h1>
-  <p>Context: {{ context }}</p>
+  <article class="meeting">
+    <div class="header">
+      <h1>{{ meeting_description.headline }}</h1>
+      <time>{{ meeting_description.date }} at {{ meeting_description.time }}</time>
+      <summary>{{ meeting_description.department.name }}</summary>
+    </div>
+    <div class="content">{{ meeting_description.summary | safe }}</div>
+    <h2>Meeting Agenda</h2>
+    <div>
+      <table>
+        <thead>
+          <tr>
+            <th>Kind</th>
+            <th>Headline</th>
+            <th>Details</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for legislation in meeting_description.legislations %}
+            <tr>
+              <td>{{ legislation.kind }}</td>
+              <td>{{ legislation.headline }}</td>
+              <td>
+                <a href="{% url "legistar:legislation" legistar_id=legislation.legistar_id style=style %}"
+                   class="view-link">View&nbsp;→</a>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <a href="{{ meeting_description.url }}"
+       class="more-link space secondary"
+       target="_blank">Visit meeting on legistar →</a>
+  </article>
 {% endblock content %}
+{% block breadcrumbs %}
+  <nav class="breadcrumbs">
+    <ul>
+      <li>
+        <a href="{% url "legistar:calendar" style=style %}">Calendar</a>
+      </li>
+      <li class="current">Meeting {{ meeting_description.legistar_id }}</li>
+    </ul>
+  </nav>
+{% endblock breadcrumbs %}
