@@ -211,70 +211,102 @@ def calendar(request, style: str):
     )
 
 
-def distill_meetings(upcoming_only: bool = True):
-    qs = Meeting.objects.future() if upcoming_only else Meeting.objects.all()
-    # Choose non-canceled meetings only
+def _meetings_qs():
+    qs = Meeting.objects.future()
     qs = qs.exclude(time=None)
-    # Query for all Meeting objects that have at least one associated MeetingSummary.
     meeting_pks_with_summaries = set(
         MeetingSummary.objects.values_list("meeting_id", flat=True)
     )
     qs = qs.filter(pk__in=meeting_pks_with_summaries)
-    for style in STYLES:
-        for meeting in qs:
+    return qs
+
+
+def distill_meetings():
+    qs = _meetings_qs()
+    for meeting in qs:
+        for style in STYLES:
             yield {"legistar_id": meeting.legistar_id, "style": style}
 
 
 @require_GET
-def meeting(request, legistar_id: int, style: str):
-    meeting_ = get_object_or_404(Meeting, legistar_id=legistar_id)
+def meeting(request, meeting_id: int, style: str):
+    meeting_ = get_object_or_404(Meeting, legistar_id=meeting_id)
     meeting_description = _make_meeting_description(meeting_, style)
     return render(
         request,
         "meeting.dhtml",
-        {"style": style, "meeting_description": meeting_description},
+        {
+            "style": style,
+            "meeting_id": meeting_id,
+            "meeting_description": meeting_description,
+        },
     )
 
 
 def distill_legislations():
-    legislation_pks_with_summaries = set(
-        LegislationSummary.objects.values_list("legislation_id", flat=True)
-    )
-    qs = Legislation.objects.filter(pk__in=legislation_pks_with_summaries)
-    for style in STYLES:
-        for legislation in qs:
-            yield {"legistar_id": legislation.legistar_id, "style": style}
+    qs = _meetings_qs()
+    for meeting in qs:
+        for legislation in meeting.legislations:
+            if not legislation.summaries.exists():
+                continue
+            for style in STYLES:
+                yield {
+                    "meeting_id": meeting.legistar_id,
+                    "legislation_id": legislation.legistar_id,
+                    "style": style,
+                }
 
 
 @require_GET
-def legislation(request, legistar_id: int, style: str):
-    legislation_ = get_object_or_404(Legislation, legistar_id=legistar_id)
+def legislation(request, meeting_id: int, legislation_id: int, style: str):
+    legislation_ = get_object_or_404(Legislation, legistar_id=legislation_id)
     legislation_description = _make_legislation_description(legislation_, style)
     return render(
         request,
         "legislation.dhtml",
-        {"style": style, "legislation_description": legislation_description},
+        {
+            "style": style,
+            "meeting_id": meeting_id,
+            "legislation_id": legislation_id,
+            "legislation_description": legislation_description,
+        },
     )
 
 
 def distill_documents():
-    document_pks_with_summaries = set(
-        DocumentSummary.objects.values_list("document_id", flat=True)
-    )
-    qs = Document.objects.filter(pk__in=document_pks_with_summaries)
-    for style in STYLES:
-        for document in qs:
-            yield {"document_pk": document.id, "style": style}
+    qs = _meetings_qs()
+    for meeting in qs:
+        for legislation in meeting.legislations:
+            if not legislation.summaries.exists():
+                continue
+            for document in legislation.documents_qs:
+                if not document.summaries.exists():
+                    continue
+                for style in STYLES:
+                    yield {
+                        "meeting_id": meeting.legistar_id,
+                        "legislation_id": legislation.legistar_id,
+                        "document_pk": document.pk,
+                        "style": style,
+                    }
 
 
 @require_GET
-def document(request, document_pk: int, style: str):
+def document(
+    request, meeting_id: int, legislation_id: int, document_pk: int, style: str
+):
     document_ = get_object_or_404(Document, pk=document_pk)
     document_description = _make_document_description(document_, style)
     return render(
         request,
         "document.dhtml",
-        {"style": style, "document_description": document_description},
+        {
+            "style": style,
+            "meeting_id": meeting_id,
+            "legislation_id": legislation_id,
+            "document_pk": document_pk,
+            "document_description": document_description,
+        },
     )
 
 

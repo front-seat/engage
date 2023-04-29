@@ -24,7 +24,7 @@
               <td>{{ document.title }}</td>
               <td>{{ document.headline }}</td>
               <td>
-                <a href="{% url "legistar:document" document_pk=document.pk style=style %}"
+                <a href="{% url "legistar:document" meeting_id=meeting_id legislation_id=legislation_id document_pk=document.pk style=style %}"
                    class="view-link">View&nbsp;→</a>
               </td>
             </tr>
@@ -42,6 +42,9 @@
     <ul>
       <li>
         <a href="{% url "legistar:calendar" style=style %}">Calendar</a>
+      </li>
+      <li>
+        <a href="{% url "legistar:meeting" meeting_id=meeting_id style=style %}">Meeting {{ meeting_id }}</a>
       </li>
       <li class="current">Legislation {{ legislation_description.legistar_id }}</li>
     </ul>

@@ -17,6 +17,13 @@
       <li>
         <a href="{% url "legistar:calendar" style=style %}">Calendar</a>
       </li>
+      <li>
+        <a href="{% url "legistar:meeting" meeting_id=meeting_id style=style %}">Meeting {{ meeting_id }}</a>
+      </li>
+      <li>
+        <a href="{% url "legistar:legislation" meeting_id=meeting_id legislation_id=legislation_id style=style %}">
+        Legislation {{ legislation_id }}</a>
+      </li>
       <li class="current">Document {{ document_description.pk }}</li>
     </ul>
   </nav>

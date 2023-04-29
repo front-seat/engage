@@ -404,6 +404,10 @@ a.view-link:hover {
   transition: opacity 0.2s ease;
 }
 
+.breadcrumbs ul li.current {
+  font-weight: 500;
+}
+
 .breadcrumbs ul li:hover {
   opacity: 1;
   transition: opacity 0.2s ease;
