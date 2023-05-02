@@ -10,14 +10,11 @@ from server.lib.truncate import truncate_str
 
 from .models import Legislation, LegislationSummary, Meeting, MeetingSummary
 
-Style: t.TypeAlias = t.Literal[
-    "concise", "educated-layperson", "high-school", "catchy-clickbait"
-]
+Style: t.TypeAlias = t.Literal["concise", "elementary-school", "catchy-clickbait"]
 
 STYLES: list[Style] = [
     "concise",
-    "educated-layperson",
-    "high-school",
+    "elementary-school",
     "catchy-clickbait",
 ]
 
