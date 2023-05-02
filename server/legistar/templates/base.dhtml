@@ -31,8 +31,7 @@
           <label for="filter">Summarization style:</label>
           <select name="filter" id="filter">
             <option value="concise">Concise</option>
-            <option value="educated-layperson">Educated layperson</option>
-            <option value="high-school">High school</option>
+            <option value="elementary-school">Elementary school</option>
             <option value="catchy-clickbait">Catchy clickbait</option>
           </select>
         </div>

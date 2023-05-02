@@ -10,57 +10,48 @@ from server.lib.truncate import truncate_str
 
 from .models import Legislation, LegislationSummary, Meeting, MeetingSummary
 
-Style: t.TypeAlias = t.Literal[
-    "concise", "educated-layperson", "high-school", "catchy-clickbait"
-]
+Style: t.TypeAlias = t.Literal["concise", "elementary-school", "catchy-clickbait"]
 
 STYLES: list[Style] = [
     "concise",
-    "educated-layperson",
-    "high-school",
+    "elementary-school",
     "catchy-clickbait",
 ]
 
 MEETING_SUMMARY_STYLES: dict[Style, str] = {
     "concise": "summarize_meeting_gpt35_concise",
-    "educated-layperson": "summarize_meeting_gpt35_educated_layperson",
-    "high-school": "summarize_meeting_gpt35_high_school",
+    "elementary-school": "summarize_meeting_gpt35_elementary_school",
     "catchy-clickbait": "summarize_meeting_gpt35_entertaining_blog_post",
 }
 
 MEETING_HEADLINE_STYLES: dict[Style, str] = {
     "concise": "summarize_meeting_gpt35_concise_headline",
-    "educated-layperson": "summarize_meeting_gpt35_newspaper_headline",
-    "high-school": "summarize_meeting_gpt35_high_school_essay_title",
+    "elementary-school": "summarize_meeting_gpt35_elementary_school_headline",
     "catchy-clickbait": "summarize_meeting_gpt35_catchy_controversial_headline",
 }
 
 
 LEGISLATION_SUMMARY_STYLES: dict[Style, str] = {
     "concise": "summarize_legislation_gpt35_concise",
-    "educated-layperson": "summarize_legislation_gpt35_educated_layperson",
-    "high-school": "summarize_legislation_gpt35_high_school",
+    "elementary-school": "summarize_legislation_gpt35_elementary_school",
     "catchy-clickbait": "summarize_legislation_gpt35_entertaining_blog_post",
 }
 
 LEGISLATION_HEADLINE_STYLES: dict[Style, str] = {
     "concise": "summarize_legislation_gpt35_concise_headline",
-    "educated-layperson": "summarize_legislation_gpt35_newspaper_headline",
-    "high-school": "summarize_legislation_gpt35_high_school_essay_title",
+    "elementary-school": "summarize_legislation_gpt35_elementary_school_headline",
     "catchy-clickbait": "summarize_legislation_gpt35_catchy_controversial_headline",
 }
 
 DOCUMENT_SUMMARY_STYLES: dict[Style, str] = {
     "concise": "summarize_gpt35_concise",
-    "educated-layperson": "summarize_gpt35_educated_layperson",
-    "high-school": "summarize_gpt35_high_school",
+    "elementary-school": "summarize_gpt35_elementary_school",
     "catchy-clickbait": "summarize_gpt35_entertaining_blog_post",
 }
 
 DOCUMENT_HEADLINE_STYLES: dict[Style, str] = {
     "concise": "summarize_gpt35_concise_headline",
-    "educated-layperson": "summarize_gpt35_newspaper_headline",
-    "high-school": "summarize_gpt35_high_school_essay_title",
+    "elementary-school": "summarize_gpt35_elementary_school_headline",
     "catchy-clickbait": "summarize_gpt35_catchy_controversial_headline",
 }
 

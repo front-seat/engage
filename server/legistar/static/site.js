@@ -36,8 +36,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
   // make sure it is one of the valid filters, which are:
   // `educated-layperson`, `high-school`, and `catchy-clickbait`
-  if (!["concise", "educated-layperson", "high-school", "catchy-clickbait"].includes(filter)) {
-    // if it is not one of the valid filters, default to `educated-layperson`
+  if (!["concise", "elementary-school", "catchy-clickbait"].includes(filter)) {
+    // if it is not one of the valid filters, default to `concise`
     filter = "concise";
   }
 
