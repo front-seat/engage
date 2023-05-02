@@ -111,28 +111,40 @@ def _make_meeting_description(meeting: Meeting, style: str) -> dict:
         raise Http404("invalid style")
     summarizer_name = MEETING_SUMMARY_STYLES[style]
     headline_summarizer_name = MEETING_HEADLINE_STYLES[style]
-    summary = get_object_or_404(
-        MeetingSummary, meeting=meeting, summarizer_name=summarizer_name
-    )
-    headline = get_object_or_404(
-        MeetingSummary, meeting=meeting, summarizer_name=headline_summarizer_name
-    )
-    clean_headline = _clean_headline(headline.summary)
-    return {
-        "legistar_id": meeting.legistar_id,
-        "url": meeting.url,
-        "date": meeting.date,
-        "time": meeting.time,
-        "location": meeting.location,
-        "department": meeting.schema.department,
-        "headline": clean_headline,
-        "truncated_headline": truncate_str(clean_headline, 24),
-        "summary": _summary_as_html(summary.summary),
-        "legislations": [
-            _make_legislation_mini_description(legislation, style)
-            for legislation in meeting.legislations
-        ],
-    }
+    if meeting.is_active:
+        summary = get_object_or_404(
+            MeetingSummary, meeting=meeting, summarizer_name=summarizer_name
+        )
+        headline = get_object_or_404(
+            MeetingSummary, meeting=meeting, summarizer_name=headline_summarizer_name
+        )
+        clean_headline = _clean_headline(headline.summary)
+        return {
+            "is_active": True,
+            "legistar_id": meeting.legistar_id,
+            "url": meeting.url,
+            "date": meeting.date,
+            "time": meeting.time,
+            "location": meeting.location,
+            "department": meeting.schema.department,
+            "headline": clean_headline,
+            "truncated_headline": truncate_str(clean_headline, 24),
+            "summary": _summary_as_html(summary.summary),
+            "legislations": [
+                _make_legislation_mini_description(legislation, style)
+                for legislation in meeting.legislations
+            ],
+        }
+    else:
+        return {
+            "is_active": False,
+            "legistar_id": meeting.legistar_id,
+            "url": meeting.url,
+            "date": meeting.date,
+            "time": meeting.time,
+            "location": meeting.location,
+            "department": meeting.schema.department,
+        }
 
 
 def _make_document_mini_description(document: Document, style: str) -> dict:
@@ -211,7 +223,7 @@ def _make_document_description(document: Document, style: str) -> dict:
 
 @require_GET
 def calendar(request, style: str):
-    meetings = Meeting.objects.future().exclude(time=None).order_by("date")
+    meetings = Meeting.objects.future().order_by("-date")
     meeting_descriptions = [_make_meeting_description(m, style) for m in meetings]
     return render(
         request,
