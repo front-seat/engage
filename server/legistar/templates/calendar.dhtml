@@ -11,4 +11,7 @@
   {% for meeting_description in meeting_descriptions %}
     {% include "calendar_meeting_description.dhtml" with meeting_description=meeting_description %}
   {% endfor %}
+  <a href="https://seattle.legistar.com/Calendar.aspx"
+     class="more-link space secondary"
+     target="_blank">Visit calendar on legistar →</a>
 {% endblock content %}

@@ -199,6 +199,19 @@ h1 {
   transition: color 0.2s ease;
 }
 
+.canceled .header h1 a {
+  color: #999;
+  font-weight: 600;
+}
+
+.canceled .header h1 a:hover {
+  color: #312E81;
+}
+
+.canceled time {
+  color: #999;
+}
+
 h2 {
   font-size: 1.5rem;
   line-height: 1.75rem;
