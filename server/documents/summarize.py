@@ -105,6 +105,12 @@ ENTERTAINING_BLOG_POST_PROMPT = """Write an entertaining summary of the followin
 
 CLICKBAIT_BLOG_POST_SUMMARY:"""  # noqa: E501
 
+ELEMENTARY_SCHOOL_PROMPT = """Summarize the following text, but make it easy for a motivated third grader in elementary school to read and understand:
+
+"{text}"
+
+ELEMENTARY_SCHOOL_SUMMARY:"""  # noqa: E501
+
 
 # ---------------------------------------------------------------------
 # Headline prompts
@@ -136,6 +142,13 @@ CATCHY_CONTROVERSIAL_HEADLINE_PROMPT = """Write a catchy one-sentence headline f
 "{text}"
 
 CLICKBAIT_HEADLINE:"""  # noqa: E501
+
+
+ELEMENTARY_SCHOOL_HEADLINE_PROMPT = """Write a very short 'headline' for the following text that's easy for a motivated third grader in elementary school to read and understand:
+
+"{text}"
+
+ELEMENTARY_SCHOOL_HEADLINE:"""  # noqa: E501
 
 
 # ---------------------------------------------------------------------
@@ -195,6 +208,19 @@ def summarize_gpt35_entertaining_blog_post(
     return summary
 
 
+def summarize_gpt35_elementary_school(
+    text: str, substitutions: dict[str, str] | None = None
+) -> str:
+    assert substitutions is None, "substitutions not supported by this summarizer"
+    summary = summarize_openai_langchain(
+        text,
+        map_prompt=CONCISE_SUMMARY_PROMPT,
+        combine_prompt=ELEMENTARY_SCHOOL_PROMPT,
+        substitutions=substitutions,
+    )
+    return summary
+
+
 def summarize_gpt35_concise_headline(
     text: str, substitutions: dict[str, str] | None = None
 ) -> str:
@@ -247,6 +273,20 @@ def summarize_gpt35_catchy_controversial_headline(
     return summary
 
 
+def summarize_gpt35_elementary_school_headline(
+    text: str, substitutions: dict[str, str] | None = None
+) -> str:
+    assert substitutions is None, "substitutions not supported by this summarizer"
+
+    summary = summarize_openai_langchain(
+        text,
+        map_prompt=CONCISE_SUMMARY_PROMPT,
+        combine_prompt=ELEMENTARY_SCHOOL_HEADLINE_PROMPT,
+        substitutions=substitutions,
+    )
+    return summary
+
+
 # ---------------------------------------------------------------------
 # External utilities
 # ---------------------------------------------------------------------
@@ -262,13 +302,15 @@ class SummarizerCallable(t.Protocol):
 
 SUMMARIZERS: list[SummarizerCallable] = [
     summarize_gpt35_concise,
-    summarize_gpt35_educated_layperson,
-    summarize_gpt35_high_school,
+    # summarize_gpt35_educated_layperson,
+    # summarize_gpt35_high_school,
     summarize_gpt35_entertaining_blog_post,
+    summarize_gpt35_elementary_school,
     summarize_gpt35_concise_headline,
-    summarize_gpt35_newspaper_headline,
-    summarize_gpt35_high_school_essay_title,
+    # summarize_gpt35_newspaper_headline,
+    # summarize_gpt35_high_school_essay_title,
     summarize_gpt35_catchy_controversial_headline,
+    summarize_gpt35_elementary_school_headline,
 ]
 
 

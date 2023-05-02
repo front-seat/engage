@@ -82,6 +82,13 @@ LEGISLATION_ENTERTAINING_BLOG_POST_PROMPT = """The following is a set of descrip
 CLICKBAIT_BLOG_POST_CITY_COUNCIL_LEGISLATIVE_ACTION_SUMMARY:"""  # noqa: E501
 
 
+LEGISLATION_ELEMENTARY_SCHOOL_PROMPT = """The following is a set of descriptions of documents related to a single legislative action taken a city council body. The overall action is titled "<<title>>". Summarize, but make it easy for a motivated third grader in elementary school to read and understand:
+
+"{text}"
+
+ELEMENTARY_SCHOOL_CITY_COUNCIL_LEGISLATIVE_ACTION_SUMMARY:"""  # noqa: E501
+
+
 LEGISLATION_CONCISE_HEADLINE_PROMPT = """The following is a set of descriptions of documents related to a single legislative action taken a city council body. Write a concise and extremely compact headline (one sentence or less) for the action, which is titled "<<title>>". Capture only the most salient detail or two:
 
 "{text}"
@@ -108,6 +115,13 @@ LEGISLATION_CATCHY_CONTROVERSIAL_HEADLINE_PROMPT = """The following is a set of 
 "{text}"
 
 CLICKBAIT_HEADLINE:"""  # noqa: E501
+
+
+LEGISLATION_ELEMENTARY_SCHOOL_HEADLINE_PROMPT = """The following is a set of descriptions of documents related to a single legislative action taken a city council body. Write a very short headline for the legislative effort, which is titled "<<title>>". Make it easy for a motivated third grader in elementary school to read and understand:
+
+"{text}"
+
+ELEMENTARY_SCHOOL_HEADLINE:"""  # noqa: E501
 
 
 # ---------------------------------------------------------------------
@@ -201,6 +215,17 @@ def _join_legislation_summaries_gpt35_entertaining_blog_post(
     )
 
 
+def _join_legislation_summaries_gpt35_elementary_school(
+    text: str, substitutions: dict[str, str] | None = None
+) -> str:
+    return summarize_openai_langchain(
+        text,
+        map_prompt=CONCISE_SUMMARY_PROMPT,
+        combine_prompt=LEGISLATION_ELEMENTARY_SCHOOL_PROMPT,
+        substitutions=substitutions,
+    )
+
+
 def _join_legislation_summaries_gpt35_concise_headline(
     text: str, substitutions: dict[str, str] | None = None
 ) -> str:
@@ -241,6 +266,17 @@ def _join_legislation_summaries_gpt35_catchy_controversial_headline(
         text,
         map_prompt=CONCISE_SUMMARY_PROMPT,
         combine_prompt=LEGISLATION_CATCHY_CONTROVERSIAL_HEADLINE_PROMPT,
+        substitutions=substitutions,
+    )
+
+
+def _join_legislation_summaries_gpt35_elementary_school_headline(
+    text: str, substitutions: dict[str, str] | None = None
+) -> str:
+    return summarize_openai_langchain(
+        text,
+        map_prompt=CONCISE_SUMMARY_PROMPT,
+        combine_prompt=LEGISLATION_ELEMENTARY_SCHOOL_HEADLINE_PROMPT,
         substitutions=substitutions,
     )
 
@@ -286,6 +322,15 @@ def summarize_legislation_gpt35_entertaining_blog_post(legislation: Legislation)
     )
 
 
+def summarize_legislation_gpt35_elementary_school(legislation: Legislation) -> str:
+    return _summarize_legislation(
+        legislation,
+        document_summarizer=summarize_gpt35_concise,
+        join_summarizer=_join_legislation_summaries_gpt35_elementary_school,
+        verbose_name="gpt35_elementary_school",
+    )
+
+
 def summarize_legislation_gpt35_concise_headline(legislation: Legislation) -> str:
     return _summarize_legislation(
         legislation,
@@ -326,6 +371,17 @@ def summarize_legislation_gpt35_catchy_controversial_headline(
     )
 
 
+def summarize_legislation_gpt35_elementary_school_headline(
+    legislation: Legislation,
+) -> str:
+    return _summarize_legislation(
+        legislation,
+        document_summarizer=summarize_gpt35_concise,
+        join_summarizer=_join_legislation_summaries_gpt35_elementary_school_headline,
+        verbose_name="gpt35_elementary_school_headline",
+    )
+
+
 # ---------------------------------------------------------------------
 # Legislation external utilties
 # ---------------------------------------------------------------------
@@ -341,13 +397,15 @@ class LegislationSummarizerCallable(t.Protocol):
 
 LEGISLATION_SUMMARIZERS: list[LegislationSummarizerCallable] = [
     summarize_legislation_gpt35_concise,
-    summarize_legislation_gpt35_educated_layperson,
-    summarize_legislation_gpt35_high_school,
+    # summarize_legislation_gpt35_educated_layperson,
+    # summarize_legislation_gpt35_high_school,
     summarize_legislation_gpt35_entertaining_blog_post,
+    summarize_legislation_gpt35_elementary_school,
     summarize_legislation_gpt35_concise_headline,
-    summarize_legislation_gpt35_newspaper_headline,
-    summarize_legislation_gpt35_high_school_essay_title,
+    # summarize_legislation_gpt35_newspaper_headline,
+    # summarize_legislation_gpt35_high_school_essay_title,
     summarize_legislation_gpt35_catchy_controversial_headline,
+    summarize_legislation_gpt35_elementary_school_headline,
 ]
 
 LEGISLATION_SUMMARIZERS_BY_NAME: dict[str, LegislationSummarizerCallable] = {
@@ -388,6 +446,13 @@ MEETING_ENTERTAINING_BLOG_POST_PROMPT = """The following is a set of description
 CLICKBAIT_BLOG_POST_AGENDA_SUMMARY:"""  # noqa: E501
 
 
+MEETING_ELEMENTARY_SCHOOL_PROMPT = """The following is a set of descriptions of items on the agenda for an upcoming <<department>> meeting. Summarize, but make it easy for a motivated third grader in elementary school to read and understand:
+
+"{text}"
+
+ELEMENTARY_SCHOOL_AGENDA_SUMMARY:"""  # noqa: E501
+
+
 MEETING_CONCISE_HEADLINE_PROMPT = """The following is a set of descriptions of items on the agenda for an upcoming <<department>> meeting. Write a concise and extremely compact headline (one sentence or less) for the following text. Capture the most salient detail or two:
 
 "{text}"
@@ -414,6 +479,13 @@ MEETING_CATCHY_CONTROVERSIAL_HEADLINE_PROMPT = """The following is a set of desc
 "{text}"
 
 CLICKBAIT_HEADLINE_FOR_AGENDA:"""  # noqa: E501
+
+
+MEETING_ELEMENTARY_SCHOOL_HEADLINE_PROMPT = """The following is a set of descriptions of items on the agenda for an upcoming <<department>> meeting. Write a very short 'headline' that's easy for a motivated third grader in elementary school to read and understand:
+
+"{text}"
+
+ELEMENTARY_SCHOOL_HEADLINE_FOR_AGENDA:"""  # noqa: E501
 
 
 # ---------------------------------------------------------------------
@@ -525,6 +597,17 @@ def _join_meeting_summaries_gpt35_entertaining_blog_post(
     )
 
 
+def _join_meeting_summaries_gpt35_elementary_school(
+    text: str, substitutions: dict[str, str] | None = None
+) -> str:
+    return summarize_openai_langchain(
+        text,
+        map_prompt=CONCISE_SUMMARY_PROMPT,
+        combine_prompt=MEETING_ELEMENTARY_SCHOOL_PROMPT,
+        substitutions=substitutions,
+    )
+
+
 def _join_meeting_summaries_gpt35_concise_headline(
     text: str, substitutions: dict[str, str] | None = None
 ) -> str:
@@ -565,6 +648,17 @@ def _join_meeting_summaries_gpt35_catchy_controversial_headline(
         text,
         map_prompt=CONCISE_SUMMARY_PROMPT,
         combine_prompt=MEETING_CATCHY_CONTROVERSIAL_HEADLINE_PROMPT,
+        substitutions=substitutions,
+    )
+
+
+def _join_meeting_summaries_gpt35_elementary_school_headline(
+    text: str, substitutions: dict[str, str] | None = None
+) -> str:
+    return summarize_openai_langchain(
+        text,
+        map_prompt=CONCISE_SUMMARY_PROMPT,
+        combine_prompt=MEETING_ELEMENTARY_SCHOOL_HEADLINE_PROMPT,
         substitutions=substitutions,
     )
 
@@ -614,6 +708,16 @@ def summarize_meeting_gpt35_entertaining_blog_post(meeting: Meeting) -> str:
     )
 
 
+def summarize_meeting_gpt35_elementary_school(meeting: Meeting) -> str:
+    return _summarize_meeting(
+        meeting,
+        document_summarizer=summarize_gpt35_concise,
+        legislation_summarizer=summarize_legislation_gpt35_concise,
+        join_summarizer=_join_meeting_summaries_gpt35_elementary_school,
+        verbose_name="gpt35_elementary_school",
+    )
+
+
 def summarize_meeting_gpt35_concise_headline(meeting: Meeting) -> str:
     return _summarize_meeting(
         meeting,
@@ -654,6 +758,16 @@ def summarize_meeting_gpt35_catchy_controversial_headline(meeting: Meeting) -> s
     )
 
 
+def summarize_meeting_gpt35_elementary_school_headline(meeting: Meeting) -> str:
+    return _summarize_meeting(
+        meeting,
+        document_summarizer=summarize_gpt35_concise,
+        legislation_summarizer=summarize_legislation_gpt35_concise,
+        join_summarizer=_join_meeting_summaries_gpt35_elementary_school_headline,
+        verbose_name="gpt35_elementary_school_headline",
+    )
+
+
 # ---------------------------------------------------------------------
 # Meeting external utilties
 # ---------------------------------------------------------------------
@@ -669,13 +783,15 @@ class MeetingSummarizerCallable(t.Protocol):
 
 MEETING_SUMMARIZERS: list[MeetingSummarizerCallable] = [
     summarize_meeting_gpt35_concise,
-    summarize_meeting_gpt35_educated_layperson,
-    summarize_meeting_gpt35_high_school,
+    # summarize_meeting_gpt35_educated_layperson,
+    # summarize_meeting_gpt35_high_school,
     summarize_meeting_gpt35_entertaining_blog_post,
+    summarize_meeting_gpt35_elementary_school,
     summarize_meeting_gpt35_concise_headline,
-    summarize_meeting_gpt35_newspaper_headline,
-    summarize_meeting_gpt35_high_school_essay_title,
+    # summarize_meeting_gpt35_newspaper_headline,
+    # summarize_meeting_gpt35_high_school_essay_title,
     summarize_meeting_gpt35_catchy_controversial_headline,
+    summarize_meeting_gpt35_elementary_school_headline,
 ]
 
 MEETING_SUMMARIZERS_BY_NAME: dict[str, MeetingSummarizerCallable] = {
