@@ -82,7 +82,7 @@ LEGISLATION_ENTERTAINING_BLOG_POST_PROMPT = """The following is a set of descrip
 CLICKBAIT_BLOG_POST_CITY_COUNCIL_LEGISLATIVE_ACTION_SUMMARY:"""  # noqa: E501
 
 
-LEGISLATION_ELEMENTARY_SCHOOL_PROMPT = """The following is a set of descriptions of documents related to a single legislative action taken a city council body. The overall action is titled "<<title>>". Summarize, but make it easy for a motivated third grader in elementary school to read and understand:
+LEGISLATION_ELEMENTARY_SCHOOL_PROMPT = """The following is a set of descriptions of documents related to a single legislative action taken a city council body. The overall action is titled "<<title>>". Summarize, but make it easy for an elementary school kid to understand:
 
 "{text}"
 
@@ -117,7 +117,7 @@ LEGISLATION_CATCHY_CONTROVERSIAL_HEADLINE_PROMPT = """The following is a set of 
 CLICKBAIT_HEADLINE:"""  # noqa: E501
 
 
-LEGISLATION_ELEMENTARY_SCHOOL_HEADLINE_PROMPT = """The following is a set of descriptions of documents related to a single legislative action taken a city council body. Write a very short headline for the legislative effort, which is titled "<<title>>". Make it easy for a motivated third grader in elementary school to read and understand:
+LEGISLATION_ELEMENTARY_SCHOOL_HEADLINE_PROMPT = """The following is a set of descriptions of documents related to a single legislative action taken a city council body. Write a headline that's easy for an elementary school kid to understand:
 
 "{text}"
 
@@ -446,7 +446,7 @@ MEETING_ENTERTAINING_BLOG_POST_PROMPT = """The following is a set of description
 CLICKBAIT_BLOG_POST_AGENDA_SUMMARY:"""  # noqa: E501
 
 
-MEETING_ELEMENTARY_SCHOOL_PROMPT = """The following is a set of descriptions of items on the agenda for an upcoming <<department>> meeting. Summarize, but make it easy for a motivated third grader in elementary school to read and understand:
+MEETING_ELEMENTARY_SCHOOL_PROMPT = """The following is a set of descriptions of items on the agenda for an upcoming <<department>> meeting. Summarize, but make it easy for an elementary school kid to understand:
 
 "{text}"
 
@@ -481,7 +481,7 @@ MEETING_CATCHY_CONTROVERSIAL_HEADLINE_PROMPT = """The following is a set of desc
 CLICKBAIT_HEADLINE_FOR_AGENDA:"""  # noqa: E501
 
 
-MEETING_ELEMENTARY_SCHOOL_HEADLINE_PROMPT = """The following is a set of descriptions of items on the agenda for an upcoming <<department>> meeting. Write a very short 'headline' that's easy for a motivated third grader in elementary school to read and understand:
+MEETING_ELEMENTARY_SCHOOL_HEADLINE_PROMPT = """The following is a set of descriptions of items on the agenda for an upcoming <<department>> meeting. Write a headline that's easy for an elementary school kid to understand:
 
 "{text}"
 
