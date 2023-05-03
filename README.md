@@ -45,5 +45,3 @@ Links to the SCC legistar legislation page
 /document/<id>/<summary-style-slug>/
 Shows a full summary of the document
 Links to the original document
-hello friend 3
-hello friend 4

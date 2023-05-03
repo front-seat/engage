@@ -48,32 +48,32 @@ jobs:
           restore-keys: ${{ runner.os }}-node-
       - name: Install node dependencies
         run: npm install
-      # - name: Crawl Seattle City Council upcoming meetings
-      #   run: poetry run ./engage legistar crawl-calendar --start today > /dev/null
-      #   env:
-      #     VERBOSE: YES
-      #     SECRET_KEY: ${{ secrets.SECRET_KEY }}
-      # - name: Summarize individual documents
-      #   run: poetry run ./engage documents summarize all > /dev/null
-      #   env:
-      #     VERBOSE: YES
-      #     SECRET_KEY: ${{ secrets.SECRET_KEY }}
-      #     OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-      #     OPENAI_ORGANIZATION: ${{ secrets.OPENAI_ORGANIZATION }}
-      # - name: Summarize legislative actions
-      #   run: poetry run ./engage legistar summarize all-legislation > /dev/null
-      #   env:
-      #     VERBOSE: YES
-      #     SECRET_KEY: ${{ secrets.SECRET_KEY }}
-      #     OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-      #     OPENAI_ORGANIZATION: ${{ secrets.OPENAI_ORGANIZATION }}
-      # - name: Summarize upcoming meetings
-      #   run: poetry run ./engage legistar summarize all-meetings > /dev/null
-      #   env:
-      #     VERBOSE: YES
-      #     SECRET_KEY: ${{ secrets.SECRET_KEY }}
-      #     OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-      #     OPENAI_ORGANIZATION: ${{ secrets.OPENAI_ORGANIZATION }}
+      - name: Crawl Seattle City Council upcoming meetings
+        run: poetry run ./engage legistar crawl-calendar --start today > /dev/null
+        env:
+          VERBOSE: YES
+          SECRET_KEY: ${{ secrets.SECRET_KEY }}
+      - name: Summarize individual documents
+        run: poetry run ./engage documents summarize all > /dev/null
+        env:
+          VERBOSE: YES
+          SECRET_KEY: ${{ secrets.SECRET_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_ORGANIZATION: ${{ secrets.OPENAI_ORGANIZATION }}
+      - name: Summarize legislative actions
+        run: poetry run ./engage legistar summarize all-legislation > /dev/null
+        env:
+          VERBOSE: YES
+          SECRET_KEY: ${{ secrets.SECRET_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_ORGANIZATION: ${{ secrets.OPENAI_ORGANIZATION }}
+      - name: Summarize upcoming meetings
+        run: poetry run ./engage legistar summarize all-meetings > /dev/null
+        env:
+          VERBOSE: YES
+          SECRET_KEY: ${{ secrets.SECRET_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_ORGANIZATION: ${{ secrets.OPENAI_ORGANIZATION }}
       - name: Append something to README.md
         run: echo 'hello friend 4' >> README.md
       - name: Commit & Push changes
@@ -83,27 +83,27 @@ jobs:
           message: "AUTO UPDATE: fresh crawl and summarization"
         # The above commit/push does *not* trigger our normal deploy-to-pages.yml
         # so we'll also explicitly deploy here
-      # - name: Build static site
-      #   run: poetry run python manage.py distill-local --force --collectstatic
-      #   env:
-      #     BASE_URL: https://scc.frontseat.org
-      #     DEBUG: NO
-      #     SECURE_SSL_REDIRECT: NO
-      #     SECRET_KEY: lolwhatnope-super-secret-doesnt-matter
-      #     EMAIL_BACKEND: django.core.mail.backends.console.EmailBackend
-      # - name: Upload artifact to pages
-      #   uses: actions/upload-pages-artifact@v1
-      #   with:
-      #     path: ./dist
+      - name: Build static site
+        run: poetry run python manage.py distill-local --force --collectstatic
+        env:
+          BASE_URL: https://scc.frontseat.org
+          DEBUG: NO
+          SECURE_SSL_REDIRECT: NO
+          SECRET_KEY: lolwhatnope-super-secret-doesnt-matter
+          EMAIL_BACKEND: django.core.mail.backends.console.EmailBackend
+      - name: Upload artifact to pages
+        uses: actions/upload-pages-artifact@v1
+        with:
+          path: ./dist
 
   # Deployment job
-  # deploy:
-  #   environment:
-  #     name: github-pages
-  #     url: ${{ steps.deployment.outputs.page_url }}
-  #   runs-on: ubuntu-latest
-  #   needs: update
-  #   steps:
-  #     - name: Deploy to GitHub Pages
-  #       id: deployment
-  #       uses: actions/deploy-pages@v2
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: update
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v2
