@@ -80,7 +80,7 @@ jobs:
         uses: actions-js/push@master
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          message: "AUTO UPDATE: fresh crawl and summarization ${{ date }}"
+          message: "AUTO UPDATE: fresh crawl and summarization"
         # The above commit/push does *not* trigger our normal deploy-to-pages.yml
         # so we'll also explicitly deploy here
       # - name: Build static site
