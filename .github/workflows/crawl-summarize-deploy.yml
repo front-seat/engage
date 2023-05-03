@@ -2,7 +2,8 @@ name: "Crawl, summarize, and deploy updates"
 
 on:
   # schedule:
-  #   - cron: "0 1,11 * * *"
+  #   # 1AM and 11AM pacific (8AM and 6PM UTC)
+  #   - cron: "0 8,18 * * *"
 
   # Make it possible to manually run this workflow.
   workflow_dispatch:
@@ -72,14 +73,12 @@ jobs:
       #     OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       #     OPENAI_ORGANIZATION: ${{ secrets.OPENAI_ORGANIZATION }}
       - name: Append something to README.md
-        run: echo 'hello friend' >> README.md
-      - name: Commit changes to repository
-        run: |
-          git config --global user.name 'Dave Peck'
-          git config --global user.email 'davepeck@users.noreply.github.com'
-          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
-          git commit -am "Automated daily update: fresh crawl + summarization"
-          git push
+        run: echo 'hello friend 2' >> README.md
+      - name: Commit & Push changes
+        uses: actions-js/push@master
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          message: "AUTO UPDATE: fresh crawl and summarization ${date}"
         # The above commit/push does *not* trigger our normal deploy-to-pages.yml
         # so we'll also explicitly deploy here
       - name: Build static site
