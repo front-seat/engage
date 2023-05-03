@@ -144,7 +144,7 @@ CATCHY_CONTROVERSIAL_HEADLINE_PROMPT = """Write a catchy one-sentence headline f
 CLICKBAIT_HEADLINE:"""  # noqa: E501
 
 
-ELEMENTARY_SCHOOL_HEADLINE_PROMPT = """Write a very short 'headline' for the following text that's easy for a motivated third grader in elementary school to read and understand:
+ELEMENTARY_SCHOOL_HEADLINE_PROMPT = """Write an extremely short 'headline' summarizing the following text. Explain it so a 5-year-old can understand:
 
 "{text}"
 
