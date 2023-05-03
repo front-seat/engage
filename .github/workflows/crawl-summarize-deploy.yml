@@ -75,12 +75,12 @@ jobs:
       #     OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       #     OPENAI_ORGANIZATION: ${{ secrets.OPENAI_ORGANIZATION }}
       - name: Append something to README.md
-        run: echo 'hello friend 3' >> README.md
+        run: echo 'hello friend 4' >> README.md
       - name: Commit & Push changes
         uses: actions-js/push@master
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          message: "AUTO UPDATE: fresh crawl and summarization ${date}"
+          message: "AUTO UPDATE: fresh crawl and summarization ${{ date }}"
         # The above commit/push does *not* trigger our normal deploy-to-pages.yml
         # so we'll also explicitly deploy here
       # - name: Build static site
