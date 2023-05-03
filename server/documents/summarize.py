@@ -105,7 +105,7 @@ ENTERTAINING_BLOG_POST_PROMPT = """Write an entertaining summary of the followin
 
 CLICKBAIT_BLOG_POST_SUMMARY:"""  # noqa: E501
 
-ELEMENTARY_SCHOOL_PROMPT = """Summarize the following text, but make it easy for a motivated third grader in elementary school to read and understand:
+ELEMENTARY_SCHOOL_PROMPT = """Summarize the following text, but make it easy for an elementary school kid to understand:
 
 "{text}"
 
@@ -144,7 +144,7 @@ CATCHY_CONTROVERSIAL_HEADLINE_PROMPT = """Write a catchy one-sentence headline f
 CLICKBAIT_HEADLINE:"""  # noqa: E501
 
 
-ELEMENTARY_SCHOOL_HEADLINE_PROMPT = """Write an extremely short 'headline' summarizing the following text. Explain it so a 5-year-old can understand:
+ELEMENTARY_SCHOOL_HEADLINE_PROMPT = """Write a headline for the following text; make it easy for an elementary school kid to understand:
 
 "{text}"
 
