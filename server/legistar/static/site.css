@@ -432,3 +432,8 @@ a.view-link:hover {
   content: ' / ';
   padding: 0 0.5rem;
 }
+
+
+.hidden {
+  display: none;
+}
