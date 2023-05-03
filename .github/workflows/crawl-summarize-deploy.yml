@@ -74,13 +74,14 @@ jobs:
           SECRET_KEY: ${{ secrets.SECRET_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           OPENAI_ORGANIZATION: ${{ secrets.OPENAI_ORGANIZATION }}
-      - name: Append something to README.md
-        run: echo 'hello friend 4' >> README.md
+      - name: Get finished date/time
+        run: |
+          echo "finish_date=$(date +'%Y-%m-%d %H:%M%p %Z')" >> "$GITHUB_ENV"
       - name: Commit & Push changes
         uses: actions-js/push@master
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          message: "AUTO UPDATE: fresh crawl and summarization"
+          message: "automatic crawl and summarization finished at ${{ env.finish_date }}"
         # The above commit/push does *not* trigger our normal deploy-to-pages.yml
         # so we'll also explicitly deploy here
       - name: Build static site
@@ -98,6 +99,10 @@ jobs:
 
   # Deployment job
   deploy:
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
