@@ -35,10 +35,8 @@ function showSummarizationStyleForm() {
 
 
 function listenForKeyboardEvents(event) {
-  console.log(event);
   // check to see if the user pressed Option+Shift+S
   if (event.altKey && event.shiftKey && event.code === "KeyS") {
-    console.log("showing form");
     showSummarizationStyleForm();
   }
 }
