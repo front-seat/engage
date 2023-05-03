@@ -1,8 +1,8 @@
 name: "Crawl, summarize, and deploy updates"
 
 on:
-  schedule:
-    - cron: "0 1,11 * * *"
+  # schedule:
+  #   - cron: "0 1,11 * * *"
 
   # Make it possible to manually run this workflow.
   workflow_dispatch:
@@ -45,38 +45,39 @@ jobs:
           restore-keys: ${{ runner.os }}-node-
       - name: Install node dependencies
         run: npm install
-      - name: Crawl Seattle City Council upcoming meetings
-        run: poetry run ./engage legistar crawl-calendar --start today > /dev/null
-        env:
-          VERBOSE: YES
-          SECRET_KEY: ${{ secrets.SECRET_KEY }}
-      - name: Summarize individual documents
-        run: poetry run ./engage documents summarize all > /dev/null
-        env:
-          VERBOSE: YES
-          SECRET_KEY: ${{ secrets.SECRET_KEY }}
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          OPENAI_ORGANIZATION: ${{ secrets.OPENAI_ORGANIZATION }}
-      - name: Summarize legislative actions
-        run: poetry run ./engage legistar summarize all-legislation > /dev/null
-        env:
-          VERBOSE: YES
-          SECRET_KEY: ${{ secrets.SECRET_KEY }}
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          OPENAI_ORGANIZATION: ${{ secrets.OPENAI_ORGANIZATION }}
-      - name: Summarize upcoming meetings
-        run: poetry run ./engage legistar summarize all-meetings > /dev/null
-        env:
-          VERBOSE: YES
-          SECRET_KEY: ${{ secrets.SECRET_KEY }}
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          OPENAI_ORGANIZATION: ${{ secrets.OPENAI_ORGANIZATION }}
+      # - name: Crawl Seattle City Council upcoming meetings
+      #   run: poetry run ./engage legistar crawl-calendar --start today > /dev/null
+      #   env:
+      #     VERBOSE: YES
+      #     SECRET_KEY: ${{ secrets.SECRET_KEY }}
+      # - name: Summarize individual documents
+      #   run: poetry run ./engage documents summarize all > /dev/null
+      #   env:
+      #     VERBOSE: YES
+      #     SECRET_KEY: ${{ secrets.SECRET_KEY }}
+      #     OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      #     OPENAI_ORGANIZATION: ${{ secrets.OPENAI_ORGANIZATION }}
+      # - name: Summarize legislative actions
+      #   run: poetry run ./engage legistar summarize all-legislation > /dev/null
+      #   env:
+      #     VERBOSE: YES
+      #     SECRET_KEY: ${{ secrets.SECRET_KEY }}
+      #     OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      #     OPENAI_ORGANIZATION: ${{ secrets.OPENAI_ORGANIZATION }}
+      # - name: Summarize upcoming meetings
+      #   run: poetry run ./engage legistar summarize all-meetings > /dev/null
+      #   env:
+      #     VERBOSE: YES
+      #     SECRET_KEY: ${{ secrets.SECRET_KEY }}
+      #     OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      #     OPENAI_ORGANIZATION: ${{ secrets.OPENAI_ORGANIZATION }}
+      - name: Append something to README.md
+        run: echo 'hello friend' >> README.md
       - name: Commit changes to repository
         run: |
           git config --global user.name 'Dave Peck'
           git config --global user.email 'davepeck@users.noreply.github.com'
-          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/$GITHUB_REPOSITORY
-          git checkout "${GITHUB_REF:11}"
+          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
           git commit -am "Automated daily update: fresh crawl + summarization"
           git push
         # The above commit/push does *not* trigger our normal deploy-to-pages.yml
