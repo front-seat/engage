@@ -25,6 +25,23 @@ function doNothing(event) {
 }
 
 
+function showSummarizationStyleForm() {
+  // get the form element
+  const form = document.getElementById("summarization-style-form");
+
+  // remove the 'hidden' class from the form
+  form.classList.remove("hidden");
+}
+
+
+function listenForKeyboardEvents(event) {
+  // check to see if the user pressed Option+Shift+S
+  if (event.altKey && event.shiftKey && event.code === "KeyS") {
+    showSummarizationStyleForm();
+  }
+}
+
+
 // When the document is ready, make sure the summarization style is selected
 // correctly, and set up the event handler for when it changes. Use basic 
 // javascript; no jQuery.
@@ -52,5 +69,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
   // set up the event handler for when the form is changed
   form.addEventListener("change", changeSummarizationStyle);
+
+  // set up a listener for keyboard up events
+  document.addEventListener("keydown", listenForKeyboardEvents);
 });
 
