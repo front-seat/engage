@@ -1,3 +1,4 @@
+import datetime
 import typing as t
 
 from django.http import Http404
@@ -212,9 +213,16 @@ def _make_document_description(document: Document, style: str) -> dict:
     }
 
 
+PAST_CUTOFF_DELTA = datetime.timedelta(days=7)
+
+
+def _get_relative_to() -> datetime.date:
+    return datetime.date.today() - PAST_CUTOFF_DELTA
+
+
 @require_GET
 def calendar(request, style: str):
-    meetings = Meeting.objects.future().order_by("-date")
+    meetings = Meeting.objects.future(relative_to=_get_relative_to()).order_by("-date")
     meeting_descriptions = [_make_meeting_description(m, style) for m in meetings]
     return render(
         request,
@@ -224,7 +232,7 @@ def calendar(request, style: str):
 
 
 def _meetings_qs():
-    qs = Meeting.objects.future()
+    qs = Meeting.objects.future(relative_to=_get_relative_to())
     qs = qs.exclude(time=None)
     meeting_pks_with_summaries = set(
         MeetingSummary.objects.values_list("meeting_id", flat=True)
