@@ -51,13 +51,10 @@ class MeetingManager(models.Manager):
         """Return all meetings that have not been canceled."""
         return self.exclude(time=None)
 
-    def future(self, include_today: bool = True):
+    def future(self, relative_to: datetime.date | None = None, inclusive: bool = True):
         """Return all meetings that have not yet occurred."""
-        filter_params = (
-            {"date__gte": datetime.date.today()}
-            if include_today
-            else {"date__gt": datetime.date.today()}
-        )
+        when = relative_to or datetime.date.today()
+        filter_params = {"date__gte": when} if inclusive else {"date__gt": when}
         return self.filter(**filter_params)
 
     def past(self, include_today: bool = False):
