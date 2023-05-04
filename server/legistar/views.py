@@ -11,49 +11,34 @@ from server.lib.truncate import truncate_str
 
 from .models import Legislation, LegislationSummary, Meeting, MeetingSummary
 
-Style: t.TypeAlias = t.Literal["concise", "elementary-school", "catchy-clickbait"]
+Style: t.TypeAlias = t.Literal["concise"]
 
 STYLES: list[Style] = [
     "concise",
-    "elementary-school",
-    "catchy-clickbait",
 ]
 
 MEETING_SUMMARY_STYLES: dict[Style, str] = {
     "concise": "summarize_meeting_gpt35_concise",
-    "elementary-school": "summarize_meeting_gpt35_elementary_school",
-    "catchy-clickbait": "summarize_meeting_gpt35_entertaining_blog_post",
 }
 
 MEETING_HEADLINE_STYLES: dict[Style, str] = {
     "concise": "summarize_meeting_gpt35_concise_headline",
-    "elementary-school": "summarize_meeting_gpt35_elementary_school_headline",
-    "catchy-clickbait": "summarize_meeting_gpt35_catchy_controversial_headline",
 }
-
 
 LEGISLATION_SUMMARY_STYLES: dict[Style, str] = {
     "concise": "summarize_legislation_gpt35_concise",
-    "elementary-school": "summarize_legislation_gpt35_elementary_school",
-    "catchy-clickbait": "summarize_legislation_gpt35_entertaining_blog_post",
 }
 
 LEGISLATION_HEADLINE_STYLES: dict[Style, str] = {
     "concise": "summarize_legislation_gpt35_concise_headline",
-    "elementary-school": "summarize_legislation_gpt35_elementary_school_headline",
-    "catchy-clickbait": "summarize_legislation_gpt35_catchy_controversial_headline",
 }
 
 DOCUMENT_SUMMARY_STYLES: dict[Style, str] = {
     "concise": "summarize_gpt35_concise",
-    "elementary-school": "summarize_gpt35_elementary_school",
-    "catchy-clickbait": "summarize_gpt35_entertaining_blog_post",
 }
 
 DOCUMENT_HEADLINE_STYLES: dict[Style, str] = {
     "concise": "summarize_gpt35_concise_headline",
-    "elementary-school": "summarize_gpt35_elementary_school_headline",
-    "catchy-clickbait": "summarize_gpt35_catchy_controversial_headline",
 }
 
 

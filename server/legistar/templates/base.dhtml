@@ -30,9 +30,7 @@
         <div>
           <label for="filter">Summarization style:</label>
           <select name="filter" id="filter">
-            <option value="concise">Concise</option>
-            <option value="elementary-school">Elementary school</option>
-            <option value="catchy-clickbait">Catchy clickbait</option>
+            <option value="concise">Concise (GPT-3.5)</option>
           </select>
         </div>
       </form>
