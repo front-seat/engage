@@ -52,8 +52,8 @@ document.addEventListener("DOMContentLoaded", function () {
   let filter = splits[splits.length - 2];
 
   // make sure it is one of the valid filters, which are:
-  // `educated-layperson`, `high-school`, and `catchy-clickbait`
-  if (!["concise", "elementary-school", "catchy-clickbait"].includes(filter)) {
+  // `concise` <-- that's it, for the moment!
+  if (!["concise"].includes(filter)) {
     // if it is not one of the valid filters, default to `concise`
     filter = "concise";
   }

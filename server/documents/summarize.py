@@ -304,13 +304,13 @@ SUMMARIZERS: list[SummarizerCallable] = [
     summarize_gpt35_concise,
     # summarize_gpt35_educated_layperson,
     # summarize_gpt35_high_school,
-    summarize_gpt35_entertaining_blog_post,
-    summarize_gpt35_elementary_school,
+    # summarize_gpt35_entertaining_blog_post,
+    # summarize_gpt35_elementary_school,
     summarize_gpt35_concise_headline,
     # summarize_gpt35_newspaper_headline,
     # summarize_gpt35_high_school_essay_title,
-    summarize_gpt35_catchy_controversial_headline,
-    summarize_gpt35_elementary_school_headline,
+    # summarize_gpt35_catchy_controversial_headline,
+    # summarize_gpt35_elementary_school_headline,
 ]
 
 
