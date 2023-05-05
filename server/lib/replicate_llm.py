@@ -41,4 +41,14 @@ class ReplicateLLM(LLM):
                 "repetition_penalty": self.repetition_penalty,
             }
         )
-        return "".join(iterable)
+        # For each item, if it ends with a letter and has no whitespace at the
+        # end, add a space to the end of it.
+        items = [
+            item + " " if item and item.strip() == item and item[-1].isalpha() else item
+            for item in iterable
+        ]
+
+        # Join each item in the `iterable` with an empty string, *UNLESS*
+        # the item has no whitespace at the end and it ends with a letter.
+        # In that case, join it with a space.
+        return "".join(items)
