@@ -415,7 +415,7 @@ def get_action(
     "--start",
     type=str,
     help="Only return events on or after this date (YYYY-MM-DD or `today`).",
-    default=None,
+    default="today",
 )
 @_common_scraper_params
 def crawl_calendar(
