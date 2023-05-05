@@ -205,7 +205,7 @@ def _make_document_description(document: Document, style: str) -> dict:
     }
 
 
-PAST_CUTOFF_DELTA = datetime.timedelta(days=7)
+PAST_CUTOFF_DELTA = datetime.timedelta(days=5)
 
 
 def _get_relative_to() -> datetime.date:

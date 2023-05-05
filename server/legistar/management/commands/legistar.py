@@ -590,7 +590,7 @@ def prune():
 @click.option(
     "--days",
     type=int,
-    default=8,
+    default=5,
     help="Number of days to keep meetings for.",
 )
 def prune_meetings(days: int):
