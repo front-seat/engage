@@ -102,6 +102,8 @@ def summarize_vic13b_repdep(
     map_prompt: str,
     combine_prompt: str,
     substitutions: dict[str, str] | None = None,
+    chain_type: str = "map_reduce",
+    chunk_size: int = 1536,
 ) -> str:
     llm = ReplicateLLM()
     return summarize_llm(
@@ -110,6 +112,8 @@ def summarize_vic13b_repdep(
         map_prompt=map_prompt,
         combine_prompt=combine_prompt,
         substitutions=substitutions,
+        chain_type=chain_type,
+        chunk_size=chunk_size,
     )
 
 
@@ -204,8 +208,8 @@ class SummarizerCallable(t.Protocol):
 
 SUMMARIZERS: list[SummarizerCallable] = [
     summarize_gpt35_concise,
-    summarize_vic13b_repdep_concise,
     summarize_gpt35_concise_headline,
+    summarize_vic13b_repdep_concise,
     summarize_vic13b_repdep_concise_headline,
 ]
 
