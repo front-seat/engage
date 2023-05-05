@@ -60,6 +60,7 @@ jobs:
           SECRET_KEY: ${{ secrets.SECRET_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           OPENAI_ORGANIZATION: ${{ secrets.OPENAI_ORGANIZATION }}
+          REPLICATE_API_TOKEN: ${{ secrets.REPLICATE_API_TOKEN }}
       - name: Summarize legislative actions
         run: poetry run ./engage legistar summarize all-legislation > /dev/null
         env:
@@ -67,6 +68,7 @@ jobs:
           SECRET_KEY: ${{ secrets.SECRET_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           OPENAI_ORGANIZATION: ${{ secrets.OPENAI_ORGANIZATION }}
+          REPLICATE_API_TOKEN: ${{ secrets.REPLICATE_API_TOKEN }}
       - name: Summarize upcoming meetings
         run: poetry run ./engage legistar summarize all-meetings > /dev/null
         env:
@@ -74,6 +76,7 @@ jobs:
           SECRET_KEY: ${{ secrets.SECRET_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           OPENAI_ORGANIZATION: ${{ secrets.OPENAI_ORGANIZATION }}
+          REPLICATE_API_TOKEN: ${{ secrets.REPLICATE_API_TOKEN }}
       - name: Get finished date/time
         run: |
           echo "finish_date=$(date +'%Y-%m-%d %H:%M%p %Z')" >> "$GITHUB_ENV"
