@@ -216,7 +216,7 @@ SUMMARIZERS: list[SummarizerCallable] = [
     summarize_gpt35_concise,
     summarize_gpt35_concise_headline,
     summarize_vic13b_repdep_concise,
-    summarize_vic13b_repdep_concise_headline,
+    # summarize_vic13b_repdep_concise_headline,
 ]
 
 

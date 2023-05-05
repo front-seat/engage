@@ -214,7 +214,7 @@ LEGISLATION_SUMMARIZERS: list[LegislationSummarizerCallable] = [
     summarize_legislation_gpt35_concise,
     summarize_legislation_gpt35_concise_headline,
     summarize_legislation_vic13b_repdep_concise,
-    summarize_legislation_vic13b_repdep_concise_headline,
+    # summarize_legislation_vic13b_repdep_concise_headline,
 ]
 
 LEGISLATION_SUMMARIZERS_BY_NAME: dict[str, LegislationSummarizerCallable] = {
@@ -412,7 +412,7 @@ MEETING_SUMMARIZERS: list[MeetingSummarizerCallable] = [
     summarize_meeting_gpt35_concise,
     summarize_meeting_gpt35_concise_headline,
     summarize_meeting_vic13b_repdep_concise,
-    summarize_meeting_vic13b_repdep_concise_headline,
+    # summarize_meeting_vic13b_repdep_concise_headline,
 ]
 
 MEETING_SUMMARIZERS_BY_NAME: dict[str, MeetingSummarizerCallable] = {

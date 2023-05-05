@@ -25,7 +25,8 @@ MEETING_SUMMARY_STYLES: dict[Style, str] = {
 
 MEETING_HEADLINE_STYLES: dict[Style, str] = {
     "concise": "summarize_meeting_gpt35_concise_headline",
-    "concise-vicuna-13b": "summarize_meeting_vic13b_repdep_concise_headline",
+    # TODO: "summarize_meeting_vic13b_repdep_concise_headline"
+    "concise-vicuna-13b": "summarize_meeting_gpt35_concise_headline", 
 }
 
 LEGISLATION_SUMMARY_STYLES: dict[Style, str] = {
@@ -35,7 +36,8 @@ LEGISLATION_SUMMARY_STYLES: dict[Style, str] = {
 
 LEGISLATION_HEADLINE_STYLES: dict[Style, str] = {
     "concise": "summarize_legislation_gpt35_concise_headline",
-    "concise-vicuna-13b": "summarize_legislation_vic13b_repdep_concise_headline",
+    # TODO: "summarize_legislation_vic13b_repdep_concise_headline"
+    "concise-vicuna-13b": "summarize_legislation_gpt35_concise_headline",
 }
 
 DOCUMENT_SUMMARY_STYLES: dict[Style, str] = {
@@ -45,7 +47,8 @@ DOCUMENT_SUMMARY_STYLES: dict[Style, str] = {
 
 DOCUMENT_HEADLINE_STYLES: dict[Style, str] = {
     "concise": "summarize_gpt35_concise_headline",
-    "concise-vicuna-13b": "summarize_vic13b_repdep_concise_headline",
+    # TODO: "summarize_vic13b_repdep_concise_headline"
+    "concise-vicuna-13b": "summarize_gpt35_concise_headline",
 }
 
 
