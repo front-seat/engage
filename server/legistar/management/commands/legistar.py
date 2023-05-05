@@ -569,3 +569,77 @@ def summarize_all_legislation():
             click.echo(legislation_summary.summary)
             if settings.VERBOSE:
                 click.echo("\n\n", file=sys.stderr)
+
+
+
+
+
+# -----------------------------------------------------------------------------
+# Prune command group
+# -----------------------------------------------------------------------------
+
+@main.group(invoke_without_command=True)
+def prune():
+    """Prune older legistar data."""
+    context = click.get_current_context()
+    if context.invoked_subcommand is None:
+        click.echo(context.get_help())
+
+
+@prune.command(name="meetings")
+@click.option(
+    "--days",
+    type=int,
+    default=8,
+    help="Number of days to keep meetings for.",
+)
+def prune_meetings(days: int):
+    """Prune older meetings."""
+    today = datetime.date.today()
+    days_ago = today - datetime.timedelta(days=days)
+    older_meetings = Meeting.objects.filter(date__lt=days_ago)
+    older_count = older_meetings.count()
+    if settings.VERBOSE:
+        click.echo(
+            f">>>> PRUNE: Delete {older_count} meetings.",
+            file=sys.stderr,
+        )
+    for meeting in older_meetings:
+        if settings.VERBOSE:
+            click.echo(
+                f">>>> PRUNE: meeting ({meeting.legistar_id}).",
+                file=sys.stderr,
+            )
+        for legislation in meeting.legislations:
+            if settings.VERBOSE:
+                click.echo(
+                    f">>>> PRUNE: legislation ({legislation.legistar_id}).",
+                    file=sys.stderr,
+                )
+            for action in legislation.actions:
+                if settings.VERBOSE:
+                    click.echo(
+                        f">>>> PRUNE: action ({action.legistar_id}).",
+                        file=sys.stderr,
+                    )
+                action.delete()
+            if settings.VERBOSE:
+                count = legislation.documents.all().count()
+                click.echo(
+                    f">>>> PRUNE: Delete {count} legislation documents.",
+                    file=sys.stderr,
+                )
+            legislation.documents.all().delete()
+        meeting_doc_count = meeting.documents.all().count()
+        if settings.VERBOSE:
+            click.echo(
+                f">>>> PRUNE: Delete {meeting_doc_count} meeting documents.",
+                file=sys.stderr,
+            )
+        meeting.documents.all().delete()
+        meeting.delete()
+    if settings.VERBOSE:
+        click.echo(
+            f">>>> PRUNE: Done deleting {older_count} meetings.",
+            file=sys.stderr,
+        )

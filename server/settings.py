@@ -110,6 +110,7 @@ USE_TZ = True
 
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 OPENAI_ORGANIZATION = os.environ.get("OPENAI_ORGANIZATION")
+REPLICATE_API_TOKEN = os.environ.get("REPLICATE_API_TOKEN")
 
 
 # --------------------------------------------------------------------

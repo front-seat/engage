@@ -1,11 +1,14 @@
 import typing as t
 
 from django.conf import settings
+from langchain.base_language import BaseLanguageModel
 from langchain.chains.summarize import load_summarize_chain
 from langchain.chat_models import ChatOpenAI
 from langchain.docstore.document import Document
 from langchain.prompts import PromptTemplate
 from langchain.text_splitter import CharacterTextSplitter
+
+from server.lib.replicate_llm import ReplicateLLM
 
 # ---------------------------------------------------------------------
 # Base utilities
@@ -20,29 +23,20 @@ def _substitute(s: str, substitutions: dict[str, str] | None) -> str:
     return s
 
 
-def summarize_openai_langchain(
+
+def summarize_llm(
     text: str,
+    llm: BaseLanguageModel,
     map_prompt: str,
     combine_prompt: str,
     substitutions: dict[str, str] | None = None,
-    model_name: str = "gpt-3.5-turbo",
-    temperature: float = 0.4,
     chain_type: str = "map_reduce",
     chunk_size: int = 3584,
 ) -> str:
-    """Summarize text using langchain and openAI. Low-level."""
-    if settings.OPENAI_API_KEY is None:
-        raise ValueError("OPENAI_API_KEY is not set.")
+    """Summarize text using an arbitrary langchain LLM. Lowest level."""
     # XXX figure out how to handle this more gracefully
     if not text.strip():
         return "(no summary available)"
-    llm = ChatOpenAI(
-        client=None,  # XXX langchain type hints are busted; shouldn't be needed
-        temperature=temperature,
-        model_name=model_name,
-        openai_organization=settings.OPENAI_ORGANIZATION,
-        openai_api_key=settings.OPENAI_API_KEY,
-    )
     text_splitter = CharacterTextSplitter(chunk_size=chunk_size)
     texts = text_splitter.split_text(text)
     text_lengths = [len(text) for text in texts]
@@ -70,6 +64,54 @@ def summarize_openai_langchain(
     )
     summary = chain.run(documents)
     return summary
+
+
+def summarize_openai_langchain(
+    text: str,
+    map_prompt: str,
+    combine_prompt: str,
+    substitutions: dict[str, str] | None = None,
+    model_name: str = "gpt-3.5-turbo",
+    temperature: float = 0.4,
+    chain_type: str = "map_reduce",
+    chunk_size: int = 3584,
+) -> str:
+    """Summarize text using langchain and openAI. Low-level."""
+    if settings.OPENAI_API_KEY is None:
+        raise ValueError("OPENAI_API_KEY is not set.")
+    llm = ChatOpenAI(
+        client=None,  # XXX langchain type hints are busted; shouldn't be needed
+        temperature=temperature,
+        model_name=model_name,
+        openai_organization=settings.OPENAI_ORGANIZATION,
+        openai_api_key=settings.OPENAI_API_KEY,
+    )
+    return summarize_llm(
+        text=text,
+        llm=llm,
+        map_prompt=map_prompt,
+        combine_prompt=combine_prompt,
+        substitutions=substitutions,
+        chain_type=chain_type,
+        chunk_size=chunk_size,
+    ) 
+
+
+def summarize_vic13b_repdep(
+    text: str,
+    map_prompt: str,
+    combine_prompt: str,
+    substitutions: dict[str, str] | None = None,
+) -> str:
+    llm = ReplicateLLM()
+    return summarize_llm(
+        text=text,
+        llm=llm,
+        map_prompt=map_prompt,
+        combine_prompt=combine_prompt,
+        substitutions=substitutions,
+    )
+
 
 
 # ---------------------------------------------------------------------
@@ -108,11 +150,37 @@ def summarize_gpt35_concise(
     return summary
 
 
+def summarize_vic13b_repdep_concise(
+    text: str, substitutions: dict[str, str] | None = None
+) -> str:
+    assert substitutions is None, "substitutions not supported by this summarizer"
+    summary = summarize_vic13b_repdep(
+        text,
+        map_prompt=CONCISE_SUMMARY_PROMPT,
+        combine_prompt=CONCISE_SUMMARY_PROMPT,
+        substitutions=substitutions,
+    )
+    return summary
+
+
 def summarize_gpt35_concise_headline(
     text: str, substitutions: dict[str, str] | None = None
 ) -> str:
     assert substitutions is None, "substitutions not supported by this summarizer"
     summary = summarize_openai_langchain(
+        text,
+        map_prompt=CONCISE_SUMMARY_PROMPT,
+        combine_prompt=CONCISE_HEADLINE_PROMPT,
+        substitutions=substitutions,
+    )
+    return summary
+
+
+def summarize_vic13b_repdep_concise_headline(
+    text: str, substitutions: dict[str, str] | None = None
+) -> str:
+    assert substitutions is None, "substitutions not supported by this summarizer"
+    summary = summarize_vic13b_repdep(
         text,
         map_prompt=CONCISE_SUMMARY_PROMPT,
         combine_prompt=CONCISE_HEADLINE_PROMPT,
@@ -136,7 +204,9 @@ class SummarizerCallable(t.Protocol):
 
 SUMMARIZERS: list[SummarizerCallable] = [
     summarize_gpt35_concise,
+    summarize_vic13b_repdep_concise,
     summarize_gpt35_concise_headline,
+    summarize_vic13b_repdep_concise_headline,
 ]
 
 

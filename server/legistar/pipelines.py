@@ -11,6 +11,8 @@ from server.documents.summarize import (
     SummarizerCallable,
     summarize_gpt35_concise,
     summarize_openai_langchain,
+    summarize_vic13b_repdep,
+    summarize_vic13b_repdep_concise,
 )
 from server.lib.truncate import truncate_str
 
@@ -121,6 +123,17 @@ def _join_legislation_summaries_gpt35_concise(
     )
 
 
+def _join_legislation_summaries_vic13b_repdep_concise(
+    text: str, substitutions: dict[str, str] | None = None
+) -> str:
+    return summarize_vic13b_repdep(
+        text,
+        map_prompt=CONCISE_SUMMARY_PROMPT,
+        combine_prompt=LEGISLATION_CONCISE_PROMPT,
+        substitutions=substitutions,        
+    )
+
+
 def _join_legislation_summaries_gpt35_concise_headline(
     text: str, substitutions: dict[str, str] | None = None
 ) -> str:
@@ -129,6 +142,17 @@ def _join_legislation_summaries_gpt35_concise_headline(
         map_prompt=CONCISE_SUMMARY_PROMPT,
         combine_prompt=LEGISLATION_CONCISE_HEADLINE_PROMPT,
         substitutions=substitutions,
+    )
+
+
+def _join_legislation_summaries_vic13b_repdep_concise_headline(
+    text: str, substitutions: dict[str, str] | None = None
+) -> str:
+    return summarize_vic13b_repdep(
+        text,
+        map_prompt=CONCISE_SUMMARY_PROMPT,
+        combine_prompt=LEGISLATION_CONCISE_HEADLINE_PROMPT,
+        substitutions=substitutions,        
     )
 
 
@@ -146,12 +170,30 @@ def summarize_legislation_gpt35_concise(legislation: Legislation) -> str:
     )
 
 
+def summarize_legislation_vic13b_repdep_concise(legislation: Legislation) -> str:
+    return _summarize_legislation(
+        legislation,
+        document_summarizer=summarize_vic13b_repdep_concise,
+        join_summarizer=_join_legislation_summaries_vic13b_repdep_concise,
+        verbose_name="vic13b_repdep_concise",
+    )
+
+
 def summarize_legislation_gpt35_concise_headline(legislation: Legislation) -> str:
     return _summarize_legislation(
         legislation,
         document_summarizer=summarize_gpt35_concise,
         join_summarizer=_join_legislation_summaries_gpt35_concise_headline,
         verbose_name="gpt35_concise_headline",
+    )
+
+
+def summarize_legislation_vic13b_repdep_concise_headline(legislation: Legislation) -> str:
+    return _summarize_legislation(
+        legislation,
+        document_summarizer=summarize_vic13b_repdep_concise,
+        join_summarizer=_join_legislation_summaries_vic13b_repdep_concise_headline,
+        verbose_name="vic13b_repdep_concise_headline",
     )
 
 
@@ -170,11 +212,13 @@ class LegislationSummarizerCallable(t.Protocol):
 
 LEGISLATION_SUMMARIZERS: list[LegislationSummarizerCallable] = [
     summarize_legislation_gpt35_concise,
+    summarize_legislation_vic13b_repdep_concise,
     # summarize_legislation_gpt35_educated_layperson,
     # summarize_legislation_gpt35_high_school,
     # summarize_legislation_gpt35_entertaining_blog_post,
     # summarize_legislation_gpt35_elementary_school,
     summarize_legislation_gpt35_concise_headline,
+    summarize_legislation_vic13b_repdep_concise_headline,
     # summarize_legislation_gpt35_newspaper_headline,
     # summarize_legislation_gpt35_high_school_essay_title,
     # summarize_legislation_gpt35_catchy_controversial_headline,
@@ -281,10 +325,32 @@ def _join_meeting_summaries_gpt35_concise(
     )
 
 
+def _join_meeting_summaries_vic13b_repdep_concise(
+    text: str, substitutions: dict[str, str] | None = None
+) -> str:
+    return summarize_vic13b_repdep(
+        text,
+        map_prompt=CONCISE_SUMMARY_PROMPT,
+        combine_prompt=MEETING_CONCISE_PROMPT,
+        substitutions=substitutions,
+    )
+    
+
 def _join_meeting_summaries_gpt35_concise_headline(
     text: str, substitutions: dict[str, str] | None = None
 ) -> str:
     return summarize_openai_langchain(
+        text,
+        map_prompt=CONCISE_SUMMARY_PROMPT,
+        combine_prompt=MEETING_CONCISE_HEADLINE_PROMPT,
+        substitutions=substitutions,
+    )
+
+
+def _join_meeting_summaries_vic13b_repdep_concise_headline(
+    text: str, substitutions: dict[str, str] | None = None
+) -> str:
+    return summarize_vic13b_repdep(
         text,
         map_prompt=CONCISE_SUMMARY_PROMPT,
         combine_prompt=MEETING_CONCISE_HEADLINE_PROMPT,
@@ -307,6 +373,16 @@ def summarize_meeting_gpt35_concise(meeting: Meeting) -> str:
     )
 
 
+def summarize_meeting_vic13b_repdep_concise(meeting: Meeting) -> str:
+    return _summarize_meeting(
+        meeting,
+        document_summarizer=summarize_vic13b_repdep_concise,
+        legislation_summarizer=summarize_legislation_vic13b_repdep_concise,
+        join_summarizer=_join_meeting_summaries_vic13b_repdep_concise,
+        verbose_name="vic13b_repdep_concise",
+    )
+
+
 def summarize_meeting_gpt35_concise_headline(meeting: Meeting) -> str:
     return _summarize_meeting(
         meeting,
@@ -314,6 +390,16 @@ def summarize_meeting_gpt35_concise_headline(meeting: Meeting) -> str:
         legislation_summarizer=summarize_legislation_gpt35_concise,
         join_summarizer=_join_meeting_summaries_gpt35_concise_headline,
         verbose_name="gpt35_concise_headline",
+    )
+
+
+def summarize_meeting_vic13b_repdep_concise_headline(meeting: Meeting) -> str:
+    return _summarize_meeting(
+        meeting,
+        document_summarizer=summarize_vic13b_repdep_concise,
+        legislation_summarizer=summarize_legislation_vic13b_repdep_concise,
+        join_summarizer=_join_meeting_summaries_vic13b_repdep_concise_headline,
+        verbose_name="vic13b_repdep_concise_headline",
     )
 
 
@@ -332,7 +418,9 @@ class MeetingSummarizerCallable(t.Protocol):
 
 MEETING_SUMMARIZERS: list[MeetingSummarizerCallable] = [
     summarize_meeting_gpt35_concise,
+    summarize_meeting_vic13b_repdep_concise,
     summarize_meeting_gpt35_concise_headline,
+    summarize_meeting_vic13b_repdep_concise_headline,
 ]
 
 MEETING_SUMMARIZERS_BY_NAME: dict[str, MeetingSummarizerCallable] = {
