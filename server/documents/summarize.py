@@ -103,7 +103,7 @@ def summarize_vic13b_repdep(
     combine_prompt: str,
     substitutions: dict[str, str] | None = None,
     chain_type: str = "map_reduce",
-    chunk_size: int = 1536,
+    chunk_size: int = 1024,
 ) -> str:
     llm = ReplicateLLM()
     return summarize_llm(
