@@ -1,6 +1,7 @@
 import io
 import typing as t
 
+import docx2txt
 import pdfplumber
 
 from server.lib.truncate import truncate_str
@@ -127,7 +128,18 @@ def _extract_pdf_plumber_v1(io: io.BytesIO) -> str:
     except Exception as e:
         short_e = truncate_str(str(e), 64)
         return (
-            f"Please ignore; we were unable to extract content from the PDF: {short_e}"
+            f"Please ignore: unable to extract content from the PDF named '{short_e}'."
+        )
+    
+
+def _extract_msword_v1(io: io.BytesIO) -> str:
+    """Extract text from a Word document. v1."""
+    try:
+        return docx2txt.process(io)
+    except Exception as e:
+        short_e = truncate_str(str(e), 64)
+        return (
+            f"Please ignore: unable to extract content from the DOCX named '{short_e}'."
         )
 
 
@@ -137,6 +149,8 @@ def extract_pipeline_v1(io: io.BytesIO, mime_type: str) -> str:
         return _extract_pdf_plumber_v1(io)
     elif mime_type == "text/plain":
         return _extract_text_v1(io)
+    elif mime_type == "application/msword":
+        return _extract_msword_v1(io)
     else:
         raise ValueError(f"Unrecognized MIME type {mime_type}.")
 

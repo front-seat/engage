@@ -103,7 +103,7 @@ def summarize_vic13b_repdep(
     combine_prompt: str,
     substitutions: dict[str, str] | None = None,
     chain_type: str = "map_reduce",
-    chunk_size: int = 1024,
+    chunk_size: int = 2048,
 ) -> str:
     llm = ReplicateLLM()
     return summarize_llm(
@@ -124,16 +124,22 @@ def summarize_vic13b_repdep(
 
 CONCISE_SUMMARY_PROMPT = """Write a concise summary of the following text. Include the most important details:
 
-"{text}"
+TEXT:::
+{text}
+:::END_TEXT
 
 CONCISE_SUMMARY:"""  # noqa: E501
 
 
 CONCISE_HEADLINE_PROMPT = """Write a concise and extremely compact headline (one sentence or less) for the following text. Capture only the most salient detail or two:
 
-"{text}"
+TEXT:::
+{text}
+:::END_TEXT
 
 CONCISE_COMPACT_HEADLINE:"""  # noqa: E501
+
+
 
 
 # ---------------------------------------------------------------------
