@@ -44,7 +44,7 @@ def summarize_llm(
         texts = text_splitter.split_text(text)
         text_lengths = [len(text) for text in texts]
         if any(text_length > chunk_size for text_length in text_lengths):
-            raise ValueError("Unable to split text into small enough chunks.")
+            return "(Please ignore this: unable to summarize; text could not be split.)"
 
     documents = [Document(page_content=text) for text in texts]
     final_map_prompt = _substitute(map_prompt, substitutions)
