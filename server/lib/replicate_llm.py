@@ -7,7 +7,6 @@ from langchain.llms.base import LLM
 DEFAULT_MODEL_USER = "replicate"
 DEFAULT_MODEL_NAME = "vicuna-13b"
 DEFAULT_MODEL_HASH = "a68b84083b703ab3d5fbf31b6e25f16be2988e4c3e21fe79c2ff1c18b99e61c1"
-# DEFAULT_MODEL_VERSION = f"{DEFAULT_MODEL_USER}/{DEFAULT_MODEL_NAME}:{DEFAULT_MODEL_HASH}"
 
 
 class ReplicateLLM(LLM):
@@ -29,8 +28,8 @@ class ReplicateLLM(LLM):
         return "replicate-custom-llm"
 
     def _call(
-        self, 
-        prompt: str, 
+        self,
+        prompt: str,
         stop: list[str] | None = None,
         run_manager: CallbackManagerForLLMRun | None = None,
     ) -> str:
@@ -45,12 +44,12 @@ class ReplicateLLM(LLM):
                 "temperature": self.temperature,
                 "top_p": self.top_p,
                 "repetition_penalty": self.repetition_penalty,
-            }
+            },
         )
 
         if pred is None:
             raise RuntimeError("Prediction failed.")
-        
+
         # Keep reploading the prediction until it's done.
         while pred.status not in {"succeeded", "failed"}:
             pred.reload()
@@ -58,10 +57,10 @@ class ReplicateLLM(LLM):
 
         if pred.status == "failed":
             raise RuntimeError("Prediction failed.")
-        
+
         output = pred.output
         assert isinstance(output, list)
-        
+
         # For each item, if it ends with a letter and has no whitespace at the
         # end, add a space to the end of it.
         items = [
@@ -77,6 +76,3 @@ class ReplicateLLM(LLM):
     def get_num_tokens(self, text: str) -> int:
         """Get the number of tokens in the given text."""
         return len(text) // 3
-
-
-

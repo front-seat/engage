@@ -13,10 +13,7 @@ from .models import Legislation, LegislationSummary, Meeting, MeetingSummary
 
 Style: t.TypeAlias = t.Literal["concise", "concise-vicuna-13b"]
 
-STYLES: list[Style] = [
-    "concise",
-    "concise-vicuna-13b"
-]
+STYLES: list[Style] = ["concise", "concise-vicuna-13b"]
 
 MEETING_SUMMARY_STYLES: dict[Style, str] = {
     "concise": "summarize_meeting_gpt35_concise",
@@ -26,7 +23,7 @@ MEETING_SUMMARY_STYLES: dict[Style, str] = {
 MEETING_HEADLINE_STYLES: dict[Style, str] = {
     "concise": "summarize_meeting_gpt35_concise_headline",
     # TODO: "summarize_meeting_vic13b_repdep_concise_headline"
-    "concise-vicuna-13b": "summarize_meeting_gpt35_concise_headline", 
+    "concise-vicuna-13b": "summarize_meeting_gpt35_concise_headline",
 }
 
 LEGISLATION_SUMMARY_STYLES: dict[Style, str] = {

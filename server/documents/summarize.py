@@ -23,7 +23,6 @@ def _substitute(s: str, substitutions: dict[str, str] | None) -> str:
     return s
 
 
-
 def summarize_llm(
     text: str,
     llm: BaseLanguageModel,
@@ -94,7 +93,7 @@ def summarize_openai_langchain(
         substitutions=substitutions,
         chain_type=chain_type,
         chunk_size=chunk_size,
-    ) 
+    )
 
 
 def summarize_vic13b_repdep(
@@ -117,7 +116,6 @@ def summarize_vic13b_repdep(
     )
 
 
-
 # ---------------------------------------------------------------------
 # Prompts
 # ---------------------------------------------------------------------
@@ -138,8 +136,6 @@ TEXT:::
 :::END_TEXT
 
 CONCISE_COMPACT_HEADLINE:"""  # noqa: E501
-
-
 
 
 # ---------------------------------------------------------------------

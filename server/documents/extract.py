@@ -130,7 +130,7 @@ def _extract_pdf_plumber_v1(io: io.BytesIO) -> str:
         return (
             f"Please ignore: unable to extract content from the PDF named '{short_e}'."
         )
-    
+
 
 def _extract_msword_v1(io: io.BytesIO) -> str:
     """Extract text from a Word document. v1."""

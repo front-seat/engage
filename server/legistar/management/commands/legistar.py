@@ -571,12 +571,10 @@ def summarize_all_legislation():
                 click.echo("\n\n", file=sys.stderr)
 
 
-
-
-
 # -----------------------------------------------------------------------------
 # Prune command group
 # -----------------------------------------------------------------------------
+
 
 @main.group(invoke_without_command=True)
 def prune():

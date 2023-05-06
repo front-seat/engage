@@ -130,7 +130,7 @@ def _join_legislation_summaries_vic13b_repdep_concise(
         text,
         map_prompt=CONCISE_SUMMARY_PROMPT,
         combine_prompt=LEGISLATION_CONCISE_PROMPT,
-        substitutions=substitutions,        
+        substitutions=substitutions,
     )
 
 
@@ -152,7 +152,7 @@ def _join_legislation_summaries_vic13b_repdep_concise_headline(
         text,
         map_prompt=CONCISE_SUMMARY_PROMPT,
         combine_prompt=LEGISLATION_CONCISE_HEADLINE_PROMPT,
-        substitutions=substitutions,        
+        substitutions=substitutions,
     )
 
 
@@ -188,7 +188,9 @@ def summarize_legislation_gpt35_concise_headline(legislation: Legislation) -> st
     )
 
 
-def summarize_legislation_vic13b_repdep_concise_headline(legislation: Legislation) -> str:
+def summarize_legislation_vic13b_repdep_concise_headline(
+    legislation: Legislation,
+) -> str:
     return _summarize_legislation(
         legislation,
         document_summarizer=summarize_vic13b_repdep_concise,
@@ -326,7 +328,7 @@ def _join_meeting_summaries_vic13b_repdep_concise(
         combine_prompt=MEETING_CONCISE_PROMPT,
         substitutions=substitutions,
     )
-    
+
 
 def _join_meeting_summaries_gpt35_concise_headline(
     text: str, substitutions: dict[str, str] | None = None
