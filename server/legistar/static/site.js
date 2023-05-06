@@ -53,7 +53,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   // make sure it is one of the valid filters, which are:
   // `concise` <-- that's it, for the moment!
-  if (!["concise"].includes(filter)) {
+  if (!["concise", "concise-vicuna-13b"].includes(filter)) {
     // if it is not one of the valid filters, default to `concise`
     filter = "concise";
   }

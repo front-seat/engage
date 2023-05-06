@@ -11,34 +11,41 @@ from server.lib.truncate import truncate_str
 
 from .models import Legislation, LegislationSummary, Meeting, MeetingSummary
 
-Style: t.TypeAlias = t.Literal["concise"]
+Style: t.TypeAlias = t.Literal["concise", "concise-vicuna-13b"]
 
-STYLES: list[Style] = [
-    "concise",
-]
+STYLES: list[Style] = ["concise", "concise-vicuna-13b"]
 
 MEETING_SUMMARY_STYLES: dict[Style, str] = {
     "concise": "summarize_meeting_gpt35_concise",
+    "concise-vicuna-13b": "summarize_meeting_vic13b_repdep_concise",
 }
 
 MEETING_HEADLINE_STYLES: dict[Style, str] = {
     "concise": "summarize_meeting_gpt35_concise_headline",
+    # TODO: "summarize_meeting_vic13b_repdep_concise_headline"
+    "concise-vicuna-13b": "summarize_meeting_gpt35_concise_headline",
 }
 
 LEGISLATION_SUMMARY_STYLES: dict[Style, str] = {
     "concise": "summarize_legislation_gpt35_concise",
+    "concise-vicuna-13b": "summarize_legislation_vic13b_repdep_concise",
 }
 
 LEGISLATION_HEADLINE_STYLES: dict[Style, str] = {
     "concise": "summarize_legislation_gpt35_concise_headline",
+    # TODO: "summarize_legislation_vic13b_repdep_concise_headline"
+    "concise-vicuna-13b": "summarize_legislation_gpt35_concise_headline",
 }
 
 DOCUMENT_SUMMARY_STYLES: dict[Style, str] = {
     "concise": "summarize_gpt35_concise",
+    "concise-vicuna-13b": "summarize_vic13b_repdep_concise",
 }
 
 DOCUMENT_HEADLINE_STYLES: dict[Style, str] = {
     "concise": "summarize_gpt35_concise_headline",
+    # TODO: "summarize_vic13b_repdep_concise_headline"
+    "concise-vicuna-13b": "summarize_gpt35_concise_headline",
 }
 
 
@@ -198,7 +205,7 @@ def _make_document_description(document: Document, style: str) -> dict:
     }
 
 
-PAST_CUTOFF_DELTA = datetime.timedelta(days=7)
+PAST_CUTOFF_DELTA = datetime.timedelta(days=5)
 
 
 def _get_relative_to() -> datetime.date:
