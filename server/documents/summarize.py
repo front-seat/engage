@@ -23,7 +23,7 @@ def _substitute(s: str, substitutions: dict[str, str] | None) -> str:
     return s
 
 
-def summarize_llm(
+def summarize_langchain_llm(
     text: str,
     llm: BaseLanguageModel,
     map_prompt: str,
@@ -65,7 +65,7 @@ def summarize_llm(
     return summary
 
 
-def summarize_openai_langchain(
+def summarize_openai(
     text: str,
     map_prompt: str,
     combine_prompt: str,
@@ -85,7 +85,7 @@ def summarize_openai_langchain(
         openai_organization=settings.OPENAI_ORGANIZATION,
         openai_api_key=settings.OPENAI_API_KEY,
     )
-    return summarize_llm(
+    return summarize_langchain_llm(
         text=text,
         llm=llm,
         map_prompt=map_prompt,
@@ -105,7 +105,7 @@ def summarize_vic13b_repdep(
     chunk_size: int = 2048,
 ) -> str:
     llm = ReplicateLLM()
-    return summarize_llm(
+    return summarize_langchain_llm(
         text=text,
         llm=llm,
         map_prompt=map_prompt,
@@ -147,7 +147,7 @@ def summarize_gpt35_concise(
     text: str, substitutions: dict[str, str] | None = None
 ) -> str:
     assert substitutions is None, "substitutions not supported by this summarizer"
-    summary = summarize_openai_langchain(
+    summary = summarize_openai(
         text,
         map_prompt=CONCISE_SUMMARY_PROMPT,
         combine_prompt=CONCISE_SUMMARY_PROMPT,
@@ -173,7 +173,7 @@ def summarize_gpt35_concise_headline(
     text: str, substitutions: dict[str, str] | None = None
 ) -> str:
     assert substitutions is None, "substitutions not supported by this summarizer"
-    summary = summarize_openai_langchain(
+    summary = summarize_openai(
         text,
         map_prompt=CONCISE_SUMMARY_PROMPT,
         combine_prompt=CONCISE_HEADLINE_PROMPT,

@@ -53,7 +53,7 @@ class ReplicateLLM(LLM):
         # Keep reploading the prediction until it's done.
         while pred.status not in {"succeeded", "failed"}:
             pred.reload()
-            sleep(0.25)
+            sleep(0.1)
 
         if pred.status == "failed":
             raise RuntimeError("Prediction failed.")
