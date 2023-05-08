@@ -55,7 +55,7 @@ def summarize_langchain_llm(
     combine_prompt_template = PromptTemplate(
         template=final_combine_prompt, input_variables=["text"]
     )
-    chain = load_su'mmarize_chain(
+    chain = load_summarize_chain(
         llm,
         chain_type=chain_type,
         map_prompt=map_prompt_template,
