@@ -10,7 +10,7 @@ from server.documents.summarize import (
     CONCISE_SUMMARY_PROMPT,
     SummarizerCallable,
     summarize_gpt35_concise,
-    summarize_openai_langchain,
+    summarize_openai,
     summarize_vic13b_repdep,
     summarize_vic13b_repdep_concise,
 )
@@ -115,7 +115,7 @@ def _summarize_legislation(
 def _join_legislation_summaries_gpt35_concise(
     text: str, substitutions: dict[str, str] | None = None
 ) -> str:
-    return summarize_openai_langchain(
+    return summarize_openai(
         text,
         map_prompt=CONCISE_SUMMARY_PROMPT,
         combine_prompt=LEGISLATION_CONCISE_PROMPT,
@@ -137,7 +137,7 @@ def _join_legislation_summaries_vic13b_repdep_concise(
 def _join_legislation_summaries_gpt35_concise_headline(
     text: str, substitutions: dict[str, str] | None = None
 ) -> str:
-    return summarize_openai_langchain(
+    return summarize_openai(
         text,
         map_prompt=CONCISE_SUMMARY_PROMPT,
         combine_prompt=LEGISLATION_CONCISE_HEADLINE_PROMPT,
@@ -216,7 +216,7 @@ LEGISLATION_SUMMARIZERS: list[LegislationSummarizerCallable] = [
     summarize_legislation_gpt35_concise,
     summarize_legislation_gpt35_concise_headline,
     summarize_legislation_vic13b_repdep_concise,
-    # summarize_legislation_vic13b_repdep_concise_headline,
+    summarize_legislation_vic13b_repdep_concise_headline,
 ]
 
 LEGISLATION_SUMMARIZERS_BY_NAME: dict[str, LegislationSummarizerCallable] = {
@@ -311,7 +311,7 @@ def _summarize_meeting(
 def _join_meeting_summaries_gpt35_concise(
     text: str, substitutions: dict[str, str] | None = None
 ) -> str:
-    return summarize_openai_langchain(
+    return summarize_openai(
         text,
         map_prompt=CONCISE_SUMMARY_PROMPT,
         combine_prompt=MEETING_CONCISE_PROMPT,
@@ -333,7 +333,7 @@ def _join_meeting_summaries_vic13b_repdep_concise(
 def _join_meeting_summaries_gpt35_concise_headline(
     text: str, substitutions: dict[str, str] | None = None
 ) -> str:
-    return summarize_openai_langchain(
+    return summarize_openai(
         text,
         map_prompt=CONCISE_SUMMARY_PROMPT,
         combine_prompt=MEETING_CONCISE_HEADLINE_PROMPT,
@@ -414,7 +414,7 @@ MEETING_SUMMARIZERS: list[MeetingSummarizerCallable] = [
     summarize_meeting_gpt35_concise,
     summarize_meeting_gpt35_concise_headline,
     summarize_meeting_vic13b_repdep_concise,
-    # summarize_meeting_vic13b_repdep_concise_headline,
+    summarize_meeting_vic13b_repdep_concise_headline,
 ]
 
 MEETING_SUMMARIZERS_BY_NAME: dict[str, MeetingSummarizerCallable] = {
