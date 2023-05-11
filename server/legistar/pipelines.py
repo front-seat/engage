@@ -4,8 +4,6 @@ import typing as t
 
 from django.conf import settings
 
-from server.documents.extract import ExtractorCallable, extract_pipeline_v1
-from server.documents.models import Document, DocumentSummary, DocumentText
 from server.documents.summarize import (
     CONCISE_SUMMARY_PROMPT,
     SummarizerCallable,
@@ -15,37 +13,6 @@ from server.documents.summarize import (
     summarize_vic13b_repdep_concise,
 )
 from server.lib.truncate import truncate_str
-
-# TODO: circular nonsense here, since .models imports this module.
-from .models import Legislation, LegislationSummary, LegistarDocumentKind, Meeting
-
-# CONSIDER: this is obviously not the final boss form. What do we really
-# want to do here? How can we easily allow outside parties to create new
-# prompt combinations, particularly from the command line?
-
-
-# ---------------------------------------------------------------------
-# Internal utilities
-# ---------------------------------------------------------------------
-
-
-def _extract_and_summarize_document(
-    document: Document,
-    summarizer: SummarizerCallable,
-    extractor: ExtractorCallable = extract_pipeline_v1,
-) -> DocumentSummary:
-    """
-    Extract the text from a document, then summarize it using the given
-    summarizer.
-    """
-    document_text, _ = DocumentText.objects.get_or_create_from_document(
-        document, extractor=extractor
-    )
-    document_summary, _ = DocumentSummary.objects.get_or_create_from_document_text(
-        document_text, summarizer=summarizer
-    )
-    return document_summary
-
 
 # ---------------------------------------------------------------------
 # Legislation prompts
@@ -66,136 +33,58 @@ CONCISE_COMPACT_HEADLINE:"""  # noqa: E501
 
 
 # ---------------------------------------------------------------------
-# Legislation internal utilties
-# ---------------------------------------------------------------------
-
-
-def _summarize_legislation(
-    legislation: Legislation,
-    document_summarizer: SummarizerCallable,
-    join_summarizer: SummarizerCallable,
-    verbose_name: str,
-) -> str:
-    """
-    Summarize a piece of legislation by summarizing all of its documents
-    using the `document_summarizer`, then combining the resulting summaries
-    using the given `combine_prompt`.
-    """
-    if settings.VERBOSE:
-        print(
-            f">>>> SUMMARIZE: legislation docs {verbose_name}({legislation})",
-            file=sys.stderr,
-        )
-
-    # Summarize every document associated with this legislation.
-    document_summaries: list[DocumentSummary] = [
-        _extract_and_summarize_document(document, document_summarizer)
-        for document in legislation.documents.all()
-    ]
-
-    if settings.VERBOSE:
-        print(
-            f">>>> SUMMARIZE: legislation join {verbose_name}({legislation})",
-            file=sys.stderr,
-        )
-
-    # Join the summaries together.
-    substitutions = {
-        "<<title>>": truncate_str(legislation.title, 100).replace('"', "'"),
-    }
-    texts = "\n\n".join([d_summ.summary for d_summ in document_summaries])
-    return join_summarizer(texts, substitutions=substitutions)
-
-
-# ---------------------------------------------------------------------
-# Legislation joiners
-# ---------------------------------------------------------------------
-
-
-def _join_legislation_summaries_gpt35_concise(
-    text: str, substitutions: dict[str, str] | None = None
-) -> str:
-    return summarize_openai(
-        text,
-        map_prompt=CONCISE_SUMMARY_PROMPT,
-        combine_prompt=LEGISLATION_CONCISE_PROMPT,
-        substitutions=substitutions,
-    )
-
-
-def _join_legislation_summaries_vic13b_repdep_concise(
-    text: str, substitutions: dict[str, str] | None = None
-) -> str:
-    return summarize_vic13b_repdep(
-        text,
-        map_prompt=CONCISE_SUMMARY_PROMPT,
-        combine_prompt=LEGISLATION_CONCISE_PROMPT,
-        substitutions=substitutions,
-    )
-
-
-def _join_legislation_summaries_gpt35_concise_headline(
-    text: str, substitutions: dict[str, str] | None = None
-) -> str:
-    return summarize_openai(
-        text,
-        map_prompt=CONCISE_SUMMARY_PROMPT,
-        combine_prompt=LEGISLATION_CONCISE_HEADLINE_PROMPT,
-        substitutions=substitutions,
-    )
-
-
-def _join_legislation_summaries_vic13b_repdep_concise_headline(
-    text: str, substitutions: dict[str, str] | None = None
-) -> str:
-    return summarize_vic13b_repdep(
-        text,
-        map_prompt=CONCISE_SUMMARY_PROMPT,
-        combine_prompt=LEGISLATION_CONCISE_HEADLINE_PROMPT,
-        substitutions=substitutions,
-    )
-
-
-# ---------------------------------------------------------------------
 # Legislation summarizers
 # ---------------------------------------------------------------------
 
 
-def summarize_legislation_gpt35_concise(legislation: Legislation) -> str:
-    return _summarize_legislation(
-        legislation,
-        document_summarizer=summarize_gpt35_concise,
-        join_summarizer=_join_legislation_summaries_gpt35_concise,
-        verbose_name="gpt35_concise",
+def _get_legislation_substitutions(title: str) -> dict[str, str]:
+    return {
+        "<<title>>": truncate_str(title, 100).replace('"', "'"),
+    }
+
+
+def summarize_legislation_gpt35_concise(
+    title: str,
+    document_summaries: list[str],
+) -> str:
+    return summarize_openai(
+        "\n\n".join(document_summaries),
+        map_prompt=CONCISE_SUMMARY_PROMPT,
+        combine_prompt=LEGISLATION_CONCISE_PROMPT,
+        substitutions=_get_legislation_substitutions(title),
     )
 
 
-def summarize_legislation_vic13b_repdep_concise(legislation: Legislation) -> str:
-    return _summarize_legislation(
-        legislation,
-        document_summarizer=summarize_vic13b_repdep_concise,
-        join_summarizer=_join_legislation_summaries_vic13b_repdep_concise,
-        verbose_name="vic13b_repdep_concise",
+def summarize_legislation_vic13b_repdep_concise(
+    title: str, document_summaries: list[str]
+) -> str:
+    return summarize_vic13b_repdep(
+        "\n\n".join(document_summaries),
+        map_prompt=CONCISE_SUMMARY_PROMPT,
+        combine_prompt=LEGISLATION_CONCISE_PROMPT,
+        substitutions=_get_legislation_substitutions(title),
     )
 
 
-def summarize_legislation_gpt35_concise_headline(legislation: Legislation) -> str:
-    return _summarize_legislation(
-        legislation,
-        document_summarizer=summarize_gpt35_concise,
-        join_summarizer=_join_legislation_summaries_gpt35_concise_headline,
-        verbose_name="gpt35_concise_headline",
+def summarize_legislation_gpt35_concise_headline(
+    title: str, document_summaries: list[str]
+) -> str:
+    return summarize_openai(
+        "\n\n".join(document_summaries),
+        map_prompt=CONCISE_SUMMARY_PROMPT,
+        combine_prompt=LEGISLATION_CONCISE_HEADLINE_PROMPT,
+        substitutions=_get_legislation_substitutions(title),
     )
 
 
 def summarize_legislation_vic13b_repdep_concise_headline(
-    legislation: Legislation,
+    title: str, document_summaries: list[str]
 ) -> str:
-    return _summarize_legislation(
-        legislation,
-        document_summarizer=summarize_vic13b_repdep_concise,
-        join_summarizer=_join_legislation_summaries_vic13b_repdep_concise_headline,
-        verbose_name="vic13b_repdep_concise_headline",
+    return summarize_vic13b_repdep(
+        "\n\n".join(document_summaries),
+        map_prompt=CONCISE_SUMMARY_PROMPT,
+        combine_prompt=LEGISLATION_CONCISE_HEADLINE_PROMPT,
+        substitutions=_get_legislation_substitutions(title),
     )
 
 
@@ -208,7 +97,7 @@ def summarize_legislation_vic13b_repdep_concise_headline(
 class LegislationSummarizerCallable(t.Protocol):
     __name__: str
 
-    def __call__(self, legislation: Legislation) -> str:
+    def __call__(self, title: str, document_summaries: list[str]) -> str:
         ...
 
 

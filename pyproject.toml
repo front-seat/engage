@@ -13,7 +13,6 @@ authors = ["Dave Peck <davepeck@davepeck.org>"]
 
 [tool.black]
 target-version = ["py311"]
-check = true
 exclude = "/migrations/"
 
 [tool.ruff]
