@@ -26,12 +26,11 @@
   </head>
   <body>
     {% block summarization-style-form %}
-      <form id="summarization-style-form">
+      <form id="summarization-style-form" class="hidden">
         <div>
           <label for="filter">Summarization style:</label>
           <select name="filter" id="filter">
             <option value="concise">Concise (GPT-3.5)</option>
-            <option value="concise-vicuna-13b">Concise (Vic13B)</option>
           </select>
         </div>
       </form>
