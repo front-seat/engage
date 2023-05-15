@@ -20,6 +20,8 @@ from .lib.web_schema import (
     MeetingRowSchema,
     MeetingSchema,
 )
+from .summarize.legislation import LEGISLATION_SUMMARIZERS_BY_NAME
+from .summarize.meetings import MEETING_SUMMARIZERS_BY_NAME, MeetingSummarizerCallable
 
 
 def _load_link(link: Link) -> tuple[bytes, str]:
@@ -227,26 +229,27 @@ class MeetingSummaryManager(models.Manager):
     def get_or_create_from_meeting(
         self,
         meeting: Meeting,
-        summarizer: t.Any,  # TODO
+        summarizer: MeetingSummarizerCallable,
+        require_all_legislation: bool = True,
     ) -> tuple[MeetingSummary, bool]:
-        # TODO: fix this circular nonsense
-        from .pipelines import MeetingSummarizerCallable
+        with transaction.atomic():
+            summary = self.filter(
+                meeting=meeting, summarizer_name=summarizer.__name__
+            ).first()
+            if summary is not None:
+                return summary, False
 
-        assert isinstance(summarizer, MeetingSummarizerCallable)
+            legislation_list = list(meeting.legislations)
+            legislation_summaries = 
 
-        # CONSIDER: this is not atomic.
-        summary = self.filter(
-            meeting=meeting, summarizer_name=summarizer.__name__
-        ).first()
-        if summary is not None:
-            return summary, False
-        summary_text = summarizer(meeting)
-        summary = self.create(
-            meeting=meeting,
-            summary=summary_text,
-            summarizer_name=summarizer.__name__,
-        )
-        return summary, True
+
+            summary_text = summarizer(meeting)
+            summary = self.create(
+                meeting=meeting,
+                summary=summary_text,
+                summarizer_name=summarizer.__name__,
+            )
+            return summary, True
 
 
 class MeetingSummary(models.Model):
@@ -271,8 +274,6 @@ class MeetingSummary(models.Model):
 
     @property
     def summarizer(self):
-        from .pipelines import MEETING_SUMMARIZERS_BY_NAME
-
         return MEETING_SUMMARIZERS_BY_NAME[self.summarizer_name]
 
     def __str__(self):
@@ -483,8 +484,6 @@ class LegislationSummary(models.Model):
     @property
     def summarizer(self):
         """Return the summarizer."""
-        from .pipelines import LEGISLATION_SUMMARIZERS_BY_NAME
-
         return LEGISLATION_SUMMARIZERS_BY_NAME[self.summarizer_name]
 
     class Meta:
