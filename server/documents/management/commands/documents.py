@@ -5,7 +5,11 @@ from django.conf import settings
 
 from server.documents.extract import EXTRACTORS, EXTRACTORS_BY_NAME
 from server.documents.models import Document, DocumentSummary, DocumentText
-from server.documents.summarize import SUMMARIZERS, SUMMARIZERS_BY_NAME
+from server.lib.pipeline_config import (
+    PIPELINE_CONFIGS,
+    PIPELINE_CONFIGS_BY_NAME,
+    SUMMARIZATION_KINDS,
+)
 
 
 @click.group(invoke_without_command=True)
@@ -63,21 +67,29 @@ def summarize():
 
 @summarize.command(name="single")
 @click.argument("pk", type=int, required=True)
-@click.argument("summarizer-name", type=str, default=SUMMARIZERS[0])
+@click.argument("config-name", type=str, default=PIPELINE_CONFIGS[0].name)
+@click.argument("kind", type=str, default="body")
 def summarize_single(
     pk: int,
-    summarizer_name: str,
+    config_name: str,
+    kind: str,
 ):
-    """Summarize text from a single document."""
-    summarizer = SUMMARIZERS_BY_NAME[summarizer_name]
-    # XXX for now, select the latest text. This should be improved.
+    """
+    Get a previously summarized document from the database, or summarize it
+    if it hasn't been summarized yet.
+    """
+    assert kind in SUMMARIZATION_KINDS, f"Invalid kind: {kind}"
+    config = PIPELINE_CONFIGS_BY_NAME[config_name]
+    # XXX for now, select the latest text. This should be improved, or we
+    # should drop the complexity of having different 'extracted texts' for
+    # a single document.
     document_text = DocumentText.objects.filter(document_id=pk).first()
     if document_text is None:
         raise click.ClickException(
             "No extracted text found for document. Run extract first."
         )
     document_summary, _ = DocumentSummary.objects.get_or_create_from_document_text(
-        document_text, summarizer
+        document_text, config, kind
     )
     click.echo(document_summary.summary)
 
@@ -89,24 +101,27 @@ def summarize_all(ignore_kinds: str = "agenda,agenda_packet"):
     extractor = EXTRACTORS[0]
     ignore_kinds_set = set(ik.strip() for ik in ignore_kinds.split(","))
     documents = Document.objects.all().exclude(kind__in=ignore_kinds_set)
-    for summarizer in SUMMARIZERS:
+    for config in PIPELINE_CONFIGS:
         if settings.VERBOSE:
-            print(f">>>> ALL-DOCS: Using {summarizer.__name__}", file=sys.stderr)
+            print(f">>>> ALL-DOCS: Using {config.name}", file=sys.stderr)
         for document in documents:
-            document_text, _ = DocumentText.objects.get_or_create_from_document(
-                document, extractor=extractor
-            )
-            (
-                document_summary,
-                _,
-            ) = DocumentSummary.objects.get_or_create_from_document_text(
-                document_text, summarizer=summarizer
-            )
-            if settings.VERBOSE:
-                print(
-                    f">>>> ALL-DOCS: Sum {document} w/ {summarizer.__name__}",
-                    file=sys.stderr,
+            for kind in SUMMARIZATION_KINDS:
+                document_text, _ = DocumentText.objects.get_or_create_from_document(
+                    document, extractor=extractor
                 )
-            click.echo(document_summary.summary)
-            if settings.VERBOSE:
-                print("\n\n", file=sys.stderr)
+                (
+                    document_summary,
+                    _,
+                ) = DocumentSummary.objects.get_or_create_from_document_text(
+                    document_text,
+                    config,
+                    kind,
+                )
+                if settings.VERBOSE:
+                    print(
+                        f">>>> ALL-DOCS: Sum {document} w/ {config.name} '{kind}'",
+                        file=sys.stderr,
+                    )
+                click.echo(document_summary.summary)
+                if settings.VERBOSE:
+                    print("\n\n", file=sys.stderr)

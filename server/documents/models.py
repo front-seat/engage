@@ -10,6 +10,7 @@ from django.conf import settings
 from django.db import models, transaction
 from django.utils.text import slugify
 
+from server.lib.pipeline_config import PipelineConfig, SummarizationKind
 from server.lib.truncate import truncate_str
 
 from .extract import EXTRACTORS_BY_NAME, ExtractorCallable
@@ -222,27 +223,32 @@ class DocumentSummaryManager(models.Manager):
     def get_or_create_from_document_text(
         self,
         document_text: DocumentText,
-        summarizer: SummarizerCallable,
+        config: PipelineConfig,
+        kind: SummarizationKind,
     ) -> tuple[DocumentSummary, bool]:
         with transaction.atomic():
+            # If we already have a summary for this document text, return it.
             document_summary = self.filter(
-                document_text=document_text, summarizer_name=summarizer.__name__
+                document_text=document_text,
+                summarizer_name=config.document.for_kind(kind),
             ).first()
             if document_summary is not None:
                 return document_summary, False
+
+            # Otherwise, create a new summary.
             if settings.VERBOSE:
                 print(
-                    f">>>> SUMMARIZE: doc_text({document_text}, {summarizer.__name__})",
+                    f">>>> SUMMARIZE: doc_text({document_text}, {config.name} {kind})",
                     file=sys.stderr,
                 )
-            summary = summarizer(
-                text=document_text.text,
-            )
+
+            summarizer = SUMMARIZERS_BY_NAME[config.document.for_kind(kind)]
+            summary = summarizer(text=document_text.text)
             document_summary = self.create(
                 document=document_text.document,
                 document_text=document_text,
                 summary=summary,
-                summarizer_name=summarizer.__name__,
+                summarizer_name=config.document.for_kind(kind),
             )
             return document_summary, True
 
