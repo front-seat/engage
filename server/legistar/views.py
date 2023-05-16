@@ -6,9 +6,13 @@ from django.utils.html import format_html_join
 from django.views.decorators.http import require_GET
 
 from server.documents.models import Document, DocumentSummary
+from server.lib.pipeline_config import (
+    PIPELINE_CONFIGS,
+    PIPELINE_CONFIGS_BY_NAME,
+    PipelineConfig,
+)
 from server.lib.truncate import truncate_str
 
-from .configs import PIPELINE_CONFIGS, PIPELINE_CONFIGS_BY_NAME, PipelineConfig
 from .models import Legislation, LegislationSummary, Meeting, MeetingSummary
 
 
@@ -282,6 +286,11 @@ def document(
             "document_description": document_description,
         },
     )
+
+
+@require_GET
+def index(request):
+    return render(request, "index.dhtml")
 
 
 @require_GET

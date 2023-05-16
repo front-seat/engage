@@ -6,7 +6,7 @@ import typing as t
 import urllib.parse
 
 import requests
-from django.db import models
+from django.db import models, transaction
 
 from server.documents.models import Document
 from server.lib.truncate import truncate_str
@@ -229,12 +229,12 @@ class MeetingSummaryManager(models.Manager):
     def get_or_create_from_meeting(
         self,
         meeting: Meeting,
-        summarizer: MeetingSummarizerCallable,
-        require_all_legislation: bool = True,
+        config: PipelineConfig,
     ) -> tuple[MeetingSummary, bool]:
         with transaction.atomic():
+            # XXX dave you are here -- how to decide between body or headline?
             summary = self.filter(
-                meeting=meeting, summarizer_name=summarizer.__name__
+                meeting=meeting, summarizer_name=config.meeting.body
             ).first()
             if summary is not None:
                 return summary, False
