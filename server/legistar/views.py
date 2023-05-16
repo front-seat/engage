@@ -1,5 +1,4 @@
 import datetime
-import typing as t
 
 from django.http import Http404
 from django.shortcuts import get_object_or_404, render
@@ -7,42 +6,19 @@ from django.utils.html import format_html_join
 from django.views.decorators.http import require_GET
 
 from server.documents.models import Document, DocumentSummary
+from server.lib.pipeline_config import (
+    PIPELINE_CONFIGS,
+    PIPELINE_CONFIGS_BY_NAME,
+    PipelineConfig,
+)
 from server.lib.truncate import truncate_str
 
 from .models import Legislation, LegislationSummary, Meeting, MeetingSummary
 
-Style: t.TypeAlias = t.Literal["concise"]
-
-STYLES: list[Style] = ["concise"]
-
-MEETING_SUMMARY_STYLES: dict[Style, str] = {
-    "concise": "summarize_meeting_gpt35_concise",
-}
-
-MEETING_HEADLINE_STYLES: dict[Style, str] = {
-    "concise": "summarize_meeting_gpt35_concise_headline",
-}
-
-LEGISLATION_SUMMARY_STYLES: dict[Style, str] = {
-    "concise": "summarize_legislation_gpt35_concise",
-}
-
-LEGISLATION_HEADLINE_STYLES: dict[Style, str] = {
-    "concise": "summarize_legislation_gpt35_concise_headline",
-}
-
-DOCUMENT_SUMMARY_STYLES: dict[Style, str] = {
-    "concise": "summarize_gpt35_concise",
-}
-
-DOCUMENT_HEADLINE_STYLES: dict[Style, str] = {
-    "concise": "summarize_gpt35_concise_headline",
-}
-
 
 def distill_calendars():
-    for style in STYLES:
-        yield {"style": style}
+    for config in PIPELINE_CONFIGS:
+        yield {"config_name": config.name}
 
 
 def _summary_as_html(summary: str):
@@ -51,6 +27,7 @@ def _summary_as_html(summary: str):
 
 
 def _clean_headline(headline: str):
+    # XXX this belongs elsehwere -- maybe as part of our summarization pipeline?
     headline = headline.strip()
     if headline.startswith("“") or headline.startswith('"'):
         headline = headline[1:]
@@ -59,14 +36,13 @@ def _clean_headline(headline: str):
     return headline
 
 
-def _make_legislation_mini_description(legislation: Legislation, style: str) -> dict:
-    if style not in STYLES:
-        raise Http404("invalid style")
-    headline_summarizer_name = LEGISLATION_HEADLINE_STYLES[style]
+def _make_legislation_mini_description(
+    legislation: Legislation, config: PipelineConfig
+) -> dict:
     headline = get_object_or_404(
         LegislationSummary,
         legislation=legislation,
-        summarizer_name=headline_summarizer_name,
+        summarizer_name=config.legislation.headline,
     )
     clean_headline = _clean_headline(headline.summary)
     return {
@@ -81,17 +57,13 @@ def _make_legislation_mini_description(legislation: Legislation, style: str) -> 
     }
 
 
-def _make_meeting_description(meeting: Meeting, style: str) -> dict:
-    if style not in STYLES:
-        raise Http404("invalid style")
-    summarizer_name = MEETING_SUMMARY_STYLES[style]
-    headline_summarizer_name = MEETING_HEADLINE_STYLES[style]
+def _make_meeting_description(meeting: Meeting, config: PipelineConfig) -> dict:
     if meeting.is_active:
         summary = get_object_or_404(
-            MeetingSummary, meeting=meeting, summarizer_name=summarizer_name
+            MeetingSummary, meeting=meeting, summarizer_name=config.meeting.body
         )
         headline = get_object_or_404(
-            MeetingSummary, meeting=meeting, summarizer_name=headline_summarizer_name
+            MeetingSummary, meeting=meeting, summarizer_name=config.meeting.headline
         )
         clean_headline = _clean_headline(headline.summary)
         return {
@@ -106,7 +78,7 @@ def _make_meeting_description(meeting: Meeting, style: str) -> dict:
             "truncated_headline": truncate_str(clean_headline, 24),
             "summary": _summary_as_html(summary.summary),
             "legislations": [
-                _make_legislation_mini_description(legislation, style)
+                _make_legislation_mini_description(legislation, config)
                 for legislation in meeting.legislations
             ],
         }
@@ -122,12 +94,9 @@ def _make_meeting_description(meeting: Meeting, style: str) -> dict:
         }
 
 
-def _make_document_mini_description(document: Document, style: str) -> dict:
-    if style not in STYLES:
-        raise Http404("invalid style")
-    headline_summarizer_name = DOCUMENT_HEADLINE_STYLES[style]
+def _make_document_mini_description(document: Document, config: PipelineConfig) -> dict:
     headline = get_object_or_404(
-        DocumentSummary, document=document, summarizer_name=headline_summarizer_name
+        DocumentSummary, document=document, summarizer_name=config.document.headline
     )
     clean_headline = _clean_headline(headline.summary)
     return {
@@ -141,20 +110,18 @@ def _make_document_mini_description(document: Document, style: str) -> dict:
     }
 
 
-def _make_legislation_description(legislation: Legislation, style: str) -> dict:
-    if style not in STYLES:
-        raise Http404("invalid style")
-    summarizer_name = LEGISLATION_SUMMARY_STYLES[style]
-    headline_summarizer_name = LEGISLATION_HEADLINE_STYLES[style]
+def _make_legislation_description(
+    legislation: Legislation, config: PipelineConfig
+) -> dict:
     summary = get_object_or_404(
         LegislationSummary,
         legislation=legislation,
-        summarizer_name=summarizer_name,
+        summarizer_name=config.legislation.body,
     )
     headline = get_object_or_404(
         LegislationSummary,
         legislation=legislation,
-        summarizer_name=headline_summarizer_name,
+        summarizer_name=config.legislation.headline,
     )
     return {
         "legistar_id": legislation.legistar_id,
@@ -166,22 +133,18 @@ def _make_legislation_description(legislation: Legislation, style: str) -> dict:
         "headline": _clean_headline(headline.summary),
         "summary": _summary_as_html(summary.summary),
         "documents": [
-            _make_document_mini_description(document, style)
-            for document in legislation.documents_qs
+            _make_document_mini_description(document, config)
+            for document in legislation.documents.all()
         ],
     }
 
 
-def _make_document_description(document: Document, style: str) -> dict:
-    if style not in STYLES:
-        raise Http404("invalid style")
-    summarizer_name = DOCUMENT_SUMMARY_STYLES[style]
-    headline_summarizer_name = DOCUMENT_HEADLINE_STYLES[style]
+def _make_document_description(document: Document, config: PipelineConfig) -> dict:
     summary = get_object_or_404(
-        DocumentSummary, document=document, summarizer_name=summarizer_name
+        DocumentSummary, document=document, summarizer_name=config.document.body
     )
     headline = get_object_or_404(
-        DocumentSummary, document=document, summarizer_name=headline_summarizer_name
+        DocumentSummary, document=document, summarizer_name=config.document.headline
     )
     clean_headline = _clean_headline(headline.summary)
     return {
@@ -204,13 +167,16 @@ def _get_relative_to() -> datetime.date:
 
 
 @require_GET
-def calendar(request, style: str):
+def calendar(request, config_name: str):
+    config = PIPELINE_CONFIGS_BY_NAME.get(config_name)
+    if config is None:
+        raise Http404(f"Unknown config name: {config_name}")
     meetings = Meeting.objects.future(relative_to=_get_relative_to()).order_by("-date")
-    meeting_descriptions = [_make_meeting_description(m, style) for m in meetings]
+    meeting_descriptions = [_make_meeting_description(m, config) for m in meetings]
     return render(
         request,
         "calendar.dhtml",
-        {"style": style, "meeting_descriptions": meeting_descriptions},
+        {"config_name": config_name, "meeting_descriptions": meeting_descriptions},
     )
 
 
@@ -227,19 +193,22 @@ def _meetings_qs():
 def distill_meetings():
     qs = _meetings_qs()
     for meeting in qs:
-        for style in STYLES:
-            yield {"meeting_id": meeting.legistar_id, "style": style}
+        for config in PIPELINE_CONFIGS:
+            yield {"meeting_id": meeting.legistar_id, "config_name": config.name}
 
 
 @require_GET
-def meeting(request, meeting_id: int, style: str):
+def meeting(request, meeting_id: int, config_name: str):
+    config = PIPELINE_CONFIGS_BY_NAME.get(config_name)
+    if config is None:
+        raise Http404(f"Unknown config name: {config_name}")
     meeting_ = get_object_or_404(Meeting, legistar_id=meeting_id)
-    meeting_description = _make_meeting_description(meeting_, style)
+    meeting_description = _make_meeting_description(meeting_, config)
     return render(
         request,
         "meeting.dhtml",
         {
-            "style": style,
+            "config_name": config_name,
             "meeting_id": meeting_id,
             "meeting_description": meeting_description,
         },
@@ -252,23 +221,26 @@ def distill_legislations():
         for legislation in meeting.legislations:
             if not legislation.summaries.exists():
                 continue
-            for style in STYLES:
+            for config in PIPELINE_CONFIGS:
                 yield {
                     "meeting_id": meeting.legistar_id,
                     "legislation_id": legislation.legistar_id,
-                    "style": style,
+                    "config_name": config.name,
                 }
 
 
 @require_GET
-def legislation(request, meeting_id: int, legislation_id: int, style: str):
+def legislation(request, meeting_id: int, legislation_id: int, config_name: str):
+    config = PIPELINE_CONFIGS_BY_NAME.get(config_name)
+    if config is None:
+        raise Http404(f"Unknown config name: {config_name}")
     legislation_ = get_object_or_404(Legislation, legistar_id=legislation_id)
-    legislation_description = _make_legislation_description(legislation_, style)
+    legislation_description = _make_legislation_description(legislation_, config)
     return render(
         request,
         "legislation.dhtml",
         {
-            "style": style,
+            "config_name": config_name,
             "meeting_id": meeting_id,
             "legislation_id": legislation_id,
             "legislation_description": legislation_description,
@@ -282,29 +254,32 @@ def distill_documents():
         for legislation in meeting.legislations:
             if not legislation.summaries.exists():
                 continue
-            for document in legislation.documents_qs:
+            for document in legislation.documents.all():
                 if not document.summaries.exists():
                     continue
-                for style in STYLES:
+                for config in PIPELINE_CONFIGS:
                     yield {
                         "meeting_id": meeting.legistar_id,
                         "legislation_id": legislation.legistar_id,
                         "document_pk": document.pk,
-                        "style": style,
+                        "config_name": config.name,
                     }
 
 
 @require_GET
 def document(
-    request, meeting_id: int, legislation_id: int, document_pk: int, style: str
+    request, meeting_id: int, legislation_id: int, document_pk: int, config_name: str
 ):
+    config = PIPELINE_CONFIGS_BY_NAME.get(config_name)
+    if config is None:
+        raise Http404(f"Unknown config name: {config_name}")
     document_ = get_object_or_404(Document, pk=document_pk)
-    document_description = _make_document_description(document_, style)
+    document_description = _make_document_description(document_, config)
     return render(
         request,
         "document.dhtml",
         {
-            "style": style,
+            "config_name": config_name,
             "meeting_id": meeting_id,
             "legislation_id": legislation_id,
             "document_pk": document_pk,

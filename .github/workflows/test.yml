@@ -41,7 +41,7 @@ jobs:
       - name: Install node dependencies
         run: npm install
       - name: Check python formatting (black)
-        run: poetry run black server
+        run: poetry run black server --check
       - name: Check python linting (ruff)
         run: poetry run ruff check server
       - name: Check python types (pyright)

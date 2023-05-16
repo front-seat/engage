@@ -7,7 +7,7 @@ NC="\e[0m"
 
 # Run Python formatter (black) -- but let Django migrations get a pass.
 printf "${BLUE}Running black...${NC}\n"
-black server
+black server --check
 
 # Run Python linter (ruff).
 printf "${BLUE}Running ruff...${NC}\n"

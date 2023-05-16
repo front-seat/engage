@@ -23,11 +23,10 @@ from server.legistar.models import (
     Meeting,
     MeetingSummary,
 )
-from server.legistar.pipelines import (
-    LEGISLATION_SUMMARIZERS,
-    LEGISLATION_SUMMARIZERS_BY_NAME,
-    MEETING_SUMMARIZERS,
-    MEETING_SUMMARIZERS_BY_NAME,
+from server.lib.pipeline_config import (
+    PIPELINE_CONFIGS,
+    PIPELINE_CONFIGS_BY_NAME,
+    SUMMARIZATION_KINDS,
 )
 
 # -----------------------------------------------------------------------------
@@ -496,13 +495,15 @@ def summarize():
 
 @summarize.command(name="meeting")
 @click.argument("pk", type=int, required=True)
-@click.argument("summarizer-name", type=str, default=MEETING_SUMMARIZERS[0])
-def summarize_meeting(pk: int, summarizer_name: str):
-    """Summarize a meeting."""
-    summarizer = MEETING_SUMMARIZERS_BY_NAME[summarizer_name]
+@click.argument("config-name", type=str, default=PIPELINE_CONFIGS[0].name)
+@click.argument("kind", type=str, default="body")
+def summarize_meeting(pk: int, config_name: str, kind: str):
+    """Get a previously summarized meeting from the database, or summarize if needed."""
+    assert kind in SUMMARIZATION_KINDS
+    config = PIPELINE_CONFIGS_BY_NAME[config_name]
     meeting = Meeting.objects.get(pk=pk)
     meeting_summary, _ = MeetingSummary.objects.get_or_create_from_meeting(
-        meeting, summarizer
+        meeting, config, kind
     )
     click.echo(meeting_summary.summary)
 
@@ -511,35 +512,41 @@ def summarize_meeting(pk: int, summarizer_name: str):
 def summarize_all_meetings():
     """Summarize all non-canceled meetings with all available summarizers."""
     meetings = Meeting.objects.active()
-    for summarizer in MEETING_SUMMARIZERS:
+    for config in PIPELINE_CONFIGS:
         if settings.VERBOSE:
             click.echo(
-                f">>>> ALL-MEETINGS: Starting with {summarizer.__name__}.",
+                f">>>> ALL-MEETINGS: Starting with {config.name}.",
                 file=sys.stderr,
             )
         for meeting in meetings:
-            meeting_summary, _ = MeetingSummary.objects.get_or_create_from_meeting(
-                meeting, summarizer
-            )
-            if settings.VERBOSE:
-                click.echo(
-                    f">>>> ALL-MEETINGS: Sum {meeting} w/ {summarizer.__name__}",
-                    file=sys.stderr,
+            for kind in SUMMARIZATION_KINDS:
+                meeting_summary, _ = MeetingSummary.objects.get_or_create_from_meeting(
+                    meeting, config, kind
                 )
-            click.echo(meeting_summary.summary)
-            if settings.VERBOSE:
-                click.echo("\n\n", file=sys.stderr)
+                if settings.VERBOSE:
+                    click.echo(
+                        f">>>> ALL-MEETINGS: Sum {meeting} w/ {config.name} '{kind}'",
+                        file=sys.stderr,
+                    )
+                click.echo(meeting_summary.summary)
+                if settings.VERBOSE:
+                    click.echo("\n\n", file=sys.stderr)
 
 
 @summarize.command(name="legislation")
 @click.argument("pk", type=int, required=True)
-@click.argument("summarizer-name", type=str, default=LEGISLATION_SUMMARIZERS[0])
-def summarize_legislation(pk: int, summarizer_name: str):
-    """Summarize a legislation item."""
-    summarizer = LEGISLATION_SUMMARIZERS_BY_NAME[summarizer_name]
+@click.argument("config-name", type=str, default=PIPELINE_CONFIGS[0])
+@click.argument("kind", type=str, default="body")
+def summarize_legislation(pk: int, config_name: str, kind: str):
+    """
+    Get a previously summarized legislation item from the database,
+    or summarize if needed.
+    """
+    assert kind in SUMMARIZATION_KINDS
+    config = PIPELINE_CONFIGS_BY_NAME[config_name]
     legislation = Legislation.objects.get(pk=pk)
     legislation_summary, _ = LegislationSummary.objects.get_or_create_from_legislation(
-        legislation, summarizer
+        legislation, config, kind
     )
     click.echo(legislation_summary.summary)
 
@@ -548,27 +555,28 @@ def summarize_legislation(pk: int, summarizer_name: str):
 def summarize_all_legislation():
     """Summarize all legislation items with all available summarizers."""
     legislations = Legislation.objects.all()
-    for summarizer in LEGISLATION_SUMMARIZERS:
+    for config in PIPELINE_CONFIGS:
         if settings.VERBOSE:
             click.echo(
-                f">>>> ALL-LEGISLATION: Using {summarizer.__name__}.",
+                f">>>> ALL-LEGISLATION: Using {config.name}.",
                 file=sys.stderr,
             )
         for legislation in legislations:
-            (
-                legislation_summary,
-                _,
-            ) = LegislationSummary.objects.get_or_create_from_legislation(
-                legislation, summarizer
-            )
-            if settings.VERBOSE:
-                click.echo(
-                    f">>>> ALL-LEGISLATION: Sum {legislation} w/ {summarizer.__name__}",
-                    file=sys.stderr,
+            for kind in SUMMARIZATION_KINDS:
+                (
+                    legislation_summary,
+                    _,
+                ) = LegislationSummary.objects.get_or_create_from_legislation(
+                    legislation, config, kind
                 )
-            click.echo(legislation_summary.summary)
-            if settings.VERBOSE:
-                click.echo("\n\n", file=sys.stderr)
+                if settings.VERBOSE:
+                    click.echo(
+                        f">>>> ALL-LEG: Sum {legislation} w/ {config.name} '{kind}'",
+                        file=sys.stderr,
+                    )
+                click.echo(legislation_summary.summary)
+                if settings.VERBOSE:
+                    click.echo("\n\n", file=sys.stderr)
 
 
 # -----------------------------------------------------------------------------
@@ -637,6 +645,10 @@ def prune_meetings(days: int):
         meeting.documents.all().delete()
         meeting.delete()
     if settings.VERBOSE:
+        click.echo(
+            f">>>> PRUNE: Done deleting {older_count} meetings.",
+            file=sys.stderr,
+        )
         click.echo(
             f">>>> PRUNE: Done deleting {older_count} meetings.",
             file=sys.stderr,
