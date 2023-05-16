@@ -17,7 +17,7 @@ class NonrelatedDocumentTabularInline(NoPermissionAdminMixin, NonrelatedTabularI
     extra = 0
 
     def get_form_queryset(self, obj):
-        return obj.documents_qs
+        return obj.documents.all()
 
     def has_view_permission(self, request, obj=None) -> bool:
         return True

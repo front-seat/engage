@@ -36,11 +36,11 @@ def _get_meeting_substitutions(department_name: str) -> dict[str, str]:
 
 def summarize_meeting_gpt35_concise(
     department_name: str,
-    document_summaries: list[str],
-    legislation_summaries: list[str],
+    document_summary_texts: list[str],
+    legislation_summary_texts: list[str],
 ) -> str:
     return summarize_openai(
-        "\n\n".join(document_summaries + legislation_summaries),
+        "\n\n".join(document_summary_texts + legislation_summary_texts),
         map_prompt=CONCISE_SUMMARY_PROMPT,
         combine_prompt=MEETING_CONCISE_PROMPT,
         substitutions=_get_meeting_substitutions(department_name),
@@ -49,11 +49,11 @@ def summarize_meeting_gpt35_concise(
 
 def summarize_meeting_vic13b_repdep_concise(
     department_name: str,
-    document_summaries: list[str],
-    legislation_summaries: list[str],
+    document_summary_texts: list[str],
+    legislation_summary_texts: list[str],
 ) -> str:
     return summarize_vic13b_repdep(
-        "\n\n".join(document_summaries + legislation_summaries),
+        "\n\n".join(document_summary_texts + legislation_summary_texts),
         map_prompt=CONCISE_SUMMARY_PROMPT,
         combine_prompt=MEETING_CONCISE_PROMPT,
         substitutions=_get_meeting_substitutions(department_name),
@@ -62,11 +62,11 @@ def summarize_meeting_vic13b_repdep_concise(
 
 def summarize_meeting_gpt35_concise_headline(
     department_name: str,
-    document_summaries: list[str],
-    legislation_summaries: list[str],
+    document_summary_texts: list[str],
+    legislation_summary_texts: list[str],
 ) -> str:
     return summarize_openai(
-        "\n\n".join(document_summaries + legislation_summaries),
+        "\n\n".join(document_summary_texts + legislation_summary_texts),
         map_prompt=CONCISE_SUMMARY_PROMPT,
         combine_prompt=MEETING_CONCISE_HEADLINE_PROMPT,
         substitutions=_get_meeting_substitutions(department_name),
@@ -75,11 +75,11 @@ def summarize_meeting_gpt35_concise_headline(
 
 def summarize_meeting_vic13b_repdep_concise_headline(
     department_name: str,
-    document_summaries: list[str],
-    legislation_summaries: list[str],
+    document_summary_texts: list[str],
+    legislation_summary_texts: list[str],
 ) -> str:
     return summarize_vic13b_repdep(
-        "\n\n".join(document_summaries + legislation_summaries),
+        "\n\n".join(document_summary_texts + legislation_summary_texts),
         map_prompt=CONCISE_SUMMARY_PROMPT,
         combine_prompt=MEETING_CONCISE_HEADLINE_PROMPT,
         substitutions=_get_meeting_substitutions(department_name),
@@ -98,8 +98,8 @@ class MeetingSummarizerCallable(t.Protocol):
     def __call__(
         self,
         department_name: str,
-        document_summaries: list[str],
-        legislation_summaries: list[str],
+        document_summary_texts: list[str],
+        legislation_summary_texts: list[str],
     ) -> str:
         ...
 

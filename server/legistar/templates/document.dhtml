@@ -15,13 +15,13 @@
   <nav class="breadcrumbs">
     <ul>
       <li>
-        <a href="{% url "legistar:calendar" style=style %}">Calendar</a>
+        <a href="{% url "legistar:calendar" config_name=config_name %}">Calendar</a>
       </li>
       <li>
-        <a href="{% url "legistar:meeting" meeting_id=meeting_id style=style %}">Meeting {{ meeting_id }}</a>
+        <a href="{% url "legistar:meeting" meeting_id=meeting_id config_name=config_name %}">Meeting {{ meeting_id }}</a>
       </li>
       <li>
-        <a href="{% url "legistar:legislation" meeting_id=meeting_id legislation_id=legislation_id style=style %}">
+        <a href="{% url "legistar:legislation" meeting_id=meeting_id legislation_id=legislation_id config_name=config_name %}">
         Legislation {{ legislation_id }}</a>
       </li>
       <li class="current">Document {{ document_description.pk }}</li>

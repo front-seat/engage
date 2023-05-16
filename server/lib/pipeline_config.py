@@ -1,3 +1,4 @@
+import typing as t
 from dataclasses import dataclass
 
 # CONSIDER: This file lives in the server.lib package, but it "knows"
@@ -9,6 +10,15 @@ from dataclasses import dataclass
 # this file would have a more natural home in server.data. -Dave
 
 
+SummarizationKind: t.TypeAlias = t.Literal["body", "headline"]
+SummarizationClass: t.TypeAlias = t.Literal["meeting", "legislation", "document"]
+
+SUMMARIZATION_KINDS: frozenset[SummarizationKind] = frozenset(["body", "headline"])
+SUMMARIZATION_CLASSES: frozenset[SummarizationClass] = frozenset(
+    ["meeting", "legislation", "document"]
+)
+
+
 @dataclass(frozen=True)
 class SummarizationConfig:
     body: str
@@ -16,6 +26,18 @@ class SummarizationConfig:
 
     headline: str
     """The name of the summarization method for the headline."""
+
+    def for_kind(self, kind: SummarizationKind) -> str:
+        """
+        Returns the name of the summarizer to use for the given kind of
+        summarization.
+        """
+        if kind == "body":
+            return self.body
+        elif kind == "headline":
+            return self.headline
+        else:
+            raise ValueError(f"Unknown summarization kind: {kind}")
 
 
 @dataclass(frozen=True)
@@ -40,6 +62,20 @@ class PipelineConfig:
     extractor: str
     """The name of the text extraction method to use for this pipeline."""
 
+    def for_class(self, klass: SummarizationClass) -> SummarizationConfig:
+        """
+        Returns the summarization configuration for the given class of
+        summarization.
+        """
+        if klass == "meeting":
+            return self.meeting
+        elif klass == "legislation":
+            return self.legislation
+        elif klass == "document":
+            return self.document
+        else:
+            raise ValueError(f"Unknown summarization class: {klass}")
+
 
 CONCISE_PIPELINE_CONFIG = PipelineConfig(
     name="concise",
@@ -52,8 +88,8 @@ CONCISE_PIPELINE_CONFIG = PipelineConfig(
         headline="summarize_legislation_gpt35_concise_headline",
     ),
     document=SummarizationConfig(
-        body="summarize_document_gpt35_concise",
-        headline="summarize_document_gpt35_concise_headline",
+        body="summarize_gpt35_concise",
+        headline="summarize_gpt35_concise_headline",
     ),
     extractor="extract_pipeline_v1",
 )
@@ -69,43 +105,41 @@ PIPELINE_CONFIGS_BY_NAME: dict[str, PipelineConfig] = {
 }
 
 
-def pipeline_config_for_document_summarizer(
-    summarizer_name: str,
+def filter_pipeline_configs(
+    name: str,
+    kinds: t.Iterable[SummarizationKind] = SUMMARIZATION_KINDS,
+    klasses: t.Iterable[SummarizationClass] = SUMMARIZATION_CLASSES,
+) -> t.Iterable[PipelineConfig]:
+    """
+    Returns all pipeline configurations that use the given summarizer
+    for the specified kinds and classes of summarization.
+    """
+    kinds_set = frozenset(kinds)
+    klasses_set = frozenset(klasses)
+    for config in PIPELINE_CONFIGS:
+        if any(
+            config.for_class(klass).for_kind(kind) == name
+            for klass in klasses_set
+            for kind in kinds_set
+        ):
+            yield config
+
+
+def get_pipeline_config(
+    name: str,
+    kinds: t.Iterable[SummarizationKind] = SUMMARIZATION_KINDS,
+    klasses: t.Iterable[SummarizationClass] = SUMMARIZATION_CLASSES,
 ) -> PipelineConfig:
     """
-    Returns the pipeline configuration that uses the given summarizer for
-    document summarization.
-    """
-    for config in PIPELINE_CONFIGS:
-        # Check config.document.body and config.document.headline
-        if summarizer_name in (config.document.body, config.document.headline):
-            return config
-    raise ValueError(f"Unknown summarizer: {summarizer_name}")
+    Return the single pipeline configuration that uses the given summarizer
+    for the specified kinds and classes of summarization.
 
-
-def pipeline_config_for_legislation_summarizer(
-    summarizer_name: str,
-) -> PipelineConfig:
+    If none is found, or if more than one is found, raise an exception.
     """
-    Returns the pipeline configuration that uses the given summarizer for
-    legislation summarization.
-    """
-    for config in PIPELINE_CONFIGS:
-        # Check config.legislation.body and config.legislation.headline
-        if summarizer_name in (config.legislation.body, config.legislation.headline):
-            return config
-    raise ValueError(f"Unknown summarizer: {summarizer_name}")
-
-
-def pipeline_config_for_meeting_summarizer(
-    summarizer_name: str,
-) -> PipelineConfig:
-    """
-    Returns the pipeline configuration that uses the given summarizer for
-    meeting summarization.
-    """
-    for config in PIPELINE_CONFIGS:
-        # Check config.meeting.body and config.meeting.headline
-        if summarizer_name in (config.meeting.body, config.meeting.headline):
-            return config
-    raise ValueError(f"Unknown summarizer: {summarizer_name}")
+    configs = list(filter_pipeline_configs(name, kinds, klasses))
+    if len(configs) == 0:
+        raise ValueError(f"No pipeline config found for {name}")
+    elif len(configs) > 1:
+        raise ValueError(f"Multiple pipeline configs found for {name}")
+    else:
+        return configs[0]

@@ -134,7 +134,7 @@ def _make_legislation_description(
         "summary": _summary_as_html(summary.summary),
         "documents": [
             _make_document_mini_description(document, config)
-            for document in legislation.documents_qs
+            for document in legislation.documents.all()
         ],
     }
 
@@ -176,7 +176,7 @@ def calendar(request, config_name: str):
     return render(
         request,
         "calendar.dhtml",
-        {"config": config_name, "meeting_descriptions": meeting_descriptions},
+        {"config_name": config_name, "meeting_descriptions": meeting_descriptions},
     )
 
 
@@ -254,7 +254,7 @@ def distill_documents():
         for legislation in meeting.legislations:
             if not legislation.summaries.exists():
                 continue
-            for document in legislation.documents_qs:
+            for document in legislation.documents.all():
                 if not document.summaries.exists():
                     continue
                 for config in PIPELINE_CONFIGS:
@@ -286,11 +286,6 @@ def document(
             "document_description": document_description,
         },
     )
-
-
-@require_GET
-def index(request):
-    return render(request, "index.dhtml")
 
 
 @require_GET

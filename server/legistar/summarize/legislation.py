@@ -38,10 +38,10 @@ def _get_legislation_substitutions(title: str) -> dict[str, str]:
 
 def summarize_legislation_gpt35_concise(
     title: str,
-    document_summaries: list[str],
+    document_summary_texts: list[str],
 ) -> str:
     return summarize_openai(
-        "\n\n".join(document_summaries),
+        "\n\n".join(document_summary_texts),
         map_prompt=CONCISE_SUMMARY_PROMPT,
         combine_prompt=LEGISLATION_CONCISE_PROMPT,
         substitutions=_get_legislation_substitutions(title),
@@ -49,10 +49,10 @@ def summarize_legislation_gpt35_concise(
 
 
 def summarize_legislation_vic13b_repdep_concise(
-    title: str, document_summaries: list[str]
+    title: str, document_summary_texts: list[str]
 ) -> str:
     return summarize_vic13b_repdep(
-        "\n\n".join(document_summaries),
+        "\n\n".join(document_summary_texts),
         map_prompt=CONCISE_SUMMARY_PROMPT,
         combine_prompt=LEGISLATION_CONCISE_PROMPT,
         substitutions=_get_legislation_substitutions(title),
@@ -60,10 +60,10 @@ def summarize_legislation_vic13b_repdep_concise(
 
 
 def summarize_legislation_gpt35_concise_headline(
-    title: str, document_summaries: list[str]
+    title: str, document_summary_texts: list[str]
 ) -> str:
     return summarize_openai(
-        "\n\n".join(document_summaries),
+        "\n\n".join(document_summary_texts),
         map_prompt=CONCISE_SUMMARY_PROMPT,
         combine_prompt=LEGISLATION_CONCISE_HEADLINE_PROMPT,
         substitutions=_get_legislation_substitutions(title),
@@ -71,10 +71,10 @@ def summarize_legislation_gpt35_concise_headline(
 
 
 def summarize_legislation_vic13b_repdep_concise_headline(
-    title: str, document_summaries: list[str]
+    title: str, document_summary_texts: list[str]
 ) -> str:
     return summarize_vic13b_repdep(
-        "\n\n".join(document_summaries),
+        "\n\n".join(document_summary_texts),
         map_prompt=CONCISE_SUMMARY_PROMPT,
         combine_prompt=LEGISLATION_CONCISE_HEADLINE_PROMPT,
         substitutions=_get_legislation_substitutions(title),
@@ -90,7 +90,7 @@ def summarize_legislation_vic13b_repdep_concise_headline(
 class LegislationSummarizerCallable(t.Protocol):
     __name__: str
 
-    def __call__(self, title: str, document_summaries: list[str]) -> str:
+    def __call__(self, title: str, document_summary_texts: list[str]) -> str:
         ...
 
 

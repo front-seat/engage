@@ -8,7 +8,8 @@ import urllib.parse
 import requests
 from django.db import models, transaction
 
-from server.documents.models import Document
+from server.documents.models import Document, DocumentSummary
+from server.lib.pipeline_config import PipelineConfig, SummarizationKind
 from server.lib.truncate import truncate_str
 
 from .lib.web_schema import (
@@ -21,7 +22,7 @@ from .lib.web_schema import (
     MeetingSchema,
 )
 from .summarize.legislation import LEGISLATION_SUMMARIZERS_BY_NAME
-from .summarize.meetings import MEETING_SUMMARIZERS_BY_NAME, MeetingSummarizerCallable
+from .summarize.meetings import MEETING_SUMMARIZERS_BY_NAME
 
 
 def _load_link(link: Link) -> tuple[bytes, str]:
@@ -143,11 +144,6 @@ class Meeting(models.Model):
     )
 
     @property
-    def documents_qs(self) -> models.QuerySet:
-        """Return the documents associated with the meeting."""
-        return self.documents.all()
-
-    @property
     def is_canceled(self) -> bool:
         """Whether the meeting has been canceled."""
         return self.time is None
@@ -205,7 +201,60 @@ class Meeting(models.Model):
     @property
     def legislations(self) -> t.Iterable[Legislation]:
         """Return the legislations associated with the meeting."""
+        # CONSIDER: we don't explicitly link Legislation to Meeting in the database
+        # with a foreign key. This is flexible; when I first started, I wasn't sure
+        # whether the linkage was exclusive or not. Now I know better, and we should
+        # revisit this. -Dave
         return Legislation.objects.filter(record_no__in=self.record_nos)
+
+    def legislation_summaries(
+        self, config: PipelineConfig, kind: SummarizationKind, require: bool = True
+    ) -> t.Iterable[LegislationSummary]:
+        """
+        Return the legislation summaries for the meeting that match the specific
+        pipeline configuration.
+
+        If `require` is True (the default), we raise an exception if we can't find
+        a summary for each existing legislation. If `require` is False, we return
+        whatever we can find.
+        """
+        legislation_objs = list(self.legislations)
+        legislation_summary_objs = LegislationSummary.objects.filter(
+            legislation__in=legislation_objs,
+            summarizer_name=config.legislation.for_kind(kind),
+        )
+        if require and legislation_summary_objs.count() != len(legislation_objs):
+            raise ValueError(f"Missing legislation summaries for {self} ({kind}).")
+        return legislation_summary_objs
+
+    def document_summaries(
+        self,
+        config: PipelineConfig,
+        kind: SummarizationKind,
+        excludes: set[str]
+        | None = {LegistarDocumentKind.AGENDA, LegistarDocumentKind.AGENDA_PACKET},
+        require: bool = True,
+    ) -> t.Iterable[DocumentSummary]:
+        """
+        Return the document summaries for the meeting that match the specific
+        pipeline configuration.
+
+        If `require` is True (the default), we raise an exception if we can't find
+        a summary for each existing document. If `require` is False, we return
+        whatever we can find.
+        """
+        document_objs = (
+            list(self.documents.exclude(kind__in=excludes))
+            if excludes
+            else list(self.documents.all())
+        )
+        document_summary_objs = DocumentSummary.objects.filter(
+            document__in=document_objs,
+            summarizer_name=config.document.for_kind(kind),
+        )
+        if require and document_summary_objs.count() != len(document_objs):
+            raise ValueError(f"Missing document summaries for {self} ({kind}).")
+        return document_summary_objs
 
     def __str__(self):
         time_or_cancel = self.time or "canceled"
@@ -230,24 +279,42 @@ class MeetingSummaryManager(models.Manager):
         self,
         meeting: Meeting,
         config: PipelineConfig,
+        kind: SummarizationKind,
     ) -> tuple[MeetingSummary, bool]:
+        """
+        Get or create a meeting summary from the meeting.
+
+        Summaries for all affiliated documents *and* legislations must already exist,
+        or we raise an exception.
+        """
         with transaction.atomic():
-            # XXX dave you are here -- how to decide between body or headline?
+            # If we already have a summary, return it.
             summary = self.filter(
-                meeting=meeting, summarizer_name=config.meeting.body
+                meeting=meeting, summarizer_name=config.meeting.for_kind(kind)
             ).first()
             if summary is not None:
                 return summary, False
 
-            legislation_list = list(meeting.legislations)
-            legislation_summaries = 
+            # Get legislation body summary objects for each legislation.
+            # Raise an exception if we can't find them.
+            legislation_summaries = meeting.legislation_summaries(config, "body")
+            legislation_summary_texts = [ls.summary for ls in legislation_summaries]
 
+            # Likewise for all documents, skipping the ones we normally ignore.
+            document_summaries = meeting.document_summaries(config, "body")
+            document_summary_texts = [ds.summary for ds in document_summaries]
 
-            summary_text = summarizer(meeting)
+            # Invoke the summarizer.
+            summarizer = MEETING_SUMMARIZERS_BY_NAME[config.meeting.for_kind(kind)]
+            summary_text = summarizer(
+                meeting.schema.department.name,
+                legislation_summary_texts=legislation_summary_texts,
+                document_summary_texts=document_summary_texts,
+            )
             summary = self.create(
                 meeting=meeting,
                 summary=summary_text,
-                summarizer_name=summarizer.__name__,
+                summarizer_name=config.meeting.for_kind(kind),
             )
             return summary, True
 
@@ -371,11 +438,6 @@ class Legislation(models.Model):
     )
 
     @property
-    def documents_qs(self) -> models.QuerySet:
-        """Return the documents queryset."""
-        return self.documents.all()
-
-    @property
     def schema(self) -> LegislationSchema:
         """Return the schema data for the legislation."""
         return LegislationSchema.parse_obj(self.schema_data)
@@ -420,6 +482,27 @@ class Legislation(models.Model):
         """Return the kind of legislation."""
         return self.type.split("(")[0].strip()
 
+    def document_summaries(
+        self,
+        config: PipelineConfig,
+        kind: SummarizationKind,
+        excludes: set[str] | None = None,
+        require: bool = True,
+    ) -> t.Iterable[DocumentSummary]:
+        """Return the document summaries for the legislation."""
+        document_objs = (
+            list(self.documents.exclude(kind__in=excludes))
+            if excludes
+            else list(self.documents.all())
+        )
+        document_summary_objs = DocumentSummary.objects.filter(
+            document__in=document_objs,
+            summarizer_name=config.document.for_kind(kind),
+        )
+        if require and document_summary_objs.count() != len(document_objs):
+            raise ValueError(f"Missing document summaries for {self} ({kind})")
+        return document_summary_objs
+
     def __str__(self):
         return f"Legislation: {self.record_no} - {self.truncated_title}"
 
@@ -438,28 +521,42 @@ class LegislationSummaryManager(models.Manager):
     def get_or_create_from_legislation(
         self,
         legislation: Legislation,
-        summarizer: t.Any,
+        config: PipelineConfig,
+        kind: SummarizationKind,
     ) -> tuple[LegislationSummary, bool]:
-        """Get or create a legislation summary from the legislation."""
-        # CONSIDER: so very similar to MeetingSummaryManager
-        # CONSIDER: circular nonsense
-        from .pipelines import LegislationSummarizerCallable
+        """
+        Get or create a legislation summary from the legislation.
 
-        assert isinstance(summarizer, LegislationSummarizerCallable)
+        Summaries for all affiliated documents must already exist, or we raise
+        an exception.
+        """
+        with transaction.atomic():
+            # If we already have a summary, return it
+            summary = self.filter(
+                legislation=legislation,
+                summarizer_name=config.legislation.for_kind(kind),
+            ).first()
+            if summary is not None:
+                return summary, False
 
-        # CONSIDER: this is not atomic
-        summary = self.filter(
-            legislation=legislation, summarizer_name=summarizer.__name__
-        ).first()
-        if summary is not None:
-            return summary, False
-        summary_text = summarizer(legislation)
-        summary = self.create(
-            legislation=legislation,
-            summary=summary_text,
-            summarizer_name=summarizer.__name__,
-        )
-        return summary, True
+            # Get document body summary objects. Raise an exception if we can't
+            # find them.
+            document_summaries = legislation.document_summaries(config, "body")
+            document_summary_texts = [ds.summary for ds in document_summaries]
+
+            # Invoke the summarizer.
+            summarizer = LEGISLATION_SUMMARIZERS_BY_NAME[
+                config.legislation.for_kind(kind)
+            ]
+            summary_text = summarizer(
+                legislation.title, document_summary_texts=document_summary_texts
+            )
+            summary = self.create(
+                legislation=legislation,
+                summary=summary_text,
+                summarizer_name=config.legislation.for_kind(kind),
+            )
+            return summary, True
 
 
 class LegislationSummary(models.Model):
