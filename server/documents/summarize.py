@@ -1,4 +1,5 @@
 import typing as t
+from dataclasses import dataclass
 
 from django.conf import settings
 from langchain.base_language import BaseLanguageModel
@@ -8,11 +9,25 @@ from langchain.docstore.document import Document
 from langchain.prompts import PromptTemplate
 from langchain.text_splitter import CharacterTextSplitter
 
-from server.lib.replicate_llm import ReplicateLLM
-
 # ---------------------------------------------------------------------
 # Base utilities
 # ---------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class SummarizationResult:
+    """The result of summarizing a text."""
+
+    summary: str
+    """The summary of the text."""
+
+    map_steps: tuple[str]
+    """Outputs from the intermediate map-reduce steps."""
+
+    @classmethod
+    def empty(cls, message: str = "(please ignore: no summary available)"):
+        """Return an empty summarization result."""
+        return cls(summary=message, map_steps=tuple())
 
 
 def _substitute(s: str, substitutions: dict[str, str] | None) -> str:
@@ -23,19 +38,39 @@ def _substitute(s: str, substitutions: dict[str, str] | None) -> str:
     return s
 
 
-def summarize_langchain_llm(
-    text: str,
-    llm: BaseLanguageModel,
-    map_prompt: str,
-    combine_prompt: str,
+def _make_langchain_prompt_template(
+    prompt: str,
     substitutions: dict[str, str] | None = None,
-    chain_type: str = "map_reduce",
-    chunk_size: int = 3584,
-) -> str:
-    """Summarize text using an arbitrary langchain LLM. Lowest level."""
-    # XXX figure out how to handle this more gracefully
-    if not text.strip():
-        return "(no summary available)"
+    input_variables: tuple[str] = ("text",),
+) -> PromptTemplate:
+    """
+    Given a *Django* template-style prompt string, render the *Django* template
+    into a final prompt string. From there, return a LangChain PromptTemplate
+    instance.
+    """
+    substituted_prompt = _substitute(prompt, substitutions)
+    return PromptTemplate(
+        template=substituted_prompt, input_variables=list(input_variables)
+    )
+
+
+def _attempt_to_split_text(text: str, chunk_size: int) -> list[str]:
+    """
+    Attempt to split text into chunks of at most `chunk_size`.
+
+    If this fails, split on newlines.
+
+    If this fails, raise an exception.
+    """
+    # Here, we use LangChain's *seemingly* buggy text splitter to attempt to
+    # split the text into chunks of size `chunk_size`. If this fails, we try
+    # to split the text on newlines. If *that* fails, we return an empty result.
+    #
+    # I've read LangChain's (paltry) docs; I've also read the underlying code.
+    # Frankly, it's entirely unclear to me what the theory of operation of
+    # CharacterTextSplitter even *is* here.
+    #
+    # FUTURE: replace this with something not-langchain.
     text_splitter = CharacterTextSplitter(chunk_size=chunk_size)
     texts = text_splitter.split_text(text)
     text_lengths = [len(text) for text in texts]
@@ -44,25 +79,61 @@ def summarize_langchain_llm(
         texts = text_splitter.split_text(text)
         text_lengths = [len(text) for text in texts]
         if any(text_length > chunk_size for text_length in text_lengths):
-            return "(Please ignore this: unable to summarize; text could not be split.)"
+            raise RuntimeError("Could not split text into chunks.")
+    return texts
 
+
+def summarize_langchain_llm(
+    text: str,
+    llm: BaseLanguageModel,
+    map_prompt: str,
+    combine_prompt: str,
+    substitutions: dict[str, str] | None = None,
+    chain_type: str = "map_reduce",
+    chunk_size: int = 3584,
+) -> SummarizationResult:
+    """Summarize text using an arbitrary langchain LLM. Lowest level."""
+    # TODO: figure out how to handle the two non-LLM failure modes we have in
+    # this method more gracefully aka the two `return SummarizationResult.empty()`
+
+    # The first failure mode: if the text is empty, return an empty result.
+    if not text.strip():
+        return SummarizationResult.empty()
+
+    try:
+        texts = _attempt_to_split_text(text, chunk_size)
+    except RuntimeError:
+        return SummarizationResult.empty()
+
+    # I don't really know why LangChain insists on this. But okay.
     documents = [Document(page_content=text) for text in texts]
-    final_map_prompt = _substitute(map_prompt, substitutions)
-    map_prompt_template = PromptTemplate(
-        template=final_map_prompt, input_variables=["text"]
-    )
-    final_combine_prompt = _substitute(combine_prompt, substitutions)
-    combine_prompt_template = PromptTemplate(
-        template=final_combine_prompt, input_variables=["text"]
-    )
+
+    # Build LangChain-style PromptTemplates.
+    map_prompt_lc = _make_langchain_prompt_template(map_prompt, substitutions)
+    combine_prompt_lc = _make_langchain_prompt_template(combine_prompt, substitutions)
+
+    # Build the summarization chain.
     chain = load_summarize_chain(
         llm,
         chain_type=chain_type,
-        map_prompt=map_prompt_template,
-        combine_prompt=combine_prompt_template,
+        map_prompt=map_prompt_lc,
+        combine_prompt=combine_prompt_lc,
+        return_intermediate_steps=True,
     )
-    summary = chain.run(documents)
-    return summary
+
+    # Run the chain.
+    outputs = chain(documents)
+
+    # Make sure the expected output keys are available.
+    # (We used the `return_intermediate_steps=True` option above, so we expect
+    # to see the `intermediate_steps` key.)
+    assert "output_text" in outputs
+    assert "intermediate_steps" in outputs
+
+    # We did it!
+    return SummarizationResult(
+        summary=outputs["output_text"], map_steps=outputs["intermediate_steps"]
+    )
 
 
 def summarize_openai(
@@ -74,7 +145,7 @@ def summarize_openai(
     temperature: float = 0.4,
     chain_type: str = "map_reduce",
     chunk_size: int = 3584,
-) -> str:
+) -> SummarizationResult:
     """Summarize text using langchain and openAI. Low-level."""
     if settings.OPENAI_API_KEY is None:
         raise ValueError("OPENAI_API_KEY is not set.")
@@ -85,26 +156,6 @@ def summarize_openai(
         openai_organization=settings.OPENAI_ORGANIZATION,
         openai_api_key=settings.OPENAI_API_KEY,
     )
-    return summarize_langchain_llm(
-        text=text,
-        llm=llm,
-        map_prompt=map_prompt,
-        combine_prompt=combine_prompt,
-        substitutions=substitutions,
-        chain_type=chain_type,
-        chunk_size=chunk_size,
-    )
-
-
-def summarize_vic13b_repdep(
-    text: str,
-    map_prompt: str,
-    combine_prompt: str,
-    substitutions: dict[str, str] | None = None,
-    chain_type: str = "map_reduce",
-    chunk_size: int = 2048,
-) -> str:
-    llm = ReplicateLLM()
     return summarize_langchain_llm(
         text=text,
         llm=llm,
@@ -147,52 +198,26 @@ def summarize_gpt35_concise(
     text: str, substitutions: dict[str, str] | None = None
 ) -> str:
     assert substitutions is None, "substitutions not supported by this summarizer"
-    summary = summarize_openai(
+    result = summarize_openai(
         text,
         map_prompt=CONCISE_SUMMARY_PROMPT,
         combine_prompt=CONCISE_SUMMARY_PROMPT,
         substitutions=substitutions,
     )
-    return summary
-
-
-def summarize_vic13b_repdep_concise(
-    text: str, substitutions: dict[str, str] | None = None
-) -> str:
-    assert substitutions is None, "substitutions not supported by this summarizer"
-    summary = summarize_vic13b_repdep(
-        text,
-        map_prompt=CONCISE_SUMMARY_PROMPT,
-        combine_prompt=CONCISE_SUMMARY_PROMPT,
-        substitutions=substitutions,
-    )
-    return summary
+    return result.summary
 
 
 def summarize_gpt35_concise_headline(
     text: str, substitutions: dict[str, str] | None = None
 ) -> str:
     assert substitutions is None, "substitutions not supported by this summarizer"
-    summary = summarize_openai(
+    result = summarize_openai(
         text,
         map_prompt=CONCISE_SUMMARY_PROMPT,
         combine_prompt=CONCISE_HEADLINE_PROMPT,
         substitutions=substitutions,
     )
-    return summary
-
-
-def summarize_vic13b_repdep_concise_headline(
-    text: str, substitutions: dict[str, str] | None = None
-) -> str:
-    assert substitutions is None, "substitutions not supported by this summarizer"
-    summary = summarize_vic13b_repdep(
-        text,
-        map_prompt=CONCISE_SUMMARY_PROMPT,
-        combine_prompt=CONCISE_HEADLINE_PROMPT,
-        substitutions=substitutions,
-    )
-    return summary
+    return result.summary
 
 
 # ---------------------------------------------------------------------
@@ -211,8 +236,6 @@ class SummarizerCallable(t.Protocol):
 SUMMARIZERS: list[SummarizerCallable] = [
     summarize_gpt35_concise,
     summarize_gpt35_concise_headline,
-    # summarize_vic13b_repdep_concise,
-    # summarize_vic13b_repdep_concise_headline,
 ]
 
 
