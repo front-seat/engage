@@ -2,6 +2,7 @@ import typing as t
 from dataclasses import dataclass
 
 from django.conf import settings
+from django.template import Context, Template
 from langchain.base_language import BaseLanguageModel
 from langchain.chains.summarize import load_summarize_chain
 from langchain.chat_models import ChatOpenAI
@@ -30,17 +31,17 @@ class SummarizationResult:
         return cls(summary=message, map_steps=tuple())
 
 
-def _substitute(s: str, substitutions: dict[str, str] | None) -> str:
-    if substitutions is None:
-        return s
-    for key, value in substitutions.items():
-        s = s.replace(key, value)
-    return s
+def _render_django_template(
+    django_template: str, context: dict[str, t.Any] | None
+) -> str:
+    ctx = Context(context or {})
+    template = Template(django_template)
+    return template.render(ctx)
 
 
 def _make_langchain_prompt_template(
-    prompt: str,
-    substitutions: dict[str, str] | None = None,
+    django_template: str,
+    context: dict[str, t.Any] | None = None,
     input_variables: tuple[str] = ("text",),
 ) -> PromptTemplate:
     """
@@ -48,9 +49,9 @@ def _make_langchain_prompt_template(
     into a final prompt string. From there, return a LangChain PromptTemplate
     instance.
     """
-    substituted_prompt = _substitute(prompt, substitutions)
+    rendered_prompt = _render_django_template(django_template, context)
     return PromptTemplate(
-        template=substituted_prompt, input_variables=list(input_variables)
+        template=rendered_prompt, input_variables=list(input_variables)
     )
 
 
@@ -86,9 +87,9 @@ def _attempt_to_split_text(text: str, chunk_size: int) -> list[str]:
 def summarize_langchain_llm(
     text: str,
     llm: BaseLanguageModel,
-    map_prompt: str,
-    combine_prompt: str,
-    substitutions: dict[str, str] | None = None,
+    map_template: str,
+    combine_template: str,
+    context: dict[str, t.Any] | None = None,
     chain_type: str = "map_reduce",
     chunk_size: int = 3584,
 ) -> SummarizationResult:
@@ -109,15 +110,15 @@ def summarize_langchain_llm(
     documents = [Document(page_content=text) for text in texts]
 
     # Build LangChain-style PromptTemplates.
-    map_prompt_lc = _make_langchain_prompt_template(map_prompt, substitutions)
-    combine_prompt_lc = _make_langchain_prompt_template(combine_prompt, substitutions)
+    map_prompt = _make_langchain_prompt_template(map_template, context)
+    combine_prompt = _make_langchain_prompt_template(combine_template, context)
 
     # Build the summarization chain.
     chain = load_summarize_chain(
         llm,
         chain_type=chain_type,
-        map_prompt=map_prompt_lc,
-        combine_prompt=combine_prompt_lc,
+        map_prompt=map_prompt,
+        combine_prompt=combine_prompt,
         return_intermediate_steps=True,
     )
 
@@ -138,9 +139,9 @@ def summarize_langchain_llm(
 
 def summarize_openai(
     text: str,
-    map_prompt: str,
-    combine_prompt: str,
-    substitutions: dict[str, str] | None = None,
+    map_template: str,
+    combine_template: str,
+    context: dict[str, t.Any] | None = None,
     model_name: str = "gpt-3.5-turbo",
     temperature: float = 0.4,
     chain_type: str = "map_reduce",
@@ -159,19 +160,24 @@ def summarize_openai(
     return summarize_langchain_llm(
         text=text,
         llm=llm,
-        map_prompt=map_prompt,
-        combine_prompt=combine_prompt,
-        substitutions=substitutions,
+        map_template=map_template,
+        combine_template=combine_template,
+        context=context,
         chain_type=chain_type,
         chunk_size=chunk_size,
     )
 
 
 # ---------------------------------------------------------------------
-# Prompts
+# Django templates for our LLM prompts
 # ---------------------------------------------------------------------
 
-CONCISE_SUMMARY_PROMPT = """Write a concise summary of the following text. Include the most important details:
+# Note that Django templates use {{ variable_name }} for variable
+# substitution. Thankfully, this does not conflict with the LangChain
+# variable substitution syntax, which uses {variable_name}. But it *does*
+# read a little confusingly. Sorry about that.
+
+CONCISE_SUMMARY_TEMPLATE = """Write a concise summary of the following text. Include the most important details:
 
 TEXT:::
 {text}
@@ -180,7 +186,7 @@ TEXT:::
 CONCISE_SUMMARY:"""  # noqa: E501
 
 
-CONCISE_HEADLINE_PROMPT = """Write a concise and extremely compact headline (one sentence or less) for the following text. Capture only the most salient detail or two:
+CONCISE_HEADLINE_TEMPLATE = """Write a concise and extremely compact headline (one sentence or less) for the following text. Capture only the most salient detail or two:
 
 TEXT:::
 {text}
@@ -194,28 +200,24 @@ CONCISE_COMPACT_HEADLINE:"""  # noqa: E501
 # ---------------------------------------------------------------------
 
 
-def summarize_gpt35_concise(
-    text: str, substitutions: dict[str, str] | None = None
-) -> str:
-    assert substitutions is None, "substitutions not supported by this summarizer"
+def summarize_gpt35_concise(text: str, context: dict[str, t.Any] | None = None) -> str:
     result = summarize_openai(
         text,
-        map_prompt=CONCISE_SUMMARY_PROMPT,
-        combine_prompt=CONCISE_SUMMARY_PROMPT,
-        substitutions=substitutions,
+        map_template=CONCISE_SUMMARY_TEMPLATE,
+        combine_template=CONCISE_SUMMARY_TEMPLATE,
+        context=context,
     )
     return result.summary
 
 
 def summarize_gpt35_concise_headline(
-    text: str, substitutions: dict[str, str] | None = None
+    text: str, context: dict[str, t.Any] | None = None
 ) -> str:
-    assert substitutions is None, "substitutions not supported by this summarizer"
     result = summarize_openai(
         text,
-        map_prompt=CONCISE_SUMMARY_PROMPT,
-        combine_prompt=CONCISE_HEADLINE_PROMPT,
-        substitutions=substitutions,
+        map_template=CONCISE_SUMMARY_TEMPLATE,
+        combine_template=CONCISE_HEADLINE_TEMPLATE,
+        context=context,
     )
     return result.summary
 
@@ -229,7 +231,7 @@ def summarize_gpt35_concise_headline(
 class SummarizerCallable(t.Protocol):
     __name__: str
 
-    def __call__(self, text: str, substitutions: dict[str, str] | None = None) -> str:
+    def __call__(self, text: str, context: dict[str, t.Any] | None = None) -> str:
         ...
 
 

@@ -1,20 +1,23 @@
 import typing as t
 
-from server.documents.summarize import CONCISE_SUMMARY_PROMPT, summarize_openai
+from server.documents.summarize import CONCISE_SUMMARY_TEMPLATE, summarize_openai
 
 # ---------------------------------------------------------------------
-# Meeting prompts
+# Django templates for our LLM prompts
 # ---------------------------------------------------------------------
 
+# Django template syntax uses {{ variable_name }}; this does not conflict
+# with the LangChain variable substitution syntax, which uses {variable_name}.
+# But it *does* read a little confusingly. Sorry about that.
 
-MEETING_CONCISE_PROMPT = """The following is a set of descriptions of items on the agenda for an upcoming <<department>> meeting. Write a concise summary of the following text. Include the most important details:
+MEETING_CONCISE_TEMPLATE = """The following is a set of descriptions of items on the agenda for an upcoming {{ department }} meeting. Write a concise summary of the following text. Include the most important details:
 
 "{text}"
 
 CONCISE_AGENDA_SUMMARY:"""  # noqa: E501
 
 
-MEETING_CONCISE_HEADLINE_PROMPT = """The following is a set of descriptions of items on the agenda for an upcoming <<department>> meeting. Write a concise and extremely compact headline (one sentence or less) for the following text. Capture the most salient detail or two:
+MEETING_CONCISE_HEADLINE_TEMPLATE = """The following is a set of descriptions of items on the agenda for an upcoming {{ department }} meeting. Write a concise and extremely compact headline (one sentence or less) for the following text. Capture the most salient detail or two:
 
 "{text}"
 
@@ -26,8 +29,9 @@ CONCISE_COMPACT_HEADLINE_FOR_AGENDA:"""  # noqa: E501
 # ---------------------------------------------------------------------
 
 
-def _get_meeting_substitutions(department_name: str) -> dict[str, str]:
-    return {"<<department>>": department_name}
+def _meeting_template_context(department_name: str) -> dict[str, t.Any]:
+    """Return a context dictionary for our Django meeting templates."""
+    return {"department": department_name}
 
 
 def summarize_meeting_gpt35_concise(
@@ -37,9 +41,9 @@ def summarize_meeting_gpt35_concise(
 ) -> str:
     result = summarize_openai(
         "\n\n".join(document_summary_texts + legislation_summary_texts),
-        map_prompt=CONCISE_SUMMARY_PROMPT,
-        combine_prompt=MEETING_CONCISE_PROMPT,
-        substitutions=_get_meeting_substitutions(department_name),
+        map_template=CONCISE_SUMMARY_TEMPLATE,
+        combine_template=MEETING_CONCISE_TEMPLATE,
+        context=_meeting_template_context(department_name),
     )
     return result.summary
 
@@ -51,9 +55,9 @@ def summarize_meeting_gpt35_concise_headline(
 ) -> str:
     result = summarize_openai(
         "\n\n".join(document_summary_texts + legislation_summary_texts),
-        map_prompt=CONCISE_SUMMARY_PROMPT,
-        combine_prompt=MEETING_CONCISE_HEADLINE_PROMPT,
-        substitutions=_get_meeting_substitutions(department_name),
+        map_template=CONCISE_SUMMARY_TEMPLATE,
+        combine_template=MEETING_CONCISE_HEADLINE_TEMPLATE,
+        context=_meeting_template_context(department_name),
     )
     return result.summary
 
