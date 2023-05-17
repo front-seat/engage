@@ -10,16 +10,15 @@ from django.db import models, transaction
 
 from server.documents.models import Document, DocumentSummary
 from server.lib.pipeline_config import PipelineConfig, SummarizationKind
+from server.lib.summary_model import SummaryBaseModel
 from server.lib.truncate import truncate_str
 
 from .lib.web_schema import (
-    ActionRowSchema,
-    ActionSchema,
-    LegislationRowSchema,
-    LegislationSchema,
+    LegislationCrawlData,
+    LegislationRowCrawlData,
     Link,
-    MeetingRowSchema,
-    MeetingSchema,
+    MeetingCrawlData,
+    MeetingRowCrawlData,
 )
 from .summarize.legislation import LEGISLATION_SUMMARIZERS_BY_NAME
 from .summarize.meetings import MEETING_SUMMARIZERS_BY_NAME
@@ -69,49 +68,49 @@ class MeetingManager(models.Manager):
         )
         return self.filter(**filter_params)
 
-    def update_or_create_from_schema(
-        self, schema: MeetingSchema
+    def update_or_create_from_crawl_data(
+        self, crawl_data: MeetingCrawlData
     ) -> tuple[Meeting, bool]:
-        """Update or create a meeting from a schema."""
+        """Update or create a meeting from crawl data."""
         meeting, created = self.update_or_create(
-            legistar_id=schema.id,
-            legistar_guid=schema.guid,
+            legistar_id=crawl_data.id,
+            legistar_guid=crawl_data.guid,
             defaults={
-                "date": schema.date,
-                "time": schema.time,
-                "location": schema.location,
-                "schema_data": json.loads(schema.json()),
+                "date": crawl_data.date,
+                "time": crawl_data.time,
+                "location": crawl_data.location,
+                "crawl_data": json.loads(crawl_data.json()),
             },
         )
         assert isinstance(meeting, Meeting)
         # Load all the documents, if needed; update the meeting's
-        # documents to match the schema.
+        # documents to match the crawl_data.
         documents = []
         agenda_document, _ = Document.objects.get_or_create_from_url(
-            url=schema.agenda.url,
+            url=crawl_data.agenda.url,
             kind=LegistarDocumentKind.AGENDA,
-            title=f"meeting-{schema.id}-agenda",
+            title=f"meeting-{crawl_data.id}-agenda",
         )
         documents.append(agenda_document)
-        if schema.agenda_packet:
+        if crawl_data.agenda_packet:
             agenda_packet_document, _ = Document.objects.get_or_create_from_url(
-                url=schema.agenda_packet.url,
+                url=crawl_data.agenda_packet.url,
                 kind=LegistarDocumentKind.AGENDA_PACKET,
-                title=f"meeting-{schema.id}-agenda_packet",
+                title=f"meeting-{crawl_data.id}-agenda_packet",
             )
             documents.append(agenda_packet_document)
-        if schema.minutes:
+        if crawl_data.minutes:
             minutes_document, _ = Document.objects.get_or_create_from_url(
-                url=schema.minutes.url,
+                url=crawl_data.minutes.url,
                 kind=LegistarDocumentKind.MINUTES,
-                title=f"meeting-{schema.id}-minutes",
+                title=f"meeting-{crawl_data.id}-minutes",
             )
             documents.append(minutes_document)
-        for attachment in schema.attachments:
+        for attachment in crawl_data.attachments:
             attachment_document, _ = Document.objects.get_or_create_from_url(
                 url=attachment.url,
                 kind=LegistarDocumentKind.ATTACHMENT,
-                title=f"meeting-{schema.id}-attachment-{attachment.name}",
+                title=f"meeting-{crawl_data.id}-attachment-{attachment.name}",
             )
             documents.append(attachment_document)
         meeting.documents.set(documents)
@@ -136,7 +135,7 @@ class Meeting(models.Model):
     location = models.CharField(
         max_length=255, help_text="The location of the meeting."
     )
-    schema_data = models.JSONField(default=dict, help_text="The raw schema data.")
+    raw_crawl_data = models.JSONField(default=dict, help_text="The raw crawl data.")
 
     documents = models.ManyToManyField(
         Document,
@@ -174,29 +173,29 @@ class Meeting(models.Model):
         return self.documents.filter(kind=LegistarDocumentKind.ATTACHMENT)
 
     @property
-    def schema(self) -> MeetingSchema:
-        """Return the schema data for the meeting."""
-        return MeetingSchema.parse_obj(self.schema_data)
+    def crawl_data(self) -> MeetingCrawlData:
+        """Return the underlying crawled data for the meeting."""
+        return MeetingCrawlData.parse_obj(self.raw_crawl_data)
 
-    @schema.setter
-    def schema(self, value: MeetingSchema):
-        """Set the schema data for the meeting."""
-        self.schema_data = json.loads(value.json())
+    @crawl_data.setter
+    def crawl_data(self, value: MeetingCrawlData):
+        """Set the crawl data data for the meeting."""
+        self.raw_crawl_data = json.loads(value.json())
 
     @property
-    def schema_rows(self) -> list[MeetingRowSchema]:
+    def crawl_data_rows(self) -> list[MeetingRowCrawlData]:
         """Return the rows of the meeting."""
-        return self.schema.rows
+        return self.crawl_data.rows
 
     @property
     def url(self) -> str:
         """Return the URL for the meeting."""
-        return self.schema.url
+        return self.crawl_data.url
 
     @property
     def record_nos(self) -> t.Iterable[str]:
         """Return the record numbers for the meeting."""
-        return {row.legislation.name for row in self.schema_rows}
+        return {row.legislation.name for row in self.crawl_data_rows}
 
     @property
     def legislations(self) -> t.Iterable[Legislation]:
@@ -258,7 +257,9 @@ class Meeting(models.Model):
 
     def __str__(self):
         time_or_cancel = self.time or "canceled"
-        return f"Meeting: {self.schema.department.name} {self.date} @ {time_or_cancel}"
+        return (
+            f"Meeting: {self.crawl_data.department.name} {self.date} @ {time_or_cancel}"
+        )
 
     class Meta:
         verbose_name = "Meeting"
@@ -307,7 +308,7 @@ class MeetingSummaryManager(models.Manager):
             # Invoke the summarizer.
             summarizer = MEETING_SUMMARIZERS_BY_NAME[config.meeting.for_kind(kind)]
             summary_text = summarizer(
-                meeting.schema.department.name,
+                meeting.crawl_data.department.name,
                 legislation_summary_texts=legislation_summary_texts,
                 document_summary_texts=document_summary_texts,
             )
@@ -319,12 +320,10 @@ class MeetingSummaryManager(models.Manager):
             return summary, True
 
 
-class MeetingSummary(models.Model):
+class MeetingSummary(SummaryBaseModel):
     """A summary of a meeting."""
 
     objects = MeetingSummaryManager()
-
-    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
 
     meeting = models.ForeignKey(
         Meeting,
@@ -333,28 +332,14 @@ class MeetingSummary(models.Model):
         help_text="The summarized meeting.",
     )
 
-    summary = models.TextField(help_text="The summary of the meeting.")
-
-    summarizer_name = models.CharField(
-        max_length=255, help_text="The name of the MeetingSummarizerCallable."
-    )
-
-    @property
-    def summarizer(self):
-        return MEETING_SUMMARIZERS_BY_NAME[self.summarizer_name]
-
-    def __str__(self):
-        return f"Meeting Summary: {self.meeting}"
-
     class Meta:
-        verbose_name = "Meeting Summary"
-        verbose_name_plural = "Meeting Summaries"
-        ordering = ["-created_at"]
+        verbose_name = "Meeting summary"
+        verbose_name_plural = "Meeting summaries"
 
         constraints = [
             models.UniqueConstraint(
-                fields=["meeting", "summarizer_name"],
-                name="unique_meeting_summary_meeting_summarizer_name",
+                fields=["meeting", "config_name"],
+                name="unique_meeting_summmary_for_config",
             ),
         ]
 
@@ -362,45 +347,45 @@ class MeetingSummary(models.Model):
 class LegislationManager(models.Manager):
     """A custom manager for Legislation objects."""
 
-    def update_or_create_from_schema(
-        self, schema: LegislationSchema
+    def update_or_create_from_crawl_data(
+        self, crawl_data: LegislationCrawlData
     ) -> tuple[Legislation, bool]:
-        """Update or create a legislation from a schema."""
+        """Update or create a legislation from crawl data."""
         legislation, created = self.update_or_create(
-            legistar_id=schema.id,
-            legistar_guid=schema.guid,
+            legistar_id=crawl_data.id,
+            legistar_guid=crawl_data.guid,
             defaults={
-                "record_no": schema.record_no,
-                "type": schema.type,
-                "status": schema.status,
-                "title": schema.title,
-                "schema_data": json.loads(schema.json()),
+                "record_no": crawl_data.record_no,
+                "type": crawl_data.type,
+                "status": crawl_data.status,
+                "title": crawl_data.title,
+                "crawl_data": json.loads(crawl_data.json()),
             },
         )
         assert isinstance(legislation, Legislation)
         # Load all the documents, if needed; update the legislation's
-        # documents to match the schema.
+        # documents to match the crawl data.
         documents = []
-        for attachment in schema.attachments:
+        for attachment in crawl_data.attachments:
             attachment_document, _ = Document.objects.get_or_create_from_url(
                 url=attachment.url,
                 kind=LegistarDocumentKind.ATTACHMENT,
-                title=f"legislation-{schema.id}-attachment-{attachment.name}",
+                title=f"legislation-{crawl_data.id}-attachment-{attachment.name}",
             )
             documents.append(attachment_document)
-        for supporting_document in schema.supporting_documents:
+        for supporting_document in crawl_data.supporting_documents:
             supporting_document_document, _ = Document.objects.get_or_create_from_url(
                 url=supporting_document.url,
                 kind=LegistarDocumentKind.SUPPORTING_DOCUMENT,
-                title=f"legislation-{schema.id}-supporting-{supporting_document.name}",
+                title=f"legislation-{crawl_data.id}-supporting-{supporting_document.name}",
             )
             documents.append(supporting_document_document)
-        if schema.full_text is not None:
+        if crawl_data.full_text is not None:
             full_text_document, _ = Document.objects.get_or_create_from_url(
-                url=urllib.parse.urljoin(schema.url, "#FullTextDiv"),
+                url=urllib.parse.urljoin(crawl_data.url, "#FullTextDiv"),
                 kind=LegistarDocumentKind.FULL_TEXT,
-                title=f"legislation-{schema.id}-full",
-                raw_content=schema.full_text.encode("utf-8"),
+                title=f"legislation-{crawl_data.id}-full",
+                raw_content=crawl_data.full_text.encode("utf-8"),
                 _get_mime_type=lambda url: "text/plain",
             )
             documents.append(full_text_document)
@@ -429,7 +414,7 @@ class Legislation(models.Model):
         max_length=255, blank=True, help_text="The status of the legislation."
     )
     title = models.TextField(help_text="The title of the legislation.")
-    schema_data = models.JSONField(default=dict, help_text="The raw schema data.")
+    raw_crawl_data = models.JSONField(default=dict, help_text="The raw crawl data.")
 
     documents = models.ManyToManyField(
         Document,
@@ -438,19 +423,19 @@ class Legislation(models.Model):
     )
 
     @property
-    def schema(self) -> LegislationSchema:
-        """Return the schema data for the legislation."""
-        return LegislationSchema.parse_obj(self.schema_data)
+    def crawl_data(self) -> LegislationCrawlData:
+        """Return the crawl data for the legislation."""
+        return LegislationCrawlData.parse_obj(self.raw_crawl_data)
 
-    @schema.setter
-    def schema(self, value: LegislationSchema):
-        """Set the schema data for the legislation."""
-        self.schema_data = json.loads(value.json())
+    @crawl_data.setter
+    def crawl_data(self, value: LegislationCrawlData):
+        """Set the crawl data for the legislation."""
+        self.raw_crawl_data = json.loads(value.json())
 
     @property
-    def schema_rows(self) -> list[LegislationRowSchema]:
+    def crawl_data_rows(self) -> list[LegislationRowCrawlData]:
         """Return the rows of the legislation."""
-        return self.schema.rows
+        return self.crawl_data.rows
 
     @property
     def attachments(self) -> t.Iterable[Document]:
@@ -463,14 +448,9 @@ class Legislation(models.Model):
         return self.documents.filter(kind=LegistarDocumentKind.SUPPORTING_DOCUMENT)
 
     @property
-    def actions(self):
-        """Return the actions for the legislation."""
-        return Action.objects.filter(record_no=self.record_no)
-
-    @property
     def url(self) -> str:
         """Return the URL for the legislation."""
-        return self.schema.url
+        return self.crawl_data.url
 
     @property
     def truncated_title(self) -> str:
@@ -559,12 +539,10 @@ class LegislationSummaryManager(models.Manager):
             return summary, True
 
 
-class LegislationSummary(models.Model):
+class LegislationSummary(SummaryBaseModel):
     """A summary of legislation as found on the Legistar website."""
 
     objects = LegislationSummaryManager()
-
-    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
 
     legislation = models.ForeignKey(
         Legislation,
@@ -573,94 +551,13 @@ class LegislationSummary(models.Model):
         help_text="The legislation that the summary is for.",
     )
 
-    summary = models.TextField(help_text="The summary of the legislation.")
-    summarizer_name = models.CharField(
-        max_length=255, help_text="The name of the summarizer."
-    )
-
-    @property
-    def summarizer(self):
-        """Return the summarizer."""
-        return LEGISLATION_SUMMARIZERS_BY_NAME[self.summarizer_name]
-
     class Meta:
-        verbose_name = "Legislation Summary"
-        verbose_name_plural = "Legislation Summaries"
-        ordering = ["-created_at"]
+        verbose_name = "Legislation summary"
+        verbose_name_plural = "Legislation summaries"
 
         constraints = [
             models.UniqueConstraint(
-                fields=["legislation", "summarizer_name"],
-                name="unique_legislation_summary_legislation_summarizer",
-            ),
-        ]
-
-
-class ActionManager(models.Manager):
-    def update_or_create_from_schema(self, schema: ActionSchema) -> tuple[Action, bool]:
-        """Update or create an action from a schema."""
-        action, created = self.update_or_create(
-            legistar_id=schema.id,
-            legistar_guid=schema.guid,
-            defaults={
-                "record_no": schema.record_no,
-                "schema_data": json.loads(schema.json()),
-            },
-        )
-        return action, created
-
-
-class Action(models.Model):
-    """A single action as found on the Legistar website."""
-
-    objects = ActionManager()
-
-    legistar_id = models.IntegerField(
-        help_text="The ID of the action on the Legistar site."
-    )
-    legistar_guid = models.CharField(
-        max_length=36, help_text="The GUID of the action on the Legistar site."
-    )
-
-    record_no = models.CharField(
-        db_index=True,
-        max_length=255,
-        help_text="The legislative record number of the action.",
-    )
-
-    schema_data = models.JSONField(default=dict, help_text="The raw schema data.")
-
-    @property
-    def schema(self) -> ActionSchema:
-        """Return the schema data for the action."""
-        return ActionSchema.parse_obj(self.schema_data)
-
-    @schema.setter
-    def schema(self, value: ActionSchema):
-        """Set the schema data for the action."""
-        self.schema_data = json.loads(value.json())
-
-    @property
-    def schema_rows(self) -> list[ActionRowSchema]:
-        """Return the rows of the action."""
-        return self.schema.rows
-
-    @property
-    def legislation(self) -> Legislation | None:
-        """Return the legislation associated with the action."""
-        return Legislation.objects.filter(record_no=self.record_no).first()
-
-    @property
-    def url(self) -> str:
-        """Return the URL for the action."""
-        return self.schema.url
-
-    class Meta:
-        verbose_name = "Action"
-        verbose_name_plural = "Actions"
-        constraints = [
-            models.UniqueConstraint(
-                fields=["legistar_id", "legistar_guid"],
-                name="unique_action_legistar_id_guid",
+                fields=["legislation", "config_name"],
+                name="unique_legislation_summary_for_config",
             ),
         ]

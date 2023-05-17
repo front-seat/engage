@@ -10,15 +10,15 @@ from bs4 import BeautifulSoup, Tag
 
 from .errors import LegistarError
 from .web_schema import (
-    ActionRowSchema,
-    ActionSchema,
-    CalendarRowSchema,
-    CalendarSchema,
-    LegislationRowSchema,
-    LegislationSchema,
+    ActionCrawlData,
+    ActionRowCrawlData,
+    CalendarCrawlData,
+    CalendarRowCrawlData,
+    LegislationCrawlData,
+    LegislationRowCrawlData,
     Link,
-    MeetingRowSchema,
-    MeetingSchema,
+    MeetingCrawlData,
+    MeetingRowCrawlData,
 )
 
 # ---------------------------------------------------------------------
@@ -39,7 +39,7 @@ CALENDAR_ROW_HEADERS = [
 ]
 
 
-def _make_calendar_row(row: RowScraper) -> CalendarRowSchema:
+def _make_calendar_row(row: RowScraper) -> CalendarRowCrawlData:
     department = row.get_link("name")
     date = row.get_date("meeting date")
     time = row.get_optional_time("meeting time")
@@ -50,7 +50,7 @@ def _make_calendar_row(row: RowScraper) -> CalendarRowSchema:
     minutes = row.get_optional_link("minutes")
     video = row.get_optional_link("seattle channel")
 
-    return CalendarRowSchema(
+    return CalendarRowCrawlData(
         department=department,
         date=date,
         time=time,
@@ -82,7 +82,7 @@ MEETING_DETAIL_LABELS = {
 
 def _make_meeting(
     url: str, details: DetailScraper, table: TableScraper
-) -> MeetingSchema:
+) -> MeetingCrawlData:
     """Extract the meeting details from the page."""
     department = details.get_link("meeting name")
     agenda_status = details.get_optional_text("agenda status")
@@ -94,7 +94,7 @@ def _make_meeting(
     video = details.get_optional_link("meeting video")
     attachments = details.get_links("attachments")
     rows = [_make_meeting_row(row) for row in table]
-    return MeetingSchema(
+    return MeetingCrawlData(
         url=url,
         department=department,
         agenda_status=agenda_status,
@@ -124,7 +124,7 @@ MEETING_ROW_HEADERS = [
 ]
 
 
-def _make_meeting_row(row: RowScraper) -> MeetingRowSchema:
+def _make_meeting_row(row: RowScraper) -> MeetingRowCrawlData:
     legislation = row.get_link("record no")
     version = row.get_int("ver")
     agenda_sequence = row.get_optional_int("agenda #")
@@ -136,7 +136,7 @@ def _make_meeting_row(row: RowScraper) -> MeetingRowSchema:
     action_details = row.get_optional_link("action details")
     video = row.get_optional_link("seattle channel")
 
-    return MeetingRowSchema(
+    return MeetingRowCrawlData(
         legislation=legislation,
         version=version,
         agenda_sequence=agenda_sequence,
@@ -172,7 +172,7 @@ LEGISLATION_DETAIL_LABELS = {
 
 def _make_legislation(
     url: str, details: DetailScraper, table: TableScraper
-) -> LegislationSchema:
+) -> LegislationCrawlData:
     """Extract the legislation details from the page."""
     record_no = details.get_text("record no")
     version = details.get_int("version") if details.has_label("version") else None
@@ -194,7 +194,7 @@ def _make_legislation(
     )
     full_text = details.get_optional_full_text()
     rows = [_make_legislation_row(row) for row in table]
-    return LegislationSchema(
+    return LegislationCrawlData(
         url=url,
         record_no=record_no,
         version=version,
@@ -225,7 +225,7 @@ LEGISLATION_ROW_HEADERS = [
 ]
 
 
-def _make_legislation_row(row: RowScraper) -> LegislationRowSchema:
+def _make_legislation_row(row: RowScraper) -> LegislationRowCrawlData:
     date = row.get_date("date")
     version = row.get_int("ver")
     action_by = row.get_text("action by")
@@ -235,7 +235,7 @@ def _make_legislation_row(row: RowScraper) -> LegislationRowSchema:
     meeting = row.get_optional_link("meeting details")
     video = row.get_optional_link("seattle channel")
 
-    return LegislationRowSchema(
+    return LegislationRowCrawlData(
         date=date,
         version=version,
         action_by=action_by,
@@ -264,7 +264,9 @@ ACTION_DETAIL_LABELS = {
 }
 
 
-def _make_action(url: str, details: DetailScraper, table: TableScraper) -> ActionSchema:
+def _make_action(
+    url: str, details: DetailScraper, table: TableScraper
+) -> ActionCrawlData:
     """Extract the action details from the page."""
     record_no = details.get_text("record no")
     version = details.get_int("version")
@@ -276,7 +278,7 @@ def _make_action(url: str, details: DetailScraper, table: TableScraper) -> Actio
     action = details.get_optional_text("action")
     action_text = details.get_optional_text("action text")
     rows = [_make_action_row(row) for row in table]
-    return ActionSchema(
+    return ActionCrawlData(
         url=url,
         record_no=record_no,
         version=version,
@@ -294,11 +296,11 @@ def _make_action(url: str, details: DetailScraper, table: TableScraper) -> Actio
 ACTION_ROW_HEADERS = ["person name", "vote"]
 
 
-def _make_action_row(row: RowScraper) -> ActionRowSchema:
+def _make_action_row(row: RowScraper) -> ActionRowCrawlData:
     person = row.get_link("person name")
     vote = row.get_text("vote")
 
-    return ActionRowSchema(person=person, vote=vote)
+    return ActionRowCrawlData(person=person, vote=vote)
 
 
 # ---------------------------------------------------------------------
@@ -929,7 +931,7 @@ class LegistarScraper:
 
     def get_calendar_rows(
         self, start_date: datetime.date | None = None
-    ) -> list[CalendarRowSchema]:
+    ) -> list[CalendarRowCrawlData]:
         """Get rows from the calendar page."""
         url = self._url("/Calendar.aspx")
         table_scraper = self._get_table_scraper(url, CALENDAR_ROW_HEADERS)
@@ -938,13 +940,15 @@ class LegistarScraper:
             rows = [row for row in rows if row.date >= start_date]
         return rows
 
-    def get_calendar(self, start_date: datetime.date | None = None) -> CalendarSchema:
+    def get_calendar(
+        self, start_date: datetime.date | None = None
+    ) -> CalendarCrawlData:
         """Get the calendar."""
         # CONSIDER: this mostly exists for symmetry/completeness.
         # Unlike /MeetingDetail.aspx, /LegislationDetail.aspx,
         # and /HistoryDetail.aspx, /Calendar.aspx does not have top-level
         # details.
-        return CalendarSchema(rows=self.get_calendar_rows(start_date=start_date))
+        return CalendarCrawlData(rows=self.get_calendar_rows(start_date=start_date))
 
     def get_meeting_url(self, meeting_id: int, meeting_guid: str) -> str:
         """Get the URL for a single meeting detail page."""
@@ -952,13 +956,13 @@ class LegistarScraper:
 
     def get_meeting_rows(
         self, meeting_id: int, meeting_guid: str
-    ) -> list[MeetingRowSchema]:
+    ) -> list[MeetingRowCrawlData]:
         """Get rows from a single meeting detail page."""
         url = self.get_meeting_url(meeting_id, meeting_guid)
         table_scraper = self._get_table_scraper(url, MEETING_ROW_HEADERS)
         return [_make_meeting_row(row) for row in table_scraper]
 
-    def get_meeting(self, meeting_id: int, meeting_guid: str) -> MeetingSchema:
+    def get_meeting(self, meeting_id: int, meeting_guid: str) -> MeetingCrawlData:
         """Get details + rows from a single meeting detail page."""
         url = self.get_meeting_url(meeting_id, meeting_guid)
         detail_scraper, table_scraper = self._get_detail_and_table_scraper(
@@ -979,7 +983,7 @@ class LegistarScraper:
 
     def get_legislation_rows(
         self, legislation_id: int, legislation_guid: str
-    ) -> list[LegislationRowSchema]:
+    ) -> list[LegislationRowCrawlData]:
         """Get the legislation detail for a given calendar entry."""
         url = self.get_legislation_url(legislation_id, legislation_guid)
         table_scraper = self._get_table_scraper(url, LEGISLATION_ROW_HEADERS)
@@ -987,7 +991,7 @@ class LegistarScraper:
 
     def get_legislation(
         self, legislation_id: int, legislation_guid: str
-    ) -> LegislationSchema:
+    ) -> LegislationCrawlData:
         """Get the legislation detail for a given calendar entry."""
         url = self.get_legislation_url(legislation_id, legislation_guid)
         detail_scraper, table_scraper = self._get_detail_and_table_scraper(
@@ -1003,13 +1007,13 @@ class LegistarScraper:
 
     def get_action_rows(
         self, action_id: int, action_guid: str
-    ) -> list[ActionRowSchema]:
+    ) -> list[ActionRowCrawlData]:
         """Get the action detail for a given calendar entry."""
         url = self.get_action_url(action_id, action_guid)
         table_scraper = self._get_table_scraper(url, ACTION_ROW_HEADERS)
         return [_make_action_row(row) for row in table_scraper]
 
-    def get_action(self, action_id: int, action_guid: str) -> ActionSchema:
+    def get_action(self, action_id: int, action_guid: str) -> ActionCrawlData:
         """Get the action detail for a given calendar entry."""
         url = self.get_action_url(action_id, action_guid)
         detail_scraper, table_scraper = self._get_detail_and_table_scraper(

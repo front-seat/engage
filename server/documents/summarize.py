@@ -16,19 +16,41 @@ from langchain.text_splitter import CharacterTextSplitter
 
 
 @dataclass(frozen=True)
-class SummarizationResult:
+class SummarizationResultBase:
+    original_text: str
+    """The original text that was summarized."""
+
+    @property
+    def success(self) -> bool:
+        return isinstance(self, SummarizationSuccess)
+
+
+@dataclass(frozen=True)
+class SummarizationError(SummarizationResultBase):
+    """An error that occurred while summarizing a text."""
+
+    message: str
+    """A human-readable error message."""
+
+
+@dataclass(frozen=True)
+class SummarizationSuccess(SummarizationResultBase):
     """The result of summarizing a text."""
 
-    summary: str
-    """The summary of the text."""
+    body: str
+    """A detailed summary of the text."""
 
-    map_steps: tuple[str]
-    """Outputs from the intermediate map-reduce steps."""
+    headline: str
+    """A brief summary of the text."""
 
-    @classmethod
-    def empty(cls, message: str = "(please ignore: no summary available)"):
-        """Return an empty summarization result."""
-        return cls(summary=message, map_steps=tuple())
+    chunks: tuple[str]
+    """Text chunks sent to the LLM for summarization."""
+
+    chunk_summaries: tuple[str]
+    """LLM outputs for each text chunk."""
+
+
+SummarizationResult: t.TypeAlias = SummarizationError | SummarizationSuccess
 
 
 def _render_django_template(
@@ -39,7 +61,7 @@ def _render_django_template(
     return template.render(ctx)
 
 
-def _make_langchain_prompt_template(
+def _make_langchain_prompt(
     django_template: str,
     context: dict[str, t.Any] | None = None,
     input_variables: tuple[str] = ("text",),
@@ -94,24 +116,22 @@ def summarize_langchain_llm(
     chunk_size: int = 3584,
 ) -> SummarizationResult:
     """Summarize text using an arbitrary langchain LLM. Lowest level."""
-    # TODO: figure out how to handle the two non-LLM failure modes we have in
-    # this method more gracefully aka the two `return SummarizationResult.empty()`
-
     # The first failure mode: if the text is empty, return an empty result.
     if not text.strip():
-        return SummarizationResult.empty()
+        return SummarizationError(original_text=text, message="Text was empty.")
 
+    # The second failure mode: splitting text with LangChain blows up. ¯\_(ツ)_/¯
     try:
         texts = _attempt_to_split_text(text, chunk_size)
     except RuntimeError:
-        return SummarizationResult.empty()
+        return SummarizationError(original_text=text, message="Could not split text.")
 
-    # I don't really know why LangChain insists on this. But okay.
+    # You can't just split a string. Oh no, LangChain demands `Document` objects.
     documents = [Document(page_content=text) for text in texts]
 
     # Build LangChain-style PromptTemplates.
-    map_prompt = _make_langchain_prompt_template(map_template, context)
-    combine_prompt = _make_langchain_prompt_template(combine_template, context)
+    map_prompt = _make_langchain_prompt(map_template, context)
+    combine_prompt = _make_langchain_prompt(combine_template, context)
 
     # Build the summarization chain.
     chain = load_summarize_chain(
@@ -132,8 +152,13 @@ def summarize_langchain_llm(
     assert "intermediate_steps" in outputs
 
     # We did it!
-    return SummarizationResult(
-        summary=outputs["output_text"], map_steps=outputs["intermediate_steps"]
+    return SummarizationSuccess(
+        original_text=text,
+        body=outputs["output_text"],
+        # XXX TODO DAVE
+        headline=outputs["output_text"].split("\n")[0],
+        chunks=tuple(texts),
+        chunk_summaries=tuple(outputs["intermediate_steps"]),
     )
 
 
@@ -172,10 +197,13 @@ def summarize_openai(
 # Django templates for our LLM prompts
 # ---------------------------------------------------------------------
 
-# Note that Django templates use {{ variable_name }} for variable
-# substitution. Thankfully, this does not conflict with the LangChain
-# variable substitution syntax, which uses {variable_name}. But it *does*
-# read a little confusingly. Sorry about that.
+# Django templates use {{ variable_name }} for variable substitution.
+#
+# LangChain uses {variable_name}.
+#
+# The `*_template` parameters to `summarize_openai(...)` are allowed to be
+# both Django *and* LangChain templates; we render the Django template ourselves
+# and pass that rendered result to LangChain.
 
 CONCISE_SUMMARY_TEMPLATE = """Write a concise summary of the following text. Include the most important details:
 

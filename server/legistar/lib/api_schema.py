@@ -3,11 +3,11 @@ import typing as t
 
 from pydantic import Field, validator
 
-from server.legistar.lib.base_schema import BaseSchema
+from server.legistar.lib.base_schema import BaseSchema as BaseAPIData
 
 
-class BodyAPISchema(BaseSchema):
-    """Body data schema from the Legistar API."""
+class BodyAPIData(BaseAPIData):
+    """Body data from the Legistar API."""
 
     id: int = Field(alias="BodyId")
     guid: str = Field(alias="BodyGuid")
@@ -31,8 +31,8 @@ class BodyAPISchema(BaseSchema):
     used_sponsor_flag: int = Field(alias="BodyUsedSponsorFlag")
 
 
-class EventAPISchema(BaseSchema):
-    """Event data schema from the Legistar API."""
+class EventAPIData(BaseAPIData):
+    """Event data from the Legistar API."""
 
     id: int = Field(alias="EventId")
     guid: str = Field(alias="EventGuid")
@@ -71,8 +71,8 @@ class EventAPISchema(BaseSchema):
         return datetime.datetime.strptime(value, "%H:%M %p").time() if value else None
 
 
-class MatterAPISchema(BaseSchema):
-    """Matter data schema from the Legistar API."""
+class MatterAPIData(BaseAPIData):
+    """Matter data from the Legistar API."""
 
     id: int = Field(alias="MatterId")
     guid: str = Field(alias="MatterGuid")

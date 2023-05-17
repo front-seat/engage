@@ -3,7 +3,7 @@ from __future__ import annotations
 import datetime
 import urllib.parse
 
-from server.legistar.lib.base_schema import BaseSchema
+from server.legistar.lib.base_schema import BaseSchema as BaseCrawlData
 
 
 def _id_from_url(url: str) -> int:
@@ -18,7 +18,7 @@ def _guid_from_url(url: str) -> str:
     return dict(urllib.parse.parse_qsl(parsed.query))["GUID"]
 
 
-class Link(BaseSchema):
+class Link(BaseCrawlData):
     """A link to a page on the Legistar site. Potentially, an attachment."""
 
     name: str
@@ -35,7 +35,7 @@ class Link(BaseSchema):
         return _guid_from_url(self.url)
 
 
-class CalendarRowSchema(BaseSchema):
+class CalendarRowCrawlData(BaseCrawlData):
     """Single row in the /Calendar.aspx page's main table."""
 
     department: Link
@@ -54,14 +54,14 @@ class CalendarRowSchema(BaseSchema):
         return self.time is None
 
 
-class CalendarSchema(BaseSchema):
+class CalendarCrawlData(BaseCrawlData):
     """The /Calendar.aspx page."""
 
     kind: str = "calendar"
-    rows: list[CalendarRowSchema]
+    rows: list[CalendarRowCrawlData]
 
 
-class MeetingRowSchema(BaseSchema):
+class MeetingRowCrawlData(BaseCrawlData):
     """Single row in the /MeetingDetail.aspx page's main table."""
 
     # aka "Record No"; like "Appt 02510" or "CB 120537"; /LegislationDetail.aspx
@@ -77,7 +77,7 @@ class MeetingRowSchema(BaseSchema):
     video: Link | None  # for the city of Seattle, a seattlechannel.org URL
 
 
-class MeetingSchema(BaseSchema):
+class MeetingCrawlData(BaseCrawlData):
     """The /MeetingDetail.aspx page."""
 
     kind: str = "meeting"
@@ -94,7 +94,7 @@ class MeetingSchema(BaseSchema):
     video: Link | None  # for the city of Seattle, a seattlechannel.org URL
     attachments: list[Link]
 
-    rows: list[MeetingRowSchema]
+    rows: list[MeetingRowCrawlData]
 
     @property
     def is_canceled(self) -> bool:
@@ -117,7 +117,7 @@ class MeetingSchema(BaseSchema):
         return _guid_from_url(self.url)
 
 
-class LegislationRowSchema(BaseSchema):
+class LegislationRowCrawlData(BaseCrawlData):
     """Single row in the /Legislation.aspx page's main history table."""
 
     date: datetime.date
@@ -130,7 +130,7 @@ class LegislationRowSchema(BaseSchema):
     video: Link | None  # for the city of Seattle, a seattlechannel.org URL
 
 
-class LegislationSchema(BaseSchema):
+class LegislationCrawlData(BaseCrawlData):
     """The /Legislation.aspx page."""
 
     kind: str = "legislation"
@@ -151,7 +151,7 @@ class LegislationSchema(BaseSchema):
     # (not always available; not always complete)
     full_text: str | None
 
-    rows: list[LegislationRowSchema]
+    rows: list[LegislationRowCrawlData]
 
     @property
     def id(self) -> int:
@@ -164,14 +164,14 @@ class LegislationSchema(BaseSchema):
         return _guid_from_url(self.url)
 
 
-class ActionRowSchema(BaseSchema):
+class ActionRowCrawlData(BaseCrawlData):
     """Single row in the /HistoryDetail.aspx page's main table."""
 
     person: Link
     vote: str  # like "In Favor", "Absent", "Excused", etc.
 
 
-class ActionSchema(BaseSchema):
+class ActionCrawlData(BaseCrawlData):
     """The /HistoryDetail.aspx page."""
 
     kind: str = "action"
@@ -187,7 +187,7 @@ class ActionSchema(BaseSchema):
     action_text: str | None  # like "council minutes were approved"
 
     # AKA votes
-    rows: list[ActionRowSchema]
+    rows: list[ActionRowCrawlData]
 
     @property
     def id(self) -> int:
