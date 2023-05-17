@@ -6,7 +6,7 @@ from server.admin import admin_site
 from server.lib.admin import NoPermissionAdminMixin
 from server.lib.truncate import truncate_str
 
-from .models import Document, DocumentSummary, DocumentText
+from .models import Document, DocumentSummary
 
 
 class NonrelatedDocumentTabularInline(NoPermissionAdminMixin, NonrelatedTabularInline):
@@ -31,19 +31,6 @@ class NonrelatedDocumentTabularInline(NoPermissionAdminMixin, NonrelatedTabularI
         return obj.title.split("-")[-1]
 
 
-class DocumentTextTabularInline(NoPermissionAdminMixin, admin.TabularInline):
-    model = DocumentText
-    fields = ("extracted_at", "extractor_name", "document", "short_text")
-    readonly_fields = fields
-    show_change_link = True
-    extra = 0
-
-    def short_text(self, obj):
-        return truncate_str(obj.text, 100)
-
-    short_text.short_description = "Text"
-
-
 class DocumentSummaryTabularInline(NoPermissionAdminMixin, admin.TabularInline):
     model = DocumentSummary
     fields = ("summarized_at", "summarizer_name", "document", "summary")
@@ -56,7 +43,7 @@ class DocumentAdmin(NoPermissionAdminMixin, admin.ModelAdmin):
     list_display = ("title", "kind", "link", "mime_type")
     fields = ("url_link", "kind", "title", "mime_type", "raw_content")
     readonly_fields = fields
-    inlines = (DocumentTextTabularInline, DocumentSummaryTabularInline)
+    inlines = (DocumentSummaryTabularInline,)
 
     def url_link(self, obj):
         return mark_safe(f'<a href="{obj.url}" target="_blank">{obj.url}</a>')
@@ -68,17 +55,6 @@ class DocumentAdmin(NoPermissionAdminMixin, admin.ModelAdmin):
         return mark_safe(f'<a href="{obj.file.url}" target="_blank">View</a>')
 
     link.allow_tags = True
-
-
-class DocumentTextAdmin(NoPermissionAdminMixin, admin.ModelAdmin):
-    list_display = ("extracted_at", "extractor_name", "document", "short_text")
-    fields = ("extracted_at", "extractor_name", "document", "text")
-    readonly_fields = fields
-
-    def short_text(self, obj):
-        return truncate_str(obj.text, 100)
-
-    short_text.short_description = "Text"
 
 
 class DocumentSummaryAdmin(NoPermissionAdminMixin, admin.ModelAdmin):
@@ -98,5 +74,4 @@ class DocumentSummaryAdmin(NoPermissionAdminMixin, admin.ModelAdmin):
 
 
 admin_site.register(Document, DocumentAdmin)
-admin_site.register(DocumentText, DocumentTextAdmin)
 admin_site.register(DocumentSummary, DocumentSummaryAdmin)

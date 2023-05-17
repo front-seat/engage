@@ -13,7 +13,7 @@ from django.utils.text import slugify
 from server.lib.pipeline_config import PipelineConfig, SummarizationKind
 from server.lib.truncate import truncate_str
 
-from .extract import EXTRACTORS_BY_NAME, ExtractorCallable
+from .extract import extract_text_from_bytes
 from .summarize import SUMMARIZERS_BY_NAME, SummarizerCallable
 
 OPENAI_ADA_EMBEDDING_DIMENSIONS = 1536
@@ -102,6 +102,15 @@ class Document(models.Model):
 , then this field contains the raw text of the document.""",
     )
 
+    extracted_text = models.TextField(
+        blank=True,
+        null=False,
+        default="",
+        help_text="""The extracted full text of the document. Since extraction
+        happens asynchronously, this field may be empty until the extraction
+        process has completed.""",
+    )
+
     @property
     def is_pdf(self) -> bool:
         return self.mime_type == "application/pdf"
@@ -133,6 +142,17 @@ class Document(models.Model):
     def short_title(self) -> str:
         return self.title.split("-")[-1].strip()
 
+    def extract_text(self) -> str:
+        # Don't re-extract, of course.
+        if self.extracted_text:
+            return self.extracted_text
+
+        # Run the extraction pipeline.
+        text = extract_text_from_bytes(self.read(), self.mime_type)
+        self.extracted_text = text
+        self.save()
+        return text
+
     def read(
         self, _loader: t.Callable[[str], tuple[bytes, str]] = _load_url
     ) -> io.BytesIO:
@@ -146,107 +166,39 @@ class Document(models.Model):
         return f"{self.kind}: {self.title}"
 
 
-class DocumentTextManager(models.Manager):
+class DocumentSummaryManager(models.Manager):
     def get_or_create_from_document(
         self,
         document: Document,
-        extractor: ExtractorCallable,
-        _reader: t.Callable[[Document], io.BytesIO] = lambda document: document.read(),
-    ) -> tuple[DocumentText, bool]:
-        """Get or create a document text from a document."""
-        # Don't use the default get_or_create() because we want to
-        # use the document and extractor as the unique identifier.
-        with transaction.atomic():
-            document_text = self.filter(
-                document=document, extractor_name=extractor.__name__
-            ).first()
-            if document_text is not None:
-                return document_text, False
-            if settings.VERBOSE:
-                print(
-                    f">>>> EXTRACT: document({document}, {extractor.__name__})",
-                    file=sys.stderr,
-                )
-            text = extractor(
-                io=_reader(document),
-                mime_type=document.mime_type,
-            )
-            document_text = self.create(
-                document=document,
-                text=text,
-                extractor_name=extractor.__name__,
-            )
-            return document_text, True
-
-
-class DocumentText(models.Model):
-    """The extracted content of a document."""
-
-    objects = DocumentTextManager()
-
-    extracted_at = models.DateTimeField(auto_now_add=True, db_index=True)
-    extractor_name = models.CharField(
-        max_length=255,
-        db_index=True,
-        help_text="The name of the extractor used to extract the text.",
-    )
-    text = models.TextField(help_text="The text content of the document.")
-
-    document = models.ForeignKey(
-        Document,
-        on_delete=models.CASCADE,
-        related_name="texts",
-        help_text="The document this text belongs to.",
-    )
-
-    @property
-    def extractor(self) -> ExtractorCallable:
-        return EXTRACTORS_BY_NAME[self.extractor_name]
-
-    def __str__(self):
-        return f"Extracted text of: {self.document}"
-
-    class Meta:
-        ordering = ["-extracted_at"]
-
-        constraints = [
-            models.UniqueConstraint(
-                fields=["document", "extractor_name"],
-                name="unique_document_extractor_name",
-            )
-        ]
-
-        verbose_name_plural = "Document text contents"
-
-
-class DocumentSummaryManager(models.Manager):
-    def get_or_create_from_document_text(
-        self,
-        document_text: DocumentText,
         config: PipelineConfig,
         kind: SummarizationKind,
     ) -> tuple[DocumentSummary, bool]:
         with transaction.atomic():
-            # If we already have a summary for this document text, return it.
+            # If we already have a summary for this document, return it.
             document_summary = self.filter(
-                document_text=document_text,
+                document=document,
                 summarizer_name=config.document.for_kind(kind),
             ).first()
             if document_summary is not None:
                 return document_summary, False
 
+            # If the document has no extracted text, it's not ready to be summarized.
+            if not document.extracted_text:
+                raise ValueError(
+                    f"Document {document} has no extracted text; can't be summarized."
+                )
+
             # Otherwise, create a new summary.
             if settings.VERBOSE:
                 print(
-                    f">>>> SUMMARIZE: doc_text({document_text}, {config.name} {kind})",
+                    f">>>> SUMMARIZE: doc({document}, {config.name} {kind})",
                     file=sys.stderr,
                 )
 
             summarizer = SUMMARIZERS_BY_NAME[config.document.for_kind(kind)]
-            summary = summarizer(text=document_text.text)
+            summary = summarizer(text=document.extracted_text)
             document_summary = self.create(
-                document=document_text.document,
-                document_text=document_text,
+                document=document,
                 summary=summary,
                 summarizer_name=config.document.for_kind(kind),
             )
@@ -269,13 +221,6 @@ class DocumentSummary(models.Model):
         help_text="The document this summary belongs to.",
     )
 
-    document_text = models.ForeignKey(
-        DocumentText,
-        on_delete=models.CASCADE,
-        related_name="summaries",
-        help_text="The document text this summary belongs to.",
-    )
-
     @property
     def summarizer(self) -> SummarizerCallable:
         return SUMMARIZERS_BY_NAME[self.summarizer_name]
@@ -283,11 +228,6 @@ class DocumentSummary(models.Model):
     class Meta:
         ordering = ["-summarized_at"]
 
-        constraints = [
-            models.UniqueConstraint(
-                fields=["document_text", "summarizer_name"],
-                name="unique_document_text_summarizer_name",
-            )
-        ]
+        constraints = []
 
         verbose_name_plural = "Document summaries"
