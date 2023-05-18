@@ -10,34 +10,11 @@ from dataclasses import dataclass
 # this file would have a more natural home in server.data. -Dave
 
 
-SummarizationKind: t.TypeAlias = t.Literal["body", "headline"]
 SummarizationClass: t.TypeAlias = t.Literal["meeting", "legislation", "document"]
 
-SUMMARIZATION_KINDS: frozenset[SummarizationKind] = frozenset(["body", "headline"])
 SUMMARIZATION_CLASSES: frozenset[SummarizationClass] = frozenset(
     ["meeting", "legislation", "document"]
 )
-
-
-@dataclass(frozen=True)
-class SummarizationConfig:
-    body: str
-    """The name of the summarization method for the body."""
-
-    headline: str
-    """The name of the summarization method for the headline."""
-
-    def for_kind(self, kind: SummarizationKind) -> str:
-        """
-        Returns the name of the summarizer to use for the given kind of
-        summarization.
-        """
-        if kind == "body":
-            return self.body
-        elif kind == "headline":
-            return self.headline
-        else:
-            raise ValueError(f"Unknown summarization kind: {kind}")
 
 
 @dataclass(frozen=True)
@@ -50,19 +27,19 @@ class PipelineConfig:
     name: str
     """The name of this pipeline configuration."""
 
-    meeting: SummarizationConfig
-    """The summarization configuration for meetings."""
+    meeting: str
+    """The name of the meeting summarization method."""
 
-    legislation: SummarizationConfig
-    """The summarization configuration for legislation."""
+    legislation: str
+    """The name of the legislation summarization method."""
 
-    document: SummarizationConfig
-    """The summarization configuration for individual documents."""
+    document: str
+    """The name of the individual document summarization method."""
 
     extractor: str
     """The name of the text extraction method to use for this pipeline."""
 
-    def for_class(self, klass: SummarizationClass) -> SummarizationConfig:
+    def for_class(self, klass: SummarizationClass) -> str:
         """
         Returns the summarization configuration for the given class of
         summarization.
@@ -79,18 +56,9 @@ class PipelineConfig:
 
 CONCISE_PIPELINE_CONFIG = PipelineConfig(
     name="concise",
-    meeting=SummarizationConfig(
-        body="summarize_meeting_gpt35_concise",
-        headline="summarize_meeting_gpt35_concise_headline",
-    ),
-    legislation=SummarizationConfig(
-        body="summarize_legislation_gpt35_concise",
-        headline="summarize_legislation_gpt35_concise_headline",
-    ),
-    document=SummarizationConfig(
-        body="summarize_gpt35_concise",
-        headline="summarize_gpt35_concise_headline",
-    ),
+    meeting="summarize_meeting_gpt35_concise",
+    legislation="summarize_legislation_gpt35_concise",
+    document="summarize_gpt35_concise",
     extractor="extract_pipeline_v1",
 )
 
@@ -103,43 +71,3 @@ PIPELINE_CONFIGS: list[PipelineConfig] = [
 PIPELINE_CONFIGS_BY_NAME: dict[str, PipelineConfig] = {
     config.name: config for config in PIPELINE_CONFIGS
 }
-
-
-def filter_pipeline_configs(
-    name: str,
-    kinds: t.Iterable[SummarizationKind] = SUMMARIZATION_KINDS,
-    klasses: t.Iterable[SummarizationClass] = SUMMARIZATION_CLASSES,
-) -> t.Iterable[PipelineConfig]:
-    """
-    Returns all pipeline configurations that use the given summarizer
-    for the specified kinds and classes of summarization.
-    """
-    kinds_set = frozenset(kinds)
-    klasses_set = frozenset(klasses)
-    for config in PIPELINE_CONFIGS:
-        if any(
-            config.for_class(klass).for_kind(kind) == name
-            for klass in klasses_set
-            for kind in kinds_set
-        ):
-            yield config
-
-
-def get_pipeline_config(
-    name: str,
-    kinds: t.Iterable[SummarizationKind] = SUMMARIZATION_KINDS,
-    klasses: t.Iterable[SummarizationClass] = SUMMARIZATION_CLASSES,
-) -> PipelineConfig:
-    """
-    Return the single pipeline configuration that uses the given summarizer
-    for the specified kinds and classes of summarization.
-
-    If none is found, or if more than one is found, raise an exception.
-    """
-    configs = list(filter_pipeline_configs(name, kinds, klasses))
-    if len(configs) == 0:
-        raise ValueError(f"No pipeline config found for {name}")
-    elif len(configs) > 1:
-        raise ValueError(f"Multiple pipeline configs found for {name}")
-    else:
-        return configs[0]

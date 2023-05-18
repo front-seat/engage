@@ -15,7 +15,7 @@ from server.lib.summary_model import SummaryBaseModel
 from server.lib.truncate import truncate_str
 
 from .extract import extract_text_from_bytes
-from .summarize import SUMMARIZERS_BY_NAME
+from .summarize import SUMMARIZERS_BY_NAME, SummarizationSuccess
 
 
 def _load_url_mime_type(url: str) -> str:
@@ -215,20 +215,18 @@ class DocumentSummaryManager(models.Manager):
                     file=sys.stderr,
                 )
 
+            summarizer = SUMMARIZERS_BY_NAME[config.document]
+            result = summarizer(text=document.extracted_text)
             # XXX TODO DAVE
-            body_summarizer = SUMMARIZERS_BY_NAME[config.document.for_kind("body")]
-            body = body_summarizer(text=document.extracted_text)
-            headline_summarizer = SUMMARIZERS_BY_NAME[
-                config.document.for_kind("headline")
-            ]
-            headline = headline_summarizer(text=document.extracted_text)
+            assert isinstance(result, SummarizationSuccess)
             document_summary = self.create(
                 document=document,
                 config_name=config.name,
-                body=body,
-                headline=headline,
-                summary=summary,
-                summarizer_name=config.document.for_kind(kind),
+                body=result.body,
+                headline=result.headline,
+                original_text=result.original_text,
+                chunks=result.chunks,
+                chunk_summaries=result.chunk_summaries,
             )
             return document_summary, True
 

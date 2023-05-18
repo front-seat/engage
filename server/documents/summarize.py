@@ -145,7 +145,8 @@ def summarize_langchain_llm(
     except RuntimeError:
         return SummarizationError(original_text=text, message="Could not split text.")
 
-    # LangChain documents pair text with arbitrary metdata (which we don't use).
+    # LangChain documents are tuples of text and arbitrary metadata;
+    # we don't use the metadata. It defaults to an empty dict.
     documents = [Document(page_content=text) for text in texts]
 
     # Build LangChain-style PromptTemplates.
@@ -153,8 +154,8 @@ def summarize_langchain_llm(
     body_combine_prompt = _make_langchain_prompt(body_combine_template, context)
     headline_combine_prompt = _make_langchain_prompt(headline_combine_template, context)
 
-    # Build a LangChain summarization chain. Use the `body` combine prompt
-    # for starters.
+    # Build a LangChain summarization chain. This one will produce the body
+    # summary.
     chain = load_summarize_chain(
         llm,
         chain_type="map_reduce",
@@ -162,6 +163,7 @@ def summarize_langchain_llm(
         combine_prompt=body_combine_prompt,
         return_intermediate_steps=True,
     )
+    # Our hack below depends on this being a MapReduceDocumentsChain.
     assert isinstance(chain, MapReduceDocumentsChain)
 
     # Run the chain.
@@ -178,14 +180,14 @@ def summarize_langchain_llm(
     chunk_summaries = outputs["intermediate_steps"]
     assert len(chunk_summaries) == len(documents)
 
-    # Now, we need to generate the headline summary. We want to re-use the
+    # Now we want to generate the headline summary. We want to re-use the
     # chunk summaries we already generated. There's useful code in
-    # MapReduceDocumentsChain._process_results() that we want to re-use
+    # MapReduceDocumentsChain._process_results() that we want to make use of
     # here; unfortunately, it's buried in a private method. I've opted for a
-    # big hack: replace our chain's `combine_document_chain` with a new
+    # big hack: replace `chain.combine_document_chain` with a new
     # one that uses the `headline` combine prompt, and then manually re-invoke
-    # chain._process_results(). I could also have decided to copy langchain's
-    # code into our own method. But that seemed annoying, too, frankly. Argh.
+    # `chain._process_results()`. An alternative I considered: copying
+    # langchain's code into our own codebase. That seemed annoying, too. Argh.
     reduce_chain = LLMChain(llm=llm, prompt=headline_combine_prompt)
     combine_document_chain = StuffDocumentsChain(
         llm_chain=reduce_chain,
@@ -196,6 +198,7 @@ def summarize_langchain_llm(
     hack_results = [
         {chain.llm_chain.output_key: chunk_summary} for chunk_summary in chunk_summaries
     ]
+    # Call the private method on MapReduceDocumentsChain that we want to use.
     headline, _ = chain._process_results(results=hack_results, docs=documents)
 
     # We did it!
@@ -218,7 +221,7 @@ def summarize_openai(
     temperature: float = 0.4,
     chunk_size: int = 3584,
 ) -> SummarizationResult:
-    """Summarize text using langchain and openAI. Low-level."""
+    """Summarize text using langchain and OpenAI. Low-level."""
     if settings.OPENAI_API_KEY is None:
         raise ValueError("OPENAI_API_KEY is not set.")
     llm = ChatOpenAI(
@@ -274,26 +277,18 @@ CONCISE_COMPACT_HEADLINE:"""  # noqa: E501
 # ---------------------------------------------------------------------
 
 
-def summarize_gpt35_concise(text: str, context: dict[str, t.Any] | None = None) -> str:
-    result = summarize_openai(
-        text,
-        map_template=CONCISE_SUMMARY_TEMPLATE,
-        combine_template=CONCISE_SUMMARY_TEMPLATE,
-        context=context,
-    )
-    return result.summary
-
-
-def summarize_gpt35_concise_headline(
+def summarize_gpt35_concise(
     text: str, context: dict[str, t.Any] | None = None
-) -> str:
+) -> SummarizationResult:
     result = summarize_openai(
         text,
         map_template=CONCISE_SUMMARY_TEMPLATE,
-        combine_template=CONCISE_HEADLINE_TEMPLATE,
+        # Re-use the chunk summary template for the body summary.
+        body_combine_template=CONCISE_SUMMARY_TEMPLATE,
+        headline_combine_template=CONCISE_HEADLINE_TEMPLATE,
         context=context,
     )
-    return result.summary
+    return result
 
 
 # ---------------------------------------------------------------------
@@ -305,13 +300,14 @@ def summarize_gpt35_concise_headline(
 class SummarizerCallable(t.Protocol):
     __name__: str
 
-    def __call__(self, text: str, context: dict[str, t.Any] | None = None) -> str:
+    def __call__(
+        self, text: str, context: dict[str, t.Any] | None = None
+    ) -> SummarizationResult:
         ...
 
 
 SUMMARIZERS: list[SummarizerCallable] = [
     summarize_gpt35_concise,
-    summarize_gpt35_concise_headline,
 ]
 
 
