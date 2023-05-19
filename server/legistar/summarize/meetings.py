@@ -1,6 +1,11 @@
 import typing as t
 
-from server.documents.summarize import CONCISE_SUMMARY_TEMPLATE, summarize_openai
+from server.documents.summarize import (
+    CONCISE_SUMMARY_TEMPLATE,
+    SummarizationResult,
+    summarize_openai,
+)
+from server.lib.style import SummarizationStyle
 
 # ---------------------------------------------------------------------
 # Django templates for our LLM prompts
@@ -38,28 +43,15 @@ def summarize_meeting_gpt35_concise(
     department_name: str,
     document_summary_texts: list[str],
     legislation_summary_texts: list[str],
-) -> str:
+) -> SummarizationResult:
     result = summarize_openai(
         "\n\n".join(document_summary_texts + legislation_summary_texts),
         map_template=CONCISE_SUMMARY_TEMPLATE,
-        combine_template=MEETING_CONCISE_TEMPLATE,
+        body_combine_template=MEETING_CONCISE_TEMPLATE,
+        headline_combine_template=MEETING_CONCISE_HEADLINE_TEMPLATE,
         context=_meeting_template_context(department_name),
     )
-    return result.summary
-
-
-def summarize_meeting_gpt35_concise_headline(
-    department_name: str,
-    document_summary_texts: list[str],
-    legislation_summary_texts: list[str],
-) -> str:
-    result = summarize_openai(
-        "\n\n".join(document_summary_texts + legislation_summary_texts),
-        map_template=CONCISE_SUMMARY_TEMPLATE,
-        combine_template=MEETING_CONCISE_HEADLINE_TEMPLATE,
-        context=_meeting_template_context(department_name),
-    )
-    return result.summary
+    return result
 
 
 # ---------------------------------------------------------------------
@@ -76,18 +68,14 @@ class MeetingSummarizerCallable(t.Protocol):
         department_name: str,
         document_summary_texts: list[str],
         legislation_summary_texts: list[str],
-    ) -> str:
+    ) -> SummarizationResult:
         ...
 
 
 MEETING_SUMMARIZERS: list[MeetingSummarizerCallable] = [
     summarize_meeting_gpt35_concise,
-    summarize_meeting_gpt35_concise_headline,
 ]
 
-MEETING_SUMMARIZERS_BY_NAME: dict[str, MeetingSummarizerCallable] = {
-    summarizer.__name__: summarizer for summarizer in MEETING_SUMMARIZERS
-}
-MEETING_SUMMARIZERS_BY_NAME: dict[str, MeetingSummarizerCallable] = {
-    summarizer.__name__: summarizer for summarizer in MEETING_SUMMARIZERS
+MEETING_SUMMARIZERS_BY_STYLE: dict[SummarizationStyle, MeetingSummarizerCallable] = {
+    "concise": summarize_meeting_gpt35_concise,
 }

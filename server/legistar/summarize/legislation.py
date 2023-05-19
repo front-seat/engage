@@ -1,6 +1,11 @@
 import typing as t
 
-from server.documents.summarize import CONCISE_SUMMARY_TEMPLATE, summarize_openai
+from server.documents.summarize import (
+    CONCISE_SUMMARY_TEMPLATE,
+    SummarizationResult,
+    summarize_openai,
+)
+from server.lib.style import SummarizationStyle
 from server.lib.truncate import truncate_str
 
 # ---------------------------------------------------------------------
@@ -40,26 +45,15 @@ def _legislation_template_context(title: str) -> dict[str, t.Any]:
 def summarize_legislation_gpt35_concise(
     title: str,
     document_summary_texts: list[str],
-) -> str:
+) -> SummarizationResult:
     result = summarize_openai(
         "\n\n".join(document_summary_texts),
         map_template=CONCISE_SUMMARY_TEMPLATE,
-        combine_template=LEGISLATION_CONCISE_TEMPLATE,
+        body_combine_template=LEGISLATION_CONCISE_TEMPLATE,
+        headline_combine_template=LEGISLATION_CONCISE_HEADLINE_TEMPLATE,
         context=_legislation_template_context(title),
     )
-    return result.summary
-
-
-def summarize_legislation_gpt35_concise_headline(
-    title: str, document_summary_texts: list[str]
-) -> str:
-    result = summarize_openai(
-        "\n\n".join(document_summary_texts),
-        map_template=CONCISE_SUMMARY_TEMPLATE,
-        combine_template=LEGISLATION_CONCISE_HEADLINE_TEMPLATE,
-        context=_legislation_template_context(title),
-    )
-    return result.summary
+    return result
 
 
 # ---------------------------------------------------------------------
@@ -71,15 +65,18 @@ def summarize_legislation_gpt35_concise_headline(
 class LegislationSummarizerCallable(t.Protocol):
     __name__: str
 
-    def __call__(self, title: str, document_summary_texts: list[str]) -> str:
+    def __call__(
+        self, title: str, document_summary_texts: list[str]
+    ) -> SummarizationResult:
         ...
 
 
 LEGISLATION_SUMMARIZERS: list[LegislationSummarizerCallable] = [
     summarize_legislation_gpt35_concise,
-    summarize_legislation_gpt35_concise_headline,
 ]
 
-LEGISLATION_SUMMARIZERS_BY_NAME: dict[str, LegislationSummarizerCallable] = {
-    summarizer.__name__: summarizer for summarizer in LEGISLATION_SUMMARIZERS
+LEGISLATION_SUMMARIZERS_BY_STYLE: dict[
+    SummarizationStyle, LegislationSummarizerCallable
+] = {
+    "concise": summarize_legislation_gpt35_concise,
 }

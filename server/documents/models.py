@@ -10,12 +10,12 @@ from django.conf import settings
 from django.db import models, transaction
 from django.utils.text import slugify
 
-from server.lib.pipeline_config import PipelineConfig
+from server.lib.style import SummarizationStyle
 from server.lib.summary_model import SummaryBaseModel
 from server.lib.truncate import truncate_str
 
 from .extract import extract_text_from_bytes
-from .summarize import SUMMARIZERS_BY_NAME, SummarizationSuccess
+from .summarize import SummarizationSuccess
 
 
 def _load_url_mime_type(url: str) -> str:
@@ -191,13 +191,13 @@ class DocumentSummaryManager(models.Manager):
     def get_or_create_from_document(
         self,
         document: Document,
-        config: PipelineConfig,
+        style: SummarizationStyle,
     ) -> tuple[DocumentSummary, bool]:
         with transaction.atomic():
             # If we already have a summary for this document, return it.
             document_summary = self.filter(
                 document=document,
-                config_name=config.name,
+                style=style,
             ).first()
             if document_summary is not None:
                 return document_summary, False
@@ -211,11 +211,11 @@ class DocumentSummaryManager(models.Manager):
             # Otherwise, create a new summary.
             if settings.VERBOSE:
                 print(
-                    f">>>> SUMMARIZE: doc({document}, {config.name})",
+                    f">>>> SUMMARIZE: doc({document}, {style})",
                     file=sys.stderr,
                 )
 
-            summarizer = SUMMARIZERS_BY_NAME[config.document]
+            summarizer = SUMMARIZERS_BY_STYLE[style]
             result = summarizer(text=document.extracted_text)
             # XXX TODO DAVE
             assert isinstance(result, SummarizationSuccess)

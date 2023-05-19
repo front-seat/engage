@@ -1,7 +1,5 @@
 from django.db import models
 
-from .pipeline_config import PIPELINE_CONFIGS_BY_NAME, PipelineConfig
-
 
 class SummaryBaseModel(models.Model):
     """
@@ -41,25 +39,11 @@ class SummaryBaseModel(models.Model):
         help_text="LLM outputs for each text chunk.",
     )
 
-    config_name = models.CharField(
+    style = models.CharField(
         max_length=255,
         db_index=True,
-        help_text="The name of the configuration used to generate this summary.",
+        help_text="The SummarizationStyle used to generate this summary.",
     )
-
-    @property
-    def config(self) -> PipelineConfig:
-        """
-        Return the configuration that led to this summary. With the configuration,
-        we can determine the summarizer that was used, the LLM's parameters,
-        and the exact prompts sent to the LLM to generate the summary.
-        """
-        return PIPELINE_CONFIGS_BY_NAME[self.config_name]
-
-    @config.setter
-    def config(self, config: PipelineConfig):
-        """Set the configuration that led to this summary."""
-        self.config_name = config.name
 
     class Meta:
         abstract = True

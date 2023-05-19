@@ -9,7 +9,8 @@ import requests
 from django.db import models, transaction
 
 from server.documents.models import Document, DocumentSummary
-from server.lib.pipeline_config import PipelineConfig, SummarizationKind
+from server.documents.summarize import SummarizationSuccess
+from server.lib.style import SummarizationStyle
 from server.lib.summary_model import SummaryBaseModel
 from server.lib.truncate import truncate_str
 
@@ -20,8 +21,8 @@ from .lib.web_schema import (
     MeetingCrawlData,
     MeetingRowCrawlData,
 )
-from .summarize.legislation import LEGISLATION_SUMMARIZERS_BY_NAME
-from .summarize.meetings import MEETING_SUMMARIZERS_BY_NAME
+from .summarize.legislation import LEGISLATION_SUMMARIZERS_BY_STYLE
+from .summarize.meetings import MEETING_SUMMARIZERS_BY_STYLE
 
 
 def _load_link(link: Link) -> tuple[bytes, str]:
@@ -207,11 +208,10 @@ class Meeting(models.Model):
         return Legislation.objects.filter(record_no__in=self.record_nos)
 
     def legislation_summaries(
-        self, config: PipelineConfig, kind: SummarizationKind, require: bool = True
+        self, style: SummarizationStyle, require: bool = True
     ) -> t.Iterable[LegislationSummary]:
         """
-        Return the legislation summaries for the meeting that match the specific
-        pipeline configuration.
+        Return the legislation summaries for the meeting for a given style.
 
         If `require` is True (the default), we raise an exception if we can't find
         a summary for each existing legislation. If `require` is False, we return
@@ -220,18 +220,19 @@ class Meeting(models.Model):
         legislation_objs = list(self.legislations)
         legislation_summary_objs = LegislationSummary.objects.filter(
             legislation__in=legislation_objs,
-            summarizer_name=config.legislation.for_kind(kind),
+            style=style,
         )
         if require and legislation_summary_objs.count() != len(legislation_objs):
-            raise ValueError(f"Missing legislation summaries for {self} ({kind}).")
+            raise ValueError(f"Missing legislation summaries for {self} ({style}).")
         return legislation_summary_objs
 
     def document_summaries(
         self,
-        config: PipelineConfig,
-        kind: SummarizationKind,
-        excludes: set[str]
-        | None = {LegistarDocumentKind.AGENDA, LegistarDocumentKind.AGENDA_PACKET},
+        style: SummarizationStyle,
+        excludes: frozenset[str]
+        | None = frozenset(
+            [LegistarDocumentKind.AGENDA, LegistarDocumentKind.AGENDA_PACKET]
+        ),
         require: bool = True,
     ) -> t.Iterable[DocumentSummary]:
         """
@@ -249,10 +250,10 @@ class Meeting(models.Model):
         )
         document_summary_objs = DocumentSummary.objects.filter(
             document__in=document_objs,
-            summarizer_name=config.document.for_kind(kind),
+            style=style,
         )
         if require and document_summary_objs.count() != len(document_objs):
-            raise ValueError(f"Missing document summaries for {self} ({kind}).")
+            raise ValueError(f"Missing document summaries for {self} ({style}).")
         return document_summary_objs
 
     def __str__(self):
@@ -279,8 +280,7 @@ class MeetingSummaryManager(models.Manager):
     def get_or_create_from_meeting(
         self,
         meeting: Meeting,
-        config: PipelineConfig,
-        kind: SummarizationKind,
+        style: SummarizationStyle,
     ) -> tuple[MeetingSummary, bool]:
         """
         Get or create a meeting summary from the meeting.
@@ -290,32 +290,36 @@ class MeetingSummaryManager(models.Manager):
         """
         with transaction.atomic():
             # If we already have a summary, return it.
-            summary = self.filter(
-                meeting=meeting, summarizer_name=config.meeting.for_kind(kind)
-            ).first()
+            summary = self.filter(meeting=meeting, style=style).first()
             if summary is not None:
                 return summary, False
 
             # Get legislation body summary objects for each legislation.
             # Raise an exception if we can't find them.
-            legislation_summaries = meeting.legislation_summaries(config, "body")
-            legislation_summary_texts = [ls.summary for ls in legislation_summaries]
+            legislation_summaries = meeting.legislation_summaries(style)
+            legislation_summary_texts = [ls.body for ls in legislation_summaries]
 
             # Likewise for all documents, skipping the ones we normally ignore.
-            document_summaries = meeting.document_summaries(config, "body")
-            document_summary_texts = [ds.summary for ds in document_summaries]
+            document_summaries = meeting.document_summaries(style)
+            document_summary_texts = [ds.body for ds in document_summaries]
 
             # Invoke the summarizer.
-            summarizer = MEETING_SUMMARIZERS_BY_NAME[config.meeting.for_kind(kind)]
-            summary_text = summarizer(
+            summarizer = MEETING_SUMMARIZERS_BY_STYLE[style]
+            result = summarizer(
                 meeting.crawl_data.department.name,
                 legislation_summary_texts=legislation_summary_texts,
                 document_summary_texts=document_summary_texts,
             )
+            # XXX TODO DAVE
+            assert isinstance(result, SummarizationSuccess)
             summary = self.create(
                 meeting=meeting,
-                summary=summary_text,
-                summarizer_name=config.meeting.for_kind(kind),
+                style=style,
+                body=result.body,
+                headline=result.headline,
+                original_text=result.original_text,
+                chunks=result.chunks,
+                chunk_summaries=result.chunk_summaries,
             )
             return summary, True
 
@@ -338,7 +342,7 @@ class MeetingSummary(SummaryBaseModel):
 
         constraints = [
             models.UniqueConstraint(
-                fields=["meeting", "config_name"],
+                fields=["meeting", "style"],
                 name="unique_meeting_summmary_for_config",
             ),
         ]
@@ -464,9 +468,8 @@ class Legislation(models.Model):
 
     def document_summaries(
         self,
-        config: PipelineConfig,
-        kind: SummarizationKind,
-        excludes: set[str] | None = None,
+        style: SummarizationStyle,
+        excludes: frozenset[str] | None = None,
         require: bool = True,
     ) -> t.Iterable[DocumentSummary]:
         """Return the document summaries for the legislation."""
@@ -477,10 +480,10 @@ class Legislation(models.Model):
         )
         document_summary_objs = DocumentSummary.objects.filter(
             document__in=document_objs,
-            summarizer_name=config.document.for_kind(kind),
+            style=style,
         )
         if require and document_summary_objs.count() != len(document_objs):
-            raise ValueError(f"Missing document summaries for {self} ({kind})")
+            raise ValueError(f"Missing document summaries for {self} ({style})")
         return document_summary_objs
 
     def __str__(self):
@@ -501,8 +504,7 @@ class LegislationSummaryManager(models.Manager):
     def get_or_create_from_legislation(
         self,
         legislation: Legislation,
-        config: PipelineConfig,
-        kind: SummarizationKind,
+        style: SummarizationStyle,
     ) -> tuple[LegislationSummary, bool]:
         """
         Get or create a legislation summary from the legislation.
@@ -514,27 +516,31 @@ class LegislationSummaryManager(models.Manager):
             # If we already have a summary, return it
             summary = self.filter(
                 legislation=legislation,
-                summarizer_name=config.legislation.for_kind(kind),
+                style=style,
             ).first()
             if summary is not None:
                 return summary, False
 
             # Get document body summary objects. Raise an exception if we can't
             # find them.
-            document_summaries = legislation.document_summaries(config, "body")
-            document_summary_texts = [ds.summary for ds in document_summaries]
+            document_summaries = legislation.document_summaries(style)
+            document_summary_texts = [ds.body for ds in document_summaries]
 
             # Invoke the summarizer.
-            summarizer = LEGISLATION_SUMMARIZERS_BY_NAME[
-                config.legislation.for_kind(kind)
-            ]
-            summary_text = summarizer(
+            summarizer = LEGISLATION_SUMMARIZERS_BY_STYLE[style]
+            result = summarizer(
                 legislation.title, document_summary_texts=document_summary_texts
             )
+            # XXX TODO DAVE
+            assert isinstance(result, SummarizationSuccess)
             summary = self.create(
                 legislation=legislation,
-                summary=summary_text,
-                summarizer_name=config.legislation.for_kind(kind),
+                style=style,
+                body=result.body,
+                headline=result.headline,
+                original_text=result.original_text,
+                chunks=result.chunks,
+                chunk_summaries=result.chunk_summaries,
             )
             return summary, True
 
@@ -557,7 +563,7 @@ class LegislationSummary(SummaryBaseModel):
 
         constraints = [
             models.UniqueConstraint(
-                fields=["legislation", "config_name"],
+                fields=["legislation", "style"],
                 name="unique_legislation_summary_for_config",
             ),
         ]

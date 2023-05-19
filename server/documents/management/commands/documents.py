@@ -4,11 +4,7 @@ import djclick as click
 from django.conf import settings
 
 from server.documents.models import Document, DocumentSummary
-from server.lib.pipeline_config import (
-    PIPELINE_CONFIGS,
-    PIPELINE_CONFIGS_BY_NAME,
-    SUMMARIZATION_KINDS,
-)
+from server.lib.style import SUMMARIZATION_STYLES
 
 
 @click.group(invoke_without_command=True)
@@ -61,28 +57,28 @@ def summarize():
 
 @summarize.command(name="single")
 @click.argument("pk", type=int, required=True)
-@click.argument("config-name", type=str, default=PIPELINE_CONFIGS[0].name)
+@click.argument("style", type=str, default=SUMMARIZATION_STYLES[0])
 @click.argument("kind", type=str, default="body")
 def summarize_single(
     pk: int,
-    config_name: str,
+    style: str,
     kind: str,
 ):
     """
     Get a previously summarized document from the database, or summarize it
     if it hasn't been summarized yet.
     """
-    assert kind in SUMMARIZATION_KINDS, f"Invalid kind: {kind}"
-    config = PIPELINE_CONFIGS_BY_NAME[config_name]
+    assert style in SUMMARIZATION_STYLES, f"Invalid style: {style}"
     document = Document.objects.get(pk=pk)
     if not document.extracted_text:
         raise click.ClickException(
             "No extracted text found for document. Run extract first."
         )
     document_summary, _ = DocumentSummary.objects.get_or_create_from_document(
-        document, config, kind
+        document, style
     )
-    click.echo(document_summary.summary)
+    click.echo(document_summary.headline)
+    click.echo(document_summary.body)
 
 
 @summarize.command(name="all")
@@ -92,24 +88,20 @@ def summarize_all(ignore_kinds: str = "agenda,agenda_packet"):
     ignore_kinds_set = set(ik.strip() for ik in ignore_kinds.split(","))
     documents = Document.objects.all().exclude(kind__in=ignore_kinds_set)
     documents_with = documents.exclude(extracted_text="")
-    for config in PIPELINE_CONFIGS:
+    for style in SUMMARIZATION_STYLES:
         if settings.VERBOSE:
-            print(f">>>> ALL-DOCS: Using {config.name}", file=sys.stderr)
+            print(f">>>> ALL-DOCS: Using {style}", file=sys.stderr)
         for document in documents_with:
-            for kind in SUMMARIZATION_KINDS:
-                (
-                    document_summary,
-                    _,
-                ) = DocumentSummary.objects.get_or_create_from_document(
-                    document,
-                    config,
-                    kind,
+            (
+                document_summary,
+                _,
+            ) = DocumentSummary.objects.get_or_create_from_document(document, style)
+            if settings.VERBOSE:
+                print(
+                    f">>>> ALL-DOCS: Sum {document} w/ {style}",
+                    file=sys.stderr,
                 )
-                if settings.VERBOSE:
-                    print(
-                        f">>>> ALL-DOCS: Sum {document} w/ {config.name} '{kind}'",
-                        file=sys.stderr,
-                    )
-                click.echo(document_summary.summary)
-                if settings.VERBOSE:
-                    print("\n\n", file=sys.stderr)
+            click.echo(document_summary.headline)
+            click.echo(document_summary.body)
+            if settings.VERBOSE:
+                print("\n\n", file=sys.stderr)

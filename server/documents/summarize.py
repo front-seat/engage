@@ -13,6 +13,8 @@ from langchain.docstore.document import Document
 from langchain.prompts import PromptTemplate
 from langchain.text_splitter import CharacterTextSplitter
 
+from server.lib.style import SummarizationStyle
+
 # ---------------------------------------------------------------------
 # Base utilities
 # ---------------------------------------------------------------------
@@ -311,6 +313,6 @@ SUMMARIZERS: list[SummarizerCallable] = [
 ]
 
 
-SUMMARIZERS_BY_NAME: dict[str, SummarizerCallable] = {
-    summarizer.__name__: summarizer for summarizer in SUMMARIZERS
+SUMMARIZERS_BY_STYLE: dict[SummarizationStyle, SummarizerCallable] = {
+    "concise": summarize_gpt35_concise,
 }
