@@ -2,11 +2,11 @@
 {% block content %}
   <article class="meeting">
     <div class="header">
-      <h1>{{ meeting_description.headline }}</h1>
-      <time>{{ meeting_description.date }} at {{ meeting_description.time }}</time>
-      <summary>{{ meeting_description.department.name }}</summary>
+      <h1>{{ meeting_context.headline }}</h1>
+      <time>{{ meeting_context.date }} at {{ meeting_context.time }}</time>
+      <summary>{{ meeting_context.department.name }}</summary>
     </div>
-    <div class="content">{{ meeting_description.summary | safe }}</div>
+    <div class="content">{{ meeting_context.summary | safe }}</div>
     <h2>Meeting Agenda</h2>
     <div>
       <table>
@@ -18,12 +18,12 @@
           </tr>
         </thead>
         <tbody>
-          {% for legislation in meeting_description.legislations %}
+          {% for legislation_t_ctx in meeting_context.legislation_table_contexts %}
             <tr>
-              <td>{{ legislation.kind }}</td>
-              <td>{{ legislation.headline }}</td>
+              <td>{{ legislation_t_ctx.kind }}</td>
+              <td>{{ legislation_t_ctx.headline }}</td>
               <td>
-                <a href="{% url "legistar:legislation" meeting_id=meeting_id legislation_id=legislation.legistar_id style=style %}"
+                <a href="{% url "legistar:legislation" meeting_id=meeting_id legislation_id=legislation_t_ctx.legistar_id style=style %}"
                    class="view-link">View&nbsp;→</a>
               </td>
             </tr>
@@ -31,7 +31,7 @@
         </tbody>
       </table>
     </div>
-    <a href="{{ meeting_description.url }}"
+    <a href="{{ meeting_context.url }}"
        class="more-link space secondary"
        target="_blank">Visit meeting on legistar →</a>
   </article>

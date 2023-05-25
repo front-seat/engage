@@ -2,11 +2,11 @@
 {% block content %}
   <article class="document">
     <div class="header">
-      <h1>{{ document_description.headline }}</h1>
-      <summary>{{ document_description.title }} ({{ document_description.kind }})</summary>
+      <h1>{{ document_context.headline }}</h1>
+      <summary>{{ document_context.title }} ({{ document_context.kind }})</summary>
     </div>
-    <div class="content">{{ document_description.summary | safe }}</div>
-    <a href="{{ document_description.url }}"
+    <div class="content">{{ document_context.summary | safe }}</div>
+    <a href="{{ document_context.url }}"
        class="more-link space secondary"
        target="_blank">View original document →</a>
   </article>
@@ -24,7 +24,7 @@
         <a href="{% url "legistar:legislation" meeting_id=meeting_id legislation_id=legislation_id style=style %}">
         Legislation {{ legislation_id }}</a>
       </li>
-      <li class="current">Document {{ document_description.pk }}</li>
+      <li class="current">Document {{ document_context.pk }}</li>
     </ul>
   </nav>
 {% endblock breadcrumbs %}

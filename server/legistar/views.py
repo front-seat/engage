@@ -12,8 +12,13 @@ from server.lib.truncate import truncate_str
 from .models import Legislation, LegislationSummary, Meeting, MeetingSummary
 
 # ------------------------------------------------------------------------
-# Utilities for generating context data for our HTML templates.
+# Utilities for cleaning up text summaries and generating HTML
 # ------------------------------------------------------------------------
+
+
+# CONSIDER: if we make these (and our `truncate_str`) into Django template
+# filters, we could remove most -- maybe all? -- of the `_*_context()`
+# functions below and move their functionality directly to the templates.
 
 
 def _text_to_html_paragraphs(text: str):
@@ -34,6 +39,11 @@ def _remove_surrounding_quotes(text: str):
     if text.endswith("”") or text.endswith('"'):
         text = text[:-1]
     return text
+
+
+# ------------------------------------------------------------------------
+# Utilities to generate context data for our Django templates
+# ------------------------------------------------------------------------
 
 
 def _legislation_table_context(
@@ -98,7 +108,7 @@ def _meeting_context(meeting: Meeting, style: SummarizationStyle) -> dict:
             "headline": clean_headline,
             "truncated_headline": truncate_str(clean_headline, 24),
             "summary": _text_to_html_paragraphs(summary.body),
-            "legislations": [
+            "legislation_table_contexts": [
                 _legislation_table_context(legislation, style)
                 for legislation in meeting.legislations
             ],
@@ -133,7 +143,7 @@ def _legislation_context(legislation: Legislation, style: SummarizationStyle) ->
         "kind": legislation.kind,
         "headline": _remove_surrounding_quotes(summary.headline),
         "summary": _text_to_html_paragraphs(summary.body),
-        "documents": [
+        "document_table_contexts": [
             _document_table_context(document, style)
             for document in legislation.documents.all()
         ],
@@ -262,11 +272,11 @@ def calendar(request, style: str):
     if style not in SUMMARIZATION_STYLES:
         raise Http404(f"Unknown style: {style}")
     meetings = Meeting.objects.future(relative_to=_get_relative_to()).order_by("-date")
-    meeting_descriptions = [_meeting_context(m, style) for m in meetings]
+    meeting_contexts = [_meeting_context(m, style) for m in meetings]
     return render(
         request,
         "calendar.dhtml",
-        {"style": style, "meeting_descriptions": meeting_descriptions},
+        {"style": style, "meeting_contexts": meeting_contexts},
     )
 
 
@@ -276,14 +286,14 @@ def meeting(request, meeting_id: int, style: str):
     if style not in SUMMARIZATION_STYLES:
         raise Http404(f"Unknown style: {style}")
     meeting_ = get_object_or_404(Meeting, legistar_id=meeting_id)
-    meeting_description = _meeting_context(meeting_, style)
+    meeting_context = _meeting_context(meeting_, style)
     return render(
         request,
         "meeting.dhtml",
         {
             "style": style,
             "meeting_id": meeting_id,
-            "meeting_description": meeting_description,
+            "meeting_context": meeting_context,
         },
     )
 
@@ -294,7 +304,7 @@ def legislation(request, meeting_id: int, legislation_id: int, style: str):
     if style not in SUMMARIZATION_STYLES:
         raise Http404(f"Unknown style: {style}")
     legislation_ = get_object_or_404(Legislation, legistar_id=legislation_id)
-    legislation_description = _legislation_context(legislation_, style)
+    legislation_context = _legislation_context(legislation_, style)
     return render(
         request,
         "legislation.dhtml",
@@ -302,7 +312,7 @@ def legislation(request, meeting_id: int, legislation_id: int, style: str):
             "style": style,
             "meeting_id": meeting_id,
             "legislation_id": legislation_id,
-            "legislation_description": legislation_description,
+            "legislation_context": legislation_context,
         },
     )
 
@@ -315,7 +325,7 @@ def document(
     if style not in SUMMARIZATION_STYLES:
         raise Http404(f"Unknown style: {style}")
     document_ = get_object_or_404(Document, pk=document_pk)
-    document_description = _document_context(document_, style)
+    document_context = _document_context(document_, style)
     return render(
         request,
         "document.dhtml",
@@ -324,7 +334,7 @@ def document(
             "meeting_id": meeting_id,
             "legislation_id": legislation_id,
             "document_pk": document_pk,
-            "document_description": document_description,
+            "document_context": document_context,
         },
     )
 

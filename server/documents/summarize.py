@@ -85,27 +85,19 @@ def _make_langchain_prompt(
 def _attempt_to_split_text(text: str, chunk_size: int) -> list[str]:
     """
     Attempt to split text into chunks of at most `chunk_size`.
-
-    If this fails, split on newlines.
-
-    If this fails, raise an exception.
     """
-    # Here, we use LangChain's *seemingly* buggy text splitter to attempt to
-    # split the text into chunks of size `chunk_size`. If this fails, we try
-    # to split the text on newlines. If *that* fails, we return an empty result.
-    #
-    # I've read LangChain's (paltry) docs; I've also read the underlying code.
-    # Frankly, it's entirely unclear to me what the theory of operation of
-    # CharacterTextSplitter even *is* here.
-    #
-    # FUTURE: replace this with something not-langchain.
+    # Perform a default split
     text_splitter = CharacterTextSplitter(chunk_size=chunk_size)
     texts = text_splitter.split_text(text)
     text_lengths = [len(text) for text in texts]
+
+    # If any of the chunks are still too long, try splitting on newlines.
     if any(text_length > chunk_size for text_length in text_lengths):
         text_splitter = CharacterTextSplitter("\n", chunk_size=chunk_size)
         texts = text_splitter.split_text(text)
         text_lengths = [len(text) for text in texts]
+
+        # If any of the chunks are still too long, we give up.
         if any(text_length > chunk_size for text_length in text_lengths):
             raise RuntimeError("Could not split text into chunks.")
     return texts
@@ -140,8 +132,8 @@ def summarize_langchain_llm(
         return SummarizationError(original_text=text, message="Text was empty.")
 
     # Attempt to split our text into chunks of at most `chunk_size`.
-    # Weirdly, LangChain's splitter can sometimes fail to split text. For now,
-    # we consider this a failure mode and return a `SummarizationError`.
+    # We use LangChain's `CharacterTextSplitter` for this; it can fail.
+    # For now, we consider this a failure mode and return a `SummarizationError`.
     try:
         texts = _attempt_to_split_text(text, chunk_size)
     except RuntimeError:
