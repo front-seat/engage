@@ -8,26 +8,21 @@ from django.conf import settings
 from pydantic import BaseModel as PydanticBase
 
 from server.legistar.lib import (
-    ActionSchema,
-    CalendarSchema,
-    LegislationSchema,
+    ActionCrawlData,
+    CalendarCrawlData,
+    LegislationCrawlData,
     LegistarCalendarCrawler,
     LegistarClient,
     LegistarScraper,
-    MeetingSchema,
+    MeetingCrawlData,
 )
 from server.legistar.models import (
-    Action,
     Legislation,
     LegislationSummary,
     Meeting,
     MeetingSummary,
 )
-from server.lib.pipeline_config import (
-    PIPELINE_CONFIGS,
-    PIPELINE_CONFIGS_BY_NAME,
-    SUMMARIZATION_KINDS,
-)
+from server.lib.style import SUMMARIZATION_STYLES
 
 # -----------------------------------------------------------------------------
 # Common parameters
@@ -424,9 +419,9 @@ def crawl_calendar(
 ):
     """Get all events."""
 
-    def _update_meeting_db(schema: MeetingSchema) -> None:
+    def _update_meeting_db(crawl_data: MeetingCrawlData) -> None:
         """Create or update meeting in database."""
-        meeting, created = Meeting.objects.update_or_create_from_schema(schema)
+        meeting, created = Meeting.objects.update_or_create_from_crawl_data(crawl_data)
         if settings.VERBOSE:
             verb = "created" if created else "updated"
             print(
@@ -434,9 +429,11 @@ def crawl_calendar(
                 file=sys.stderr,
             )
 
-    def _update_legislation_db(schema: LegislationSchema) -> None:
+    def _update_legislation_db(crawl_data: LegislationCrawlData) -> None:
         """Create or update legislation in database."""
-        legislation, created = Legislation.objects.update_or_create_from_schema(schema)
+        legislation, created = Legislation.objects.update_or_create_from_crawl_data(
+            crawl_data
+        )
         if settings.VERBOSE:
             verb = "created" if created else "updated"
             print(
@@ -444,27 +441,21 @@ def crawl_calendar(
                 file=sys.stderr,
             )
 
-    def _update_action_db(schema: ActionSchema) -> None:
-        """Create or update action in database."""
-        action, created = Action.objects.update_or_create_from_schema(schema)
-        if settings.VERBOSE:
-            verb = "created" if created else "updated"
-            print(
-                f">>>> CRAWL: Act {action.pk} ({action.legistar_id}) {verb}.",
-                file=sys.stderr,
-            )
-
     def _update_db(
-        item: CalendarSchema | MeetingSchema | LegislationSchema | ActionSchema,
+        item: CalendarCrawlData
+        | MeetingCrawlData
+        | LegislationCrawlData
+        | ActionCrawlData,
     ) -> None:
         """Update the database."""
-        if isinstance(item, MeetingSchema):
+        if isinstance(item, MeetingCrawlData):
             _update_meeting_db(item)
-        elif isinstance(item, LegislationSchema):
+        elif isinstance(item, LegislationCrawlData):
             _update_legislation_db(item)
-        elif isinstance(item, ActionSchema):
-            _update_action_db(item)
-        elif not isinstance(item, CalendarSchema):
+        elif isinstance(item, ActionCrawlData):
+            # FUTURE: support actions in the database too? _update_action_db(item)
+            pass
+        elif not isinstance(item, CalendarCrawlData):
             raise ValueError(f"Unexpected item type: {type(item)}")
 
     start_date: datetime.date | None = None
@@ -495,88 +486,78 @@ def summarize():
 
 @summarize.command(name="meeting")
 @click.argument("pk", type=int, required=True)
-@click.argument("config-name", type=str, default=PIPELINE_CONFIGS[0].name)
-@click.argument("kind", type=str, default="body")
-def summarize_meeting(pk: int, config_name: str, kind: str):
+@click.argument("style", type=str, default=SUMMARIZATION_STYLES[0])
+def summarize_meeting(pk: int, style: str):
     """Get a previously summarized meeting from the database, or summarize if needed."""
-    assert kind in SUMMARIZATION_KINDS
-    config = PIPELINE_CONFIGS_BY_NAME[config_name]
+    assert style in SUMMARIZATION_STYLES
     meeting = Meeting.objects.get(pk=pk)
     meeting_summary, _ = MeetingSummary.objects.get_or_create_from_meeting(
-        meeting, config, kind
+        meeting, style
     )
-    click.echo(meeting_summary.summary)
+    click.echo(meeting_summary.headline)
+    click.echo("\n\n")
+    click.echo(meeting_summary.body)
 
 
 @summarize.command(name="all-meetings")
 def summarize_all_meetings():
     """Summarize all non-canceled meetings with all available summarizers."""
     meetings = Meeting.objects.active()
-    for config in PIPELINE_CONFIGS:
-        if settings.VERBOSE:
-            click.echo(
-                f">>>> ALL-MEETINGS: Starting with {config.name}.",
-                file=sys.stderr,
-            )
+    for style in SUMMARIZATION_STYLES:
         for meeting in meetings:
-            for kind in SUMMARIZATION_KINDS:
-                meeting_summary, _ = MeetingSummary.objects.get_or_create_from_meeting(
-                    meeting, config, kind
+            if settings.VERBOSE:
+                click.echo(
+                    f">>>> ALL-MEETINGS: Sum {meeting} w/ {style}",
+                    file=sys.stderr,
                 )
-                if settings.VERBOSE:
-                    click.echo(
-                        f">>>> ALL-MEETINGS: Sum {meeting} w/ {config.name} '{kind}'",
-                        file=sys.stderr,
-                    )
-                click.echo(meeting_summary.summary)
-                if settings.VERBOSE:
-                    click.echo("\n\n", file=sys.stderr)
+            meeting_summary, _ = MeetingSummary.objects.get_or_create_from_meeting(
+                meeting, style
+            )
+            click.echo(meeting_summary.headline)
+            click.echo("\n\n")
+            click.echo(meeting_summary.body)
+            click.echo("\n\n\n\n")
 
 
 @summarize.command(name="legislation")
 @click.argument("pk", type=int, required=True)
-@click.argument("config-name", type=str, default=PIPELINE_CONFIGS[0])
-@click.argument("kind", type=str, default="body")
-def summarize_legislation(pk: int, config_name: str, kind: str):
+@click.argument("style", type=str, default=SUMMARIZATION_STYLES[0])
+def summarize_legislation(pk: int, style: str):
     """
     Get a previously summarized legislation item from the database,
     or summarize if needed.
     """
-    assert kind in SUMMARIZATION_KINDS
-    config = PIPELINE_CONFIGS_BY_NAME[config_name]
+    assert style in SUMMARIZATION_STYLES
     legislation = Legislation.objects.get(pk=pk)
     legislation_summary, _ = LegislationSummary.objects.get_or_create_from_legislation(
-        legislation, config, kind
+        legislation, style
     )
-    click.echo(legislation_summary.summary)
+    click.echo(legislation_summary.headline)
+    click.echo("\n\n")
+    click.echo(legislation_summary.body)
 
 
 @summarize.command(name="all-legislation")
 def summarize_all_legislation():
     """Summarize all legislation items with all available summarizers."""
     legislations = Legislation.objects.all()
-    for config in PIPELINE_CONFIGS:
-        if settings.VERBOSE:
-            click.echo(
-                f">>>> ALL-LEGISLATION: Using {config.name}.",
-                file=sys.stderr,
-            )
+    for style in SUMMARIZATION_STYLES:
         for legislation in legislations:
-            for kind in SUMMARIZATION_KINDS:
-                (
-                    legislation_summary,
-                    _,
-                ) = LegislationSummary.objects.get_or_create_from_legislation(
-                    legislation, config, kind
+            if settings.VERBOSE:
+                click.echo(
+                    f">>>> ALL-LEGISLATION: Sum {legislation} w/ {style}",
+                    file=sys.stderr,
                 )
-                if settings.VERBOSE:
-                    click.echo(
-                        f">>>> ALL-LEG: Sum {legislation} w/ {config.name} '{kind}'",
-                        file=sys.stderr,
-                    )
-                click.echo(legislation_summary.summary)
-                if settings.VERBOSE:
-                    click.echo("\n\n", file=sys.stderr)
+            (
+                legislation_summary,
+                _,
+            ) = LegislationSummary.objects.get_or_create_from_legislation(
+                legislation, style
+            )
+            click.echo(legislation_summary.headline)
+            click.echo("\n\n")
+            click.echo(legislation_summary.body)
+            click.echo("\n\n\n\n")
 
 
 # -----------------------------------------------------------------------------

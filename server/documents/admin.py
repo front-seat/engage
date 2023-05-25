@@ -4,7 +4,6 @@ from nonrelated_inlines.admin import NonrelatedTabularInline
 
 from server.admin import admin_site
 from server.lib.admin import NoPermissionAdminMixin
-from server.lib.truncate import truncate_str
 
 from .models import Document, DocumentSummary
 
@@ -33,7 +32,7 @@ class NonrelatedDocumentTabularInline(NoPermissionAdminMixin, NonrelatedTabularI
 
 class DocumentSummaryTabularInline(NoPermissionAdminMixin, admin.TabularInline):
     model = DocumentSummary
-    fields = ("summarized_at", "summarizer_name", "document", "summary")
+    fields = ("created_at", "style", "document", "headline")
     readonly_fields = fields
     show_change_link = True
     extra = 0
@@ -59,18 +58,13 @@ class DocumentAdmin(NoPermissionAdminMixin, admin.ModelAdmin):
 
 class DocumentSummaryAdmin(NoPermissionAdminMixin, admin.ModelAdmin):
     list_display = (
-        "summarized_at",
+        "created_at",
         "document",
-        "summarizer_name",
-        "short_summary",
+        "style",
+        "headline",
     )
-    fields = ("summarized_at", "document", "summarizer_name", "summary")
+    fields = ("created_at", "document", "style", "headline", "body")
     readonly_fields = fields
-
-    def short_summary(self, obj):
-        return truncate_str(obj.summary, 100)
-
-    short_summary.short_description = "Summary"
 
 
 admin_site.register(Document, DocumentAdmin)

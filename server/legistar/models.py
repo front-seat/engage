@@ -343,7 +343,7 @@ class MeetingSummary(SummaryBaseModel):
         constraints = [
             models.UniqueConstraint(
                 fields=["meeting", "style"],
-                name="unique_meeting_summmary_for_config",
+                name="unique_meeting_summmary_for_style",
             ),
         ]
 
@@ -526,7 +526,7 @@ class LegislationSummaryManager(models.Manager):
             document_summaries = legislation.document_summaries(style)
             document_summary_texts = [ds.body for ds in document_summaries]
 
-            # Invoke the summarizer.
+            # Invoke the summ565rarizer.
             summarizer = LEGISLATION_SUMMARIZERS_BY_STYLE[style]
             result = summarizer(
                 legislation.title, document_summary_texts=document_summary_texts
@@ -564,6 +564,6 @@ class LegislationSummary(SummaryBaseModel):
         constraints = [
             models.UniqueConstraint(
                 fields=["legislation", "style"],
-                name="unique_legislation_summary_for_config",
+                name="unique_legislation_summary_for_style",
             ),
         ]

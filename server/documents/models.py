@@ -10,6 +10,7 @@ from django.conf import settings
 from django.db import models, transaction
 from django.utils.text import slugify
 
+from server.documents.summarize import SUMMARIZERS_BY_STYLE
 from server.lib.style import SummarizationStyle
 from server.lib.summary_model import SummaryBaseModel
 from server.lib.truncate import truncate_str
@@ -217,11 +218,10 @@ class DocumentSummaryManager(models.Manager):
 
             summarizer = SUMMARIZERS_BY_STYLE[style]
             result = summarizer(text=document.extracted_text)
-            # XXX TODO DAVE
             assert isinstance(result, SummarizationSuccess)
             document_summary = self.create(
                 document=document,
-                config_name=config.name,
+                style=style,
                 body=result.body,
                 headline=result.headline,
                 original_text=result.original_text,
@@ -249,7 +249,7 @@ class DocumentSummary(SummaryBaseModel):
 
         constraints = [
             models.UniqueConstraint(
-                fields=["document", "config_name"],
-                name="unique_document_summary_for_config",
+                fields=["document", "style"],
+                name="unique_document_summary_for_style",
             )
         ]

@@ -23,7 +23,7 @@
               <td>{{ legislation.kind }}</td>
               <td>{{ legislation.headline }}</td>
               <td>
-                <a href="{% url "legistar:legislation" meeting_id=meeting_id legislation_id=legislation.legistar_id config_name=config_name %}"
+                <a href="{% url "legistar:legislation" meeting_id=meeting_id legislation_id=legislation.legistar_id style=style %}"
                    class="view-link">View&nbsp;→</a>
               </td>
             </tr>
@@ -40,7 +40,7 @@
   <nav class="breadcrumbs">
     <ul>
       <li>
-        <a href="{% url "legistar:calendar" config_name=config_name %}">Calendar</a>
+        <a href="{% url "legistar:calendar" style=style %}">Calendar</a>
       </li>
       <li class="current">Meeting {{ meeting_id }}</li>
     </ul>
