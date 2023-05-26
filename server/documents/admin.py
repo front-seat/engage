@@ -22,7 +22,7 @@ class NonrelatedDocumentTabularInline(NoPermissionAdminMixin, NonrelatedTabularI
         return True
 
     def link(self, obj):
-        return mark_safe(f'<a href="{obj.file.url}" target="_blank">View</a>')
+        return mark_safe(f'<a href="{obj.url}" target="_blank">View</a>')
 
     link.allow_tags = True
 
@@ -51,7 +51,7 @@ class DocumentAdmin(NoPermissionAdminMixin, admin.ModelAdmin):
     url_link.short_description = "Url"
 
     def link(self, obj):
-        return mark_safe(f'<a href="{obj.file.url}" target="_blank">View</a>')
+        return mark_safe(f'<a href="{obj.url}" target="_blank">View</a>')
 
     link.allow_tags = True
 

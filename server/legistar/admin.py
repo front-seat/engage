@@ -76,7 +76,7 @@ class DepartmentNameListFilter(admin.SimpleListFilter):
                 sorted(
                     set(
                         Meeting.objects.values_list(
-                            "schema_data__department__name", flat=True
+                            "raw_crawl_data__department__name", flat=True
                         )
                     ),
                     key=str.lower,
@@ -86,7 +86,7 @@ class DepartmentNameListFilter(admin.SimpleListFilter):
 
     def queryset(self, request, queryset):
         if self.value() is not None:
-            return queryset.filter(schema_data__department__name=self.value())
+            return queryset.filter(raw_crawl_data__department__name=self.value())
 
 
 class MeetingSummaryTabularInline(NoPermissionAdminMixin, admin.TabularInline):
@@ -130,7 +130,7 @@ class MeetingAdmin(NoPermissionAdminMixin, admin.ModelAdmin):
     )
 
     def department_name(self, obj):
-        return obj.schema.department.name
+        return obj.crawl_data.department.name
 
     def active(self, obj):
         return obj.is_active
@@ -146,7 +146,7 @@ class MeetingAdmin(NoPermissionAdminMixin, admin.ModelAdmin):
         meeting_summary = obj.summaries.first()
         if meeting_summary is None:
             return ""
-        return truncate_str(meeting_summary.summary, 256)
+        return truncate_str(meeting_summary.body, 256)
 
 
 class MeetingSummaryAdmin(NoPermissionAdminMixin, admin.ModelAdmin):
