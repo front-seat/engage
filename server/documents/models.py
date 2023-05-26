@@ -10,13 +10,13 @@ from django.conf import settings
 from django.db import models, transaction
 from django.utils.text import slugify
 
-from server.lib.pipeline_config import PipelineConfig, SummarizationKind
+from server.documents.summarize import SUMMARIZERS_BY_STYLE
+from server.lib.style import SummarizationStyle
+from server.lib.summary_model import SummaryBaseModel
 from server.lib.truncate import truncate_str
 
-from .extract import EXTRACTORS_BY_NAME, ExtractorCallable
-from .summarize import SUMMARIZERS_BY_NAME, SummarizerCallable
-
-OPENAI_ADA_EMBEDDING_DIMENSIONS = 1536
+from .extract import extract_text_from_bytes
+from .summarize import SummarizationSuccess
 
 
 def _load_url_mime_type(url: str) -> str:
@@ -76,7 +76,29 @@ class DocumentManager(models.Manager):
 
 class Document(models.Model):
     """
-    A single document downloaded from a source URL.
+    Represents a single document (like a PDF file, Word doc, or plain text) that
+    we found on Legistar.
+
+    Documents are always created from a URL which contains the original content.
+
+    Typically, the URL *only* contains the original content. That is, it's
+    the PDF file in question!
+
+    However, sometimes the URL is a web page that contains the document in
+    question plus some other stuff (like a header, footer, etc.). In that case,
+    we can use the `raw_content` field to store the raw bytes of the document
+    itself. This is useful with Legistar, since *sometimes* ordinances and
+    resolutions have their full text in separate PDF files, but *sometimes*
+    the full text is *only* available on a web page that has lots of other
+    UI elements and content on it. Annoying.
+
+    Finally, all `Document` instances have an `extracted_text` field. This
+    starts off blank, but you can call `extract_text()` to attempt to extract
+    the full text of the document. For instance, if the document is a PDF, we'll
+    crack it open and try to find its useful content. Calling `extract_text()`
+    both returns the extracted text *and* saves it to the database. Calling
+    `extract_text()` multiple times is safe, and will only extract the text
+    once; after that, it will just return the text that was already extracted.
     """
 
     objects = DocumentManager()
@@ -100,6 +122,15 @@ class Document(models.Model):
         help_text="""If the content was obtained via means other than the URL, 
 (for instance, was obtained by grabbing a piece of the HTML content at the URL)
 , then this field contains the raw text of the document.""",
+    )
+
+    extracted_text = models.TextField(
+        blank=True,
+        null=False,
+        default="",
+        help_text="""The extracted full text of the document. Since extraction
+        happens asynchronously, this field may be empty until the extraction
+        process has completed.""",
     )
 
     @property
@@ -133,6 +164,17 @@ class Document(models.Model):
     def short_title(self) -> str:
         return self.title.split("-")[-1].strip()
 
+    def extract_text(self) -> str:
+        # Don't re-extract, of course.
+        if self.extracted_text:
+            return self.extracted_text
+
+        # Run the extraction pipeline.
+        text = extract_text_from_bytes(self.read(), self.mime_type)
+        self.extracted_text = text
+        self.save()
+        return text
+
     def read(
         self, _loader: t.Callable[[str], tuple[bytes, str]] = _load_url
     ) -> io.BytesIO:
@@ -146,148 +188,78 @@ class Document(models.Model):
         return f"{self.kind}: {self.title}"
 
 
-class DocumentTextManager(models.Manager):
+class DocumentSummaryManager(models.Manager):
     def get_or_create_from_document(
         self,
         document: Document,
-        extractor: ExtractorCallable,
-        _reader: t.Callable[[Document], io.BytesIO] = lambda document: document.read(),
-    ) -> tuple[DocumentText, bool]:
-        """Get or create a document text from a document."""
-        # Don't use the default get_or_create() because we want to
-        # use the document and extractor as the unique identifier.
-        with transaction.atomic():
-            document_text = self.filter(
-                document=document, extractor_name=extractor.__name__
-            ).first()
-            if document_text is not None:
-                return document_text, False
-            if settings.VERBOSE:
-                print(
-                    f">>>> EXTRACT: document({document}, {extractor.__name__})",
-                    file=sys.stderr,
-                )
-            text = extractor(
-                io=_reader(document),
-                mime_type=document.mime_type,
-            )
-            document_text = self.create(
-                document=document,
-                text=text,
-                extractor_name=extractor.__name__,
-            )
-            return document_text, True
-
-
-class DocumentText(models.Model):
-    """The extracted content of a document."""
-
-    objects = DocumentTextManager()
-
-    extracted_at = models.DateTimeField(auto_now_add=True, db_index=True)
-    extractor_name = models.CharField(
-        max_length=255,
-        db_index=True,
-        help_text="The name of the extractor used to extract the text.",
-    )
-    text = models.TextField(help_text="The text content of the document.")
-
-    document = models.ForeignKey(
-        Document,
-        on_delete=models.CASCADE,
-        related_name="texts",
-        help_text="The document this text belongs to.",
-    )
-
-    @property
-    def extractor(self) -> ExtractorCallable:
-        return EXTRACTORS_BY_NAME[self.extractor_name]
-
-    def __str__(self):
-        return f"Extracted text of: {self.document}"
-
-    class Meta:
-        ordering = ["-extracted_at"]
-
-        constraints = [
-            models.UniqueConstraint(
-                fields=["document", "extractor_name"],
-                name="unique_document_extractor_name",
-            )
-        ]
-
-        verbose_name_plural = "Document text contents"
-
-
-class DocumentSummaryManager(models.Manager):
-    def get_or_create_from_document_text(
-        self,
-        document_text: DocumentText,
-        config: PipelineConfig,
-        kind: SummarizationKind,
+        style: SummarizationStyle,
     ) -> tuple[DocumentSummary, bool]:
         with transaction.atomic():
-            # If we already have a summary for this document text, return it.
+            # If we already have a summary for this document, return it.
             document_summary = self.filter(
-                document_text=document_text,
-                summarizer_name=config.document.for_kind(kind),
+                document=document,
+                style=style,
             ).first()
             if document_summary is not None:
                 return document_summary, False
 
+            # If the document has no extracted text, it's not ready to be summarized.
+            if not document.extracted_text:
+                raise ValueError(
+                    f"Document {document} has no extracted text; can't be summarized."
+                )
+
             # Otherwise, create a new summary.
             if settings.VERBOSE:
                 print(
-                    f">>>> SUMMARIZE: doc_text({document_text}, {config.name} {kind})",
+                    f">>>> SUMMARIZE: doc({document}, {style})",
                     file=sys.stderr,
                 )
 
-            summarizer = SUMMARIZERS_BY_NAME[config.document.for_kind(kind)]
-            summary = summarizer(text=document_text.text)
-            document_summary = self.create(
-                document=document_text.document,
-                document_text=document_text,
-                summary=summary,
-                summarizer_name=config.document.for_kind(kind),
-            )
+            summarizer = SUMMARIZERS_BY_STYLE[style]
+            result = summarizer(text=document.extracted_text)
+            if isinstance(result, SummarizationSuccess):
+                document_summary = self.create(
+                    document=document,
+                    style=style,
+                    body=result.body,
+                    headline=result.headline,
+                    original_text=result.original_text,
+                    chunks=result.chunks,
+                    chunk_summaries=result.chunk_summaries,
+                )
+            else:
+                document_summary = self.create(
+                    document=document,
+                    style=style,
+                    body="(Please ignore: SUMMARIZATION FAILED)",
+                    headline="Unable to summarize (see logs)",
+                    original_text=document.extracted_text,
+                    chunks=[],
+                    chunk_summaries=[],
+                )
             return document_summary, True
 
 
-class DocumentSummary(models.Model):
-    """The extracted summary of a document text."""
+class DocumentSummary(SummaryBaseModel):
+    """A summary of a document."""
 
     objects = DocumentSummaryManager()
-
-    summarized_at = models.DateTimeField(auto_now_add=True, db_index=True)
-    summarizer_name = models.CharField(max_length=255, db_index=True)
-    summary = models.TextField(help_text="The summary of the document text.")
 
     document = models.ForeignKey(
         Document,
         on_delete=models.CASCADE,
         related_name="summaries",
-        help_text="The document this summary belongs to.",
+        help_text="The summarized document.",
     )
-
-    document_text = models.ForeignKey(
-        DocumentText,
-        on_delete=models.CASCADE,
-        related_name="summaries",
-        help_text="The document text this summary belongs to.",
-    )
-
-    @property
-    def summarizer(self) -> SummarizerCallable:
-        return SUMMARIZERS_BY_NAME[self.summarizer_name]
 
     class Meta:
-        ordering = ["-summarized_at"]
+        verbose_name = "Document summary"
+        verbose_name_plural = "Document summaries"
 
         constraints = [
             models.UniqueConstraint(
-                fields=["document_text", "summarizer_name"],
-                name="unique_document_text_summarizer_name",
+                fields=["document", "style"],
+                name="unique_document_summary_for_style",
             )
         ]
-
-        verbose_name_plural = "Document summaries"

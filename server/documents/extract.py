@@ -1,5 +1,4 @@
 import io
-import typing as t
 
 import docx2txt
 import pdfplumber
@@ -143,7 +142,7 @@ def _extract_msword_v1(io: io.BytesIO) -> str:
         )
 
 
-def extract_pipeline_v1(io: io.BytesIO, mime_type: str) -> str:
+def extract_text_from_bytes(io: io.BytesIO, mime_type: str) -> str:
     """Extract text from a document using a pipeline of extractors. v1."""
     if mime_type == "application/pdf":
         return _extract_pdf_plumber_v1(io)
@@ -153,21 +152,3 @@ def extract_pipeline_v1(io: io.BytesIO, mime_type: str) -> str:
         return _extract_msword_v1(io)
     else:
         raise ValueError(f"Unrecognized MIME type {mime_type}.")
-
-
-@t.runtime_checkable
-class ExtractorCallable(t.Protocol):
-    __name__: str
-
-    def __call__(self, io: io.BytesIO, mime_type: str) -> str:
-        ...
-
-
-EXTRACTORS: list[ExtractorCallable] = [
-    extract_pipeline_v1,
-]
-
-
-EXTRACTORS_BY_NAME: dict[str, ExtractorCallable] = {
-    extractor.__name__: extractor for extractor in EXTRACTORS
-}

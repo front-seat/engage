@@ -10,18 +10,22 @@ export VERBOSE=YES
 
 echo "${BLUE}Crawling new seattle city calendar items...${NC}\n\n"
 
-./engage legistar crawl-calendar --start today
+python manage.py legistar crawl-calendar --start 2023-05-22
+
+echo "${BLUE}Extracting text from PDFs and Word files...${NC}\n\n"
+
+python manage.py documents extract all
 
 echo "\n\n${BLUE}Performing low-level document summaries...${NC}\n\n"
 
-./engage documents summarize all
+python manage.py documents summarize all
 
 echo "\n\n${BLUE}Summarizing all legislative actions...${NC}\n\n"
 
-./engage legistar summarize all-legislation
+python manage.py legistar summarize all-legislation
 
 echo "\n\n${BLUE}Summarizing all meetings...${NC}\n\n"
 
-./engage legistar summarize all-meetings
+python manage.py legistar summarize all-meetings
 
 echo "\n\n${BLUE}ALL DONE UPDATING!${NC}\n\n"

@@ -2,10 +2,10 @@
 {% block content %}
   <article class="legislation">
     <div class="header">
-      <h1>{{ legislation_description.headline }}</h1>
-      <summary>{{ legislation_description.kind }}</summary>
+      <h1>{{ legislation_context.headline }}</h1>
+      <summary>{{ legislation_context.kind }}</summary>
     </div>
-    <div class="content">{{ legislation_description.summary | safe }}</div>
+    <div class="content">{{ legislation_context.summary | safe }}</div>
     <h2>Supporting Documents</h2>
     <div>
       <table>
@@ -18,13 +18,13 @@
           </tr>
         </thead>
         <tbody>
-          {% for document in legislation_description.documents %}
+          {% for document_t_ctx in legislation_context.document_table_contexts %}
             <tr>
-              <td>{{ document.kind }}</td>
-              <td>{{ document.title }}</td>
-              <td>{{ document.headline }}</td>
+              <td>{{ document_t_ctx.kind }}</td>
+              <td>{{ document_t_ctx.title }}</td>
+              <td>{{ document_t_ctx.headline }}</td>
               <td>
-                <a href="{% url "legistar:document" meeting_id=meeting_id legislation_id=legislation_id document_pk=document.pk config_name=config_name %}"
+                <a href="{% url "legistar:document" meeting_id=meeting_id legislation_id=legislation_id document_pk=document_t_ctx.pk style=style %}"
                    class="view-link">View&nbsp;→</a>
               </td>
             </tr>
@@ -32,7 +32,7 @@
         </tbody>
       </table>
     </div>
-    <a href="{{ legislation_description.url }}"
+    <a href="{{ legislation_context.url }}"
        class="more-link space secondary"
        target="_blank">Visit legislation on legistar →</a>
   </article>
@@ -41,12 +41,12 @@
   <nav class="breadcrumbs">
     <ul>
       <li>
-        <a href="{% url "legistar:calendar" config_name=config_name %}">Calendar</a>
+        <a href="{% url "legistar:calendar" style=style %}">Calendar</a>
       </li>
       <li>
-        <a href="{% url "legistar:meeting" meeting_id=meeting_id config_name=config_name %}">Meeting {{ meeting_id }}</a>
+        <a href="{% url "legistar:meeting" meeting_id=meeting_id style=style %}">Meeting {{ meeting_id }}</a>
       </li>
-      <li class="current">Legislation {{ legislation_description.legistar_id }}</li>
+      <li class="current">Legislation {{ legislation_context.legistar_id }}</li>
     </ul>
   </nav>
 {% endblock breadcrumbs %}
