@@ -30,9 +30,15 @@ We have a collection of command-line tools implemented as Django management comm
 
 ### Summarizing documents
 
-Most of SCC's documents are large PDFs or Word files. They very rarely fit into the token context window of the LLMs that we use to generate summaries.
+For every `Document`, `Legislation` (aka legislative agenda item in a meeting), and `Meeting`, we generate a summary record that includes:
 
-As a result, we segment documents into smaller chunks and summarize each chunk individually. We then concatenate the summaries together to form a single summary for the entire document. (If the first round of summaries itself does not fit into the token context window, we repeat the process.)
+- A short newspaper-style `headline`
+- A longer `body` summary
+- A small amount of bookkeeping/debugging data so we can better evaluate our summaries
+
+The base model for all summarizations is found in `server/lib/summary_model.py`.
+
+Most of SCC's documents are large PDFs or Word files. They very rarely fit into the token context window of the LLMs that we use to generate summaries.As a result, we segment documents into smaller chunks and summarize each chunk individually. We then concatenate the summaries together to form a single summary for the entire document. (If the first round of summaries itself does not fit into the token context window, we repeat the process.)
 
 Right now, text extraction from PDFs uses [pdfplumber](https://github.com/jsvine/pdfplumber). This works _acceptably_ well for a first cut, but it fails to extract text from bitmaps found in documents. (Thankfully, most but not all SCC PDFs contain actual text, not scans.) Something like [Google Cloud Vision API](https://cloud.google.com/vision/docs/pdf) would likely provide _vastly_ better extraction results.
 
@@ -95,3 +101,15 @@ Or you can build the static site into `./dist`:
 ```
 poetry run python manage.py distill-local --force --collectstatic
 ```
+
+All of the above commands are run by the GitHub actions workflow. For local development, there's also a convenient `./scripts/update-all.sh` script that runs all of the above commands in sequence.
+
+### Project structure
+
+This is a typical Django app, albeit with an atypical build-to-static-site deployment step.
+
+Of interest:
+
+- `server.lib.*` contains utility code used throughout
+- `server.documents.*` contains code for storing our `Document` and `DocumentSummary` state. See `server/documents/models.py` for the database model definitions, `summarize.py` for the LangChain + OpenAI code to chunk and summarize individual documents, `extract.py` for our current (poor) PDF text extraction code, and `management/commands/documents.py` for the Django management commands that run the extraction and summarization.
+- `server.legistar.*` contains code for storing meetings (`Meeting`) and legislative agenda items (`Legislation`), along with their summaries (`MeetingSummary`, `LegislationSummary`), code for crawling `seattle.legistar.com` (see `server/legistar/lib/crawl.py`), code for summarizing meetings and legislations (see `server/legistar/summarize/*.py`), and code to generate the static site (see `server/legistar/urls.py` and `server/legistar/views.py`).
