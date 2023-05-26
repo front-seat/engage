@@ -91,16 +91,31 @@ def _attempt_to_split_text(text: str, chunk_size: int) -> list[str]:
     texts = text_splitter.split_text(text)
     text_lengths = [len(text) for text in texts]
 
-    # If any of the chunks are still too long, try splitting on newlines.
-    if any(text_length > chunk_size for text_length in text_lengths):
-        text_splitter = CharacterTextSplitter("\n", chunk_size=chunk_size)
-        texts = text_splitter.split_text(text)
-        text_lengths = [len(text) for text in texts]
+    # Return the chunks if they're all a reasonable size.
+    if all(text_length <= chunk_size for text_length in text_lengths):
+        return texts
 
-        # If any of the chunks are still too long, we give up.
-        if any(text_length > chunk_size for text_length in text_lengths):
-            raise RuntimeError("Could not split text into chunks.")
-    return texts
+    # Try splitting on newlines; see if we get smaller chunks.
+    text_splitter = CharacterTextSplitter("\n", chunk_size=chunk_size)
+    texts = text_splitter.split_text(text)
+    text_lengths = [len(text) for text in texts]
+
+    if all(text_length <= chunk_size for text_length in text_lengths):
+        return texts
+
+    # Try splitting on periods; see if we get smaller chunks.
+    text_splitter = CharacterTextSplitter(". ", chunk_size=chunk_size)
+    texts = text_splitter.split_text(text)
+    text_lengths = [len(text) for text in texts]
+
+    if all(text_length <= chunk_size for text_length in text_lengths):
+        return texts
+
+    # The chunks are still too long; for now, filter out the long chunks.
+    final_texts = [text for text in texts if len(text) <= chunk_size]
+    if not final_texts:
+        raise RuntimeError("Could not split text.")
+    return final_texts
 
 
 def summarize_langchain_llm(

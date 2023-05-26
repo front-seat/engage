@@ -10,7 +10,7 @@ export VERBOSE=YES
 
 echo "${BLUE}Crawling new seattle city calendar items...${NC}\n\n"
 
-python manage.py legistar crawl-calendar --start today
+python manage.py legistar crawl-calendar --start 2023-05-22
 
 echo "${BLUE}Extracting text from PDFs and Word files...${NC}\n\n"
 
