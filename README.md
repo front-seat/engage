@@ -67,19 +67,21 @@ poetry install
 
 Then, copy the `.env-sample` file to a `.env` file and make any changes you'd like. (You can leave it as-is for now.)
 
-Next, make sure to run the database migrations:
+Now you have a choice. You can either use whatever data is already present in the checked-in database (`data/db.sqlite3`), or you can start with a fresh one. If you'd like to start fresh, delete the `data/db.sqlite3` file and then run:
 
 ```
 poetry run python manage.py migrate
 ```
 
-Great; you should have an empty `data/db.sqlite3` file now and be ready to go.
+Great; you should have a `data/db.sqlite3` file. You're ready to go.
 
 To crawl the Seattle Legistar website, run:
 
 ```
 poetry run python manage.py legistar crawl-calendar --start today
 ```
+
+You can run `crawl-calendar` multiple times in a row safely; if it encounters a document already in the database, it merely moves on. Otherwise, it adds a record of the document _to_ the database.
 
 Next, extract and summarize the crawled documents, legislative agenda items, and meetings:
 
