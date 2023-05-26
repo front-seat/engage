@@ -75,9 +75,10 @@ To crawl the Seattle Legistar website, run:
 poetry run python manage.py legistar crawl-calendar --start today
 ```
 
-Next, summarize the crawled documents, legislative agenda items, and meetings:
+Next, extract and summarize the crawled documents, legislative agenda items, and meetings:
 
 ```
+poetry run python manage.py documents extract all
 poetry run python manage.py documents summarize all
 poetry run python manage.py legistar summarize all-legislation
 poetry run python manage.py legistar summarize all-meetings

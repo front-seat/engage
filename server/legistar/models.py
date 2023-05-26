@@ -80,7 +80,7 @@ class MeetingManager(models.Manager):
                 "date": crawl_data.date,
                 "time": crawl_data.time,
                 "location": crawl_data.location,
-                "crawl_data": json.loads(crawl_data.json()),
+                "raw_crawl_data": json.loads(crawl_data.json()),
             },
         )
         assert isinstance(meeting, Meeting)
@@ -363,7 +363,7 @@ class LegislationManager(models.Manager):
                 "type": crawl_data.type,
                 "status": crawl_data.status,
                 "title": crawl_data.title,
-                "crawl_data": json.loads(crawl_data.json()),
+                "raw_crawl_data": json.loads(crawl_data.json()),
             },
         )
         assert isinstance(legislation, Legislation)

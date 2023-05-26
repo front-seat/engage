@@ -12,6 +12,10 @@ echo "${BLUE}Crawling new seattle city calendar items...${NC}\n\n"
 
 python manage.py legistar crawl-calendar --start today
 
+echo "${BLUE}Extracting text from PDFs and Word files...${NC}\n\n"
+
+python manage.py documents extract all
+
 echo "\n\n${BLUE}Performing low-level document summaries...${NC}\n\n"
 
 python manage.py documents summarize all
