@@ -86,36 +86,23 @@ def _attempt_to_split_text(text: str, chunk_size: int) -> list[str]:
     """
     Attempt to split text into chunks of at most `chunk_size`.
     """
-    # Perform a default split
-    text_splitter = CharacterTextSplitter(chunk_size=chunk_size)
-    texts = text_splitter.split_text(text)
-    text_lengths = [len(text) for text in texts]
+    # We try to split the text in a few different ways. If we're lucky, one
+    # of them will yield chunks entirely of size <= `chunk_size`.
+    SEPARATORS = ["\n\n", "\n", ". "]
 
-    # Return the chunks if they're all a reasonable size.
-    if all(text_length <= chunk_size for text_length in text_lengths):
-        return texts
+    texts = []
+    for separator in SEPARATORS:
+        text_splitter = CharacterTextSplitter(separator, chunk_size=chunk_size)
+        texts = text_splitter.split_text(text)
+        if all(len(text) <= chunk_size for text in texts):
+            return texts
 
-    # Try splitting on newlines; see if we get smaller chunks.
-    text_splitter = CharacterTextSplitter("\n", chunk_size=chunk_size)
-    texts = text_splitter.split_text(text)
-    text_lengths = [len(text) for text in texts]
-
-    if all(text_length <= chunk_size for text_length in text_lengths):
-        return texts
-
-    # Try splitting on periods; see if we get smaller chunks.
-    text_splitter = CharacterTextSplitter(". ", chunk_size=chunk_size)
-    texts = text_splitter.split_text(text)
-    text_lengths = [len(text) for text in texts]
-
-    if all(text_length <= chunk_size for text_length in text_lengths):
-        return texts
-
-    # The chunks are still too long; for now, filter out the long chunks.
-    final_texts = [text for text in texts if len(text) <= chunk_size]
-    if not final_texts:
+    # If we get here, we couldn't find a separator that worked. Just filter
+    # out the long chunks.
+    filtered_texts = [text for text in texts if len(text) <= chunk_size]
+    if not filtered_texts:
         raise RuntimeError("Could not split text.")
-    return final_texts
+    return filtered_texts
 
 
 def summarize_langchain_llm(
