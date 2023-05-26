@@ -55,6 +55,7 @@ class SummarizationSuccess(SummarizationResultBase):
     """LLM outputs for each text chunk."""
 
 
+# For the functional programming nerds in the house, here's our Either type. :-)
 SummarizationResult: t.TypeAlias = SummarizationError | SummarizationSuccess
 
 
