@@ -4,6 +4,8 @@ This the code that generates [scc.frontseat.org](https://scc.frontseat.org/), a 
 
 The SCC publishes documents for upcoming meetings at [seattle.legistar.com](https://seattle.legistar.com/Calendar.aspx). These documents are often long and complex, and it can be difficult to understand what's going on. The Engage-o-tron™ is an attempt to make this information more accessible.
 
+**NOTE** This was written as a pretty quick hack. It's a bit of a mess. Maybe one day I'll go back and clean it all up.
+
 ## How it works
 
 This repository contains code to generate a static website site that is deployed to [GitHub Pages](https://pages.github.com/).
