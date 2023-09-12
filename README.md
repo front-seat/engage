@@ -4,8 +4,6 @@ This the code that generates [scc.frontseat.org](https://scc.frontseat.org/), a 
 
 The SCC publishes documents for upcoming meetings at [seattle.legistar.com](https://seattle.legistar.com/Calendar.aspx). These documents are often long and complex, and it can be difficult to understand what's going on. The Engage-o-tron™ is an attempt to make this information more accessible.
 
-**NOTE** This was written as a pretty quick hack. It's a bit of a mess. Maybe one day I'll go back and clean it all up.
-
 ## How it works
 
 This repository contains code to generate a static website site that is deployed to [GitHub Pages](https://pages.github.com/).
@@ -13,6 +11,8 @@ This repository contains code to generate a static website site that is deployed
 We use [GitHub Actions](https://github.com/features/actions) to regularly re-crawl the SCC Legistar website, extract text from PDFs, generate summaries of upcoming meetings, and deploy the static site.
 
 In order to make this all work, a record of previously crawled data, extracted text, and summarizations is stored in a SQLite database that is checked into this repository. This follows [Simon Willison's "baked data" pattern](https://simonwillison.net/2021/Jul/28/baked-data/) and keeps our devops both simple and zero cost. The only expense we have, at the moment, is invoking ChatGPT to generate summaries; we're currently _well_ under the GitHub Actions monthly minutes quota for the free tier.
+
+**NOTE** This was written as a pretty quick hack. It's messy. Maybe one day I'll go back and clean it all up.
 
 ### Some more details
 
