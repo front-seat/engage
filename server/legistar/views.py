@@ -97,8 +97,10 @@ def _meeting_context(meeting: Meeting, style: SummarizationStyle) -> dict:
     if meeting.is_active:
         summary = get_object_or_404(MeetingSummary, meeting=meeting, style=style)
         clean_headline = _remove_surrounding_quotes(summary.headline)
+        skip = "unable to summarize" in clean_headline.lower()
         return {
             "is_active": True,
+            "skip": skip,
             "legistar_id": meeting.legistar_id,
             "url": meeting.url,
             "date": meeting.date,

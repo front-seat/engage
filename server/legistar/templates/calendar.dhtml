@@ -9,6 +9,7 @@
 {% endblock title %}
 {% block content %}
   {% for meeting_context in meeting_contexts %}
+    {% if not meeting_context.skip %}
     <article class="meeting {% if meeting_context.is_active %}active{% else %}canceled{% endif %}">
       {% if meeting_context.is_active %}
         <div class="header">
@@ -30,6 +31,7 @@
         </div>
       {% endif %}
     </article>
+    {% endif %}
   {% endfor %}
   <a href="https://seattle.legistar.com/Calendar.aspx"
      class="more-link space secondary"
