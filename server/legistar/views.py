@@ -173,7 +173,7 @@ def _document_context(document: Document, style: SummarizationStyle) -> dict:
 # Utilities for grabbing the right data from our database
 # ------------------------------------------------------------------------
 
-PAST_CUTOFF_DELTA = datetime.timedelta(days=5)
+PAST_CUTOFF_DELTA = datetime.timedelta(days=8)
 """How far back in time should we still show meeting summaries?"""
 
 
