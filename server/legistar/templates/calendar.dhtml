@@ -5,6 +5,9 @@
     <p class="big-subtitle">
       A <a href="https://frontseat.org/" target="_blank">Front Seat</a> experiment.
     </p>
+    <p class="big-subtitle" style="margin-top: 1em; color: #666;">
+      Seattle's city council posts information about upcoming meetings at <a href="https://seattle.legistar.com/Calendar.aspx" target="_blank">seattle.legistar.com</a>. This site is an experiment to see if we can make that information more accessible by summarizing it with large language models.
+    </p>
   </section>
 {% endblock title %}
 {% block content %}
