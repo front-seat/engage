@@ -1,12 +1,13 @@
 {
-  "python.formatting.provider": "black",
+  "python.formatting.provider": "none",
   "python.terminal.activateEnvironment": false,
   "[python]": {
     "editor.formatOnSave": true,
     "editor.codeActionsOnSave": {
       "source.fixAll": true,
       "source.organizeImports": true
-    }
+    },
+    "editor.defaultFormatter": "ms-python.black-formatter"
   },
   "[django-html]": {
     "editor.formatOnSave": true,

@@ -890,6 +890,8 @@ class LegistarScraper:
             response.raise_for_status()
         except requests.exceptions.HTTPError as e:
             raise LegistarError(str(e)) from e
+        except requests.exceptions.ConnectionError:
+            return ""
         return response.text
 
     def _get_soup(self, url: str) -> BeautifulSoup:

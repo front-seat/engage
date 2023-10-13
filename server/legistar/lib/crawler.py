@@ -81,7 +81,11 @@ class LegistarCalendarCrawler:
         if row.action_details is None:
             return None
         id, guid = row.action_details.id, row.action_details.guid
-        return self.get_action(id, guid)
+        try:
+            return self.get_action(id, guid)
+        except Exception as e:
+            print(f"Error getting action {id}, {guid}: {e}")
+            return None
 
     def get_action(self, id: int, guid: str) -> ActionCrawlData:
         if guid not in self._actions:
