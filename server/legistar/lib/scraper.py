@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import datetime
 import itertools
+import logging
 import typing as t
 import urllib.parse
 
@@ -21,6 +22,8 @@ from .web_schema import (
     MeetingRowCrawlData,
 )
 
+logger = logging.getLogger(__name__)
+
 # ---------------------------------------------------------------------
 # Tools for /Calendar.aspx
 # ---------------------------------------------------------------------
@@ -39,16 +42,20 @@ CALENDAR_ROW_HEADERS = [
 ]
 
 
-def _make_calendar_row(row: RowScraper) -> CalendarRowCrawlData:
-    department = row.get_link("name")
-    date = row.get_date("meeting date")
-    time = row.get_optional_time("meeting time")
-    location = row.get_text("meeting location")
-    details = row.get_link("meeting details")
-    agenda = row.get_link("agenda")
-    agenda_packet = row.get_optional_link("agenda packet")
-    minutes = row.get_optional_link("minutes")
-    video = row.get_optional_link("seattle channel")
+def _make_calendar_row(row: RowScraper) -> CalendarRowCrawlData | None:
+    try:
+        department = row.get_link("name")
+        date = row.get_date("meeting date")
+        time = row.get_optional_time("meeting time")
+        location = row.get_text("meeting location")
+        details = row.get_link("meeting details")
+        agenda = row.get_link("agenda")
+        agenda_packet = row.get_optional_link("agenda packet")
+        minutes = row.get_optional_link("minutes")
+        video = row.get_optional_link("seattle channel")
+    except LegistarError as e:
+        logger.exception(f"Could not parse calendar row: {e}")
+        return None
 
     return CalendarRowCrawlData(
         department=department,
@@ -937,7 +944,11 @@ class LegistarScraper:
         """Get rows from the calendar page."""
         url = self._url("/Calendar.aspx")
         table_scraper = self._get_table_scraper(url, CALENDAR_ROW_HEADERS)
-        rows = [_make_calendar_row(row) for row in table_scraper]
+        rows = [
+            calendar_row
+            for row in table_scraper
+            if (calendar_row := _make_calendar_row(row))
+        ]
         if start_date is not None:
             rows = [row for row in rows if row.date >= start_date]
         return rows

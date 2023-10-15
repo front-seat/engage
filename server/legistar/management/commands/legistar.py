@@ -421,7 +421,7 @@ def crawl_calendar(
 
     def _update_meeting_db(crawl_data: MeetingCrawlData) -> None:
         """Create or update meeting in database."""
-        meeting, created = Meeting.objects.update_or_create_from_crawl_data(crawl_data)
+        meeting, created = Meeting.manager.update_or_create_from_crawl_data(crawl_data)
         if settings.VERBOSE:
             verb = "created" if created else "updated"
             print(
@@ -431,7 +431,7 @@ def crawl_calendar(
 
     def _update_legislation_db(crawl_data: LegislationCrawlData) -> None:
         """Create or update legislation in database."""
-        legislation, created = Legislation.objects.update_or_create_from_crawl_data(
+        legislation, created = Legislation.manager.update_or_create_from_crawl_data(
             crawl_data
         )
         if settings.VERBOSE:
@@ -491,7 +491,7 @@ def summarize_meeting(pk: int, style: str):
     """Get a previously summarized meeting from the database, or summarize if needed."""
     assert style in SUMMARIZATION_STYLES
     meeting = Meeting.objects.get(pk=pk)
-    meeting_summary, _ = MeetingSummary.objects.get_or_create_from_meeting(
+    meeting_summary, _ = MeetingSummary.manager.get_or_create_from_meeting(
         meeting, style
     )
     click.echo(meeting_summary.headline)
@@ -502,7 +502,7 @@ def summarize_meeting(pk: int, style: str):
 @summarize.command(name="all-meetings")
 def summarize_all_meetings():
     """Summarize all non-canceled meetings with all available summarizers."""
-    meetings = Meeting.objects.active()
+    meetings = Meeting.manager.active()
     for style in SUMMARIZATION_STYLES:
         for meeting in meetings:
             if settings.VERBOSE:
@@ -510,7 +510,7 @@ def summarize_all_meetings():
                     f">>>> ALL-MEETINGS: Sum {meeting} w/ {style}",
                     file=sys.stderr,
                 )
-            meeting_summary, _ = MeetingSummary.objects.get_or_create_from_meeting(
+            meeting_summary, _ = MeetingSummary.manager.get_or_create_from_meeting(
                 meeting, style
             )
             click.echo(meeting_summary.headline)
@@ -529,7 +529,7 @@ def summarize_legislation(pk: int, style: str):
     """
     assert style in SUMMARIZATION_STYLES
     legislation = Legislation.objects.get(pk=pk)
-    legislation_summary, _ = LegislationSummary.objects.get_or_create_from_legislation(
+    legislation_summary, _ = LegislationSummary.manager.get_or_create_from_legislation(
         legislation, style
     )
     click.echo(legislation_summary.headline)
@@ -551,7 +551,7 @@ def summarize_all_legislation():
             (
                 legislation_summary,
                 _,
-            ) = LegislationSummary.objects.get_or_create_from_legislation(
+            ) = LegislationSummary.manager.get_or_create_from_legislation(
                 legislation, style
             )
             click.echo(legislation_summary.headline)
@@ -603,13 +603,13 @@ def prune_meetings(days: int):
                     f">>>> PRUNE: legislation ({legislation.legistar_id}).",
                     file=sys.stderr,
                 )
-            for action in legislation.actions:
-                if settings.VERBOSE:
-                    click.echo(
-                        f">>>> PRUNE: action ({action.legistar_id}).",
-                        file=sys.stderr,
-                    )
-                action.delete()
+            # for action in t.cast(Legislation, legislation).actions:
+            #     if settings.VERBOSE:
+            #         click.echo(
+            #             f">>>> PRUNE: action ({action.legistar_id}).",
+            #             file=sys.stderr,
+            #         )
+            #     action.delete()
             if settings.VERBOSE:
                 count = legislation.documents.all().count()
                 click.echo(

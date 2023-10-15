@@ -48,10 +48,10 @@ class SummarizationSuccess(SummarizationResultBase):
     headline: str
     """A brief summary of the text."""
 
-    chunks: tuple[str]
+    chunks: tuple[str, ...]
     """Text chunks sent to the LLM for summarization."""
 
-    chunk_summaries: tuple[str]
+    chunk_summaries: tuple[str, ...]
     """LLM outputs for each text chunk."""
 
 

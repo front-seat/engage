@@ -187,7 +187,7 @@ def _get_relative_to(when: datetime.date | None = None) -> datetime.date:
 
 def _meetings_qs():
     """Return a Django QuerySet of all meetings that should show summaries."""
-    qs = Meeting.objects.future(relative_to=_get_relative_to())
+    qs = Meeting.manager.future(relative_to=_get_relative_to())
     qs = qs.exclude(time=None)
     meeting_pks_with_summaries = set(
         MeetingSummary.objects.values_list("meeting_id", flat=True)
@@ -273,7 +273,7 @@ def calendar(request, style: str):
     """Render the calendar page for a given `style`."""
     if style not in SUMMARIZATION_STYLES:
         raise Http404(f"Unknown style: {style}")
-    meetings = Meeting.objects.future(relative_to=_get_relative_to()).order_by("-date")
+    meetings = Meeting.manager.future(relative_to=_get_relative_to()).order_by("-date")
     meeting_contexts = [_meeting_context(m, style) for m in meetings]
     return render(
         request,

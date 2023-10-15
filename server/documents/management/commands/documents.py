@@ -74,7 +74,7 @@ def summarize_single(
         raise click.ClickException(
             "No extracted text found for document. Run extract first."
         )
-    document_summary, _ = DocumentSummary.objects.get_or_create_from_document(
+    document_summary, _ = DocumentSummary.manager.get_or_create_from_document(
         document, style
     )
     click.echo(document_summary.headline)
@@ -95,7 +95,7 @@ def summarize_all(ignore_kinds: str = "agenda,agenda_packet"):
             (
                 document_summary,
                 _,
-            ) = DocumentSummary.objects.get_or_create_from_document(document, style)
+            ) = DocumentSummary.manager.get_or_create_from_document(document, style)
             if settings.VERBOSE:
                 print(
                     f">>>> ALL-DOCS: Sum {document} w/ {style}",

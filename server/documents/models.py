@@ -101,7 +101,8 @@ class Document(models.Model):
     once; after that, it will just return the text that was already extracted.
     """
 
-    objects = DocumentManager()
+    object: DocumentManager = DocumentManager()
+    manager: DocumentManager = DocumentManager()
 
     url = models.URLField(
         unique=True, help_text="The original URL where the document was found."
@@ -244,7 +245,8 @@ class DocumentSummaryManager(models.Manager):
 class DocumentSummary(SummaryBaseModel):
     """A summary of a document."""
 
-    objects = DocumentSummaryManager()
+    objects: DocumentSummaryManager = DocumentSummaryManager()
+    manager: DocumentSummaryManager = DocumentSummaryManager()
 
     document = models.ForeignKey(
         Document,

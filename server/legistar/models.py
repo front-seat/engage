@@ -87,28 +87,28 @@ class MeetingManager(models.Manager):
         # Load all the documents, if needed; update the meeting's
         # documents to match the crawl_data.
         documents = []
-        agenda_document, _ = Document.objects.get_or_create_from_url(
+        agenda_document, _ = Document.manager.get_or_create_from_url(
             url=crawl_data.agenda.url,
             kind=LegistarDocumentKind.AGENDA,
             title=f"meeting-{crawl_data.id}-agenda",
         )
         documents.append(agenda_document)
         if crawl_data.agenda_packet:
-            agenda_packet_document, _ = Document.objects.get_or_create_from_url(
+            agenda_packet_document, _ = Document.manager.get_or_create_from_url(
                 url=crawl_data.agenda_packet.url,
                 kind=LegistarDocumentKind.AGENDA_PACKET,
                 title=f"meeting-{crawl_data.id}-agenda_packet",
             )
             documents.append(agenda_packet_document)
         if crawl_data.minutes:
-            minutes_document, _ = Document.objects.get_or_create_from_url(
+            minutes_document, _ = Document.manager.get_or_create_from_url(
                 url=crawl_data.minutes.url,
                 kind=LegistarDocumentKind.MINUTES,
                 title=f"meeting-{crawl_data.id}-minutes",
             )
             documents.append(minutes_document)
         for attachment in crawl_data.attachments:
-            attachment_document, _ = Document.objects.get_or_create_from_url(
+            attachment_document, _ = Document.manager.get_or_create_from_url(
                 url=attachment.url,
                 kind=LegistarDocumentKind.ATTACHMENT,
                 title=f"meeting-{crawl_data.id}-attachment-{attachment.name}",
@@ -121,7 +121,8 @@ class MeetingManager(models.Manager):
 class Meeting(models.Model):
     """A single meeting as found on the Legistar website."""
 
-    objects = MeetingManager()
+    objects: MeetingManager = MeetingManager()
+    manager: MeetingManager = MeetingManager()
 
     legistar_id = models.IntegerField(
         help_text="The ID of the meeting on the Legistar site."
@@ -336,7 +337,8 @@ class MeetingSummaryManager(models.Manager):
 class MeetingSummary(SummaryBaseModel):
     """A summary of a meeting."""
 
-    objects = MeetingSummaryManager()
+    objects: MeetingSummaryManager = MeetingSummaryManager()
+    manager: MeetingSummaryManager = MeetingSummaryManager()
 
     meeting = models.ForeignKey(
         Meeting,
@@ -380,21 +382,21 @@ class LegislationManager(models.Manager):
         # documents to match the crawl data.
         documents = []
         for attachment in crawl_data.attachments:
-            attachment_document, _ = Document.objects.get_or_create_from_url(
+            attachment_document, _ = Document.manager.get_or_create_from_url(
                 url=attachment.url,
                 kind=LegistarDocumentKind.ATTACHMENT,
                 title=f"legislation-{crawl_data.id}-attachment-{attachment.name}",
             )
             documents.append(attachment_document)
         for supporting_document in crawl_data.supporting_documents:
-            supporting_document_document, _ = Document.objects.get_or_create_from_url(
+            supporting_document_document, _ = Document.manager.get_or_create_from_url(
                 url=supporting_document.url,
                 kind=LegistarDocumentKind.SUPPORTING_DOCUMENT,
                 title=f"legislation-{crawl_data.id}-supporting-{supporting_document.name}",
             )
             documents.append(supporting_document_document)
         if crawl_data.full_text is not None:
-            full_text_document, _ = Document.objects.get_or_create_from_url(
+            full_text_document, _ = Document.manager.get_or_create_from_url(
                 url=urllib.parse.urljoin(crawl_data.url, "#FullTextDiv"),
                 kind=LegistarDocumentKind.FULL_TEXT,
                 title=f"legislation-{crawl_data.id}-full",
@@ -410,7 +412,8 @@ class LegislationManager(models.Manager):
 class Legislation(models.Model):
     """A single piece of legislation as found on the Legistar website."""
 
-    objects = LegislationManager()
+    objects: LegislationManager = LegislationManager()
+    manager: LegislationManager = LegislationManager()
 
     legistar_id = models.IntegerField(
         help_text="The ID of the legislation on the Legistar site."
@@ -566,7 +569,8 @@ class LegislationSummaryManager(models.Manager):
 class LegislationSummary(SummaryBaseModel):
     """A summary of legislation as found on the Legistar website."""
 
-    objects = LegislationSummaryManager()
+    objects: LegislationSummaryManager = LegislationSummaryManager()
+    manager: LegislationSummaryManager = LegislationSummaryManager()
 
     legislation = models.ForeignKey(
         Legislation,
