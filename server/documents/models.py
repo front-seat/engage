@@ -101,7 +101,7 @@ class Document(models.Model):
     once; after that, it will just return the text that was already extracted.
     """
 
-    object: DocumentManager = DocumentManager()
+    objects: DocumentManager = DocumentManager()
     manager: DocumentManager = DocumentManager()
 
     url = models.URLField(
