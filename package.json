@@ -1,6 +1,6 @@
 {
   "name": "engage",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "City Council Engage-O-Tron",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -9,6 +9,6 @@
   "author": "",
   "private": true,
   "devDependencies": {
-    "pyright": "^1.1.302"
+    "pyright": "^1"
   }
 }

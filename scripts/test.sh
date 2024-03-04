@@ -5,9 +5,9 @@ set -eu -o pipefail
 BLUE="\e[34m"
 NC="\e[0m"
 
-# Run Python formatter (black) -- but let Django migrations get a pass.
-printf "${BLUE}Running black...${NC}\n"
-black server --check
+# Run Python formatter -- but let Django migrations get a pass.
+printf "${BLUE}Running ruff format...${NC}\n"
+ruff format --check server
 
 # Run Python linter (ruff).
 printf "${BLUE}Running ruff...${NC}\n"

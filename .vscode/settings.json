@@ -1,13 +1,11 @@
 {
-  "python.formatting.provider": "none",
-  "python.terminal.activateEnvironment": false,
   "[python]": {
     "editor.formatOnSave": true,
     "editor.codeActionsOnSave": {
       "source.fixAll": "explicit",
       "source.organizeImports": "explicit"
     },
-    "editor.defaultFormatter": "ms-python.black-formatter"
+    "editor.defaultFormatter": "charliermarsh.ruff"
   },
   "[django-html]": {
     "editor.formatOnSave": true,
