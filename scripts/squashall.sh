@@ -10,7 +10,7 @@ rm -rf server/documents/migrations
 rm -rf server/legistar/migrations
 
 # Run new makemigrations
-python manage.py makemigrations documents --name models
+python manage.py makemigrations documents
 python manage.py makemigrations legistar
 
 # Run new migrate

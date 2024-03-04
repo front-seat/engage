@@ -7,41 +7,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout the `engage` repository
-        uses: actions/checkout@v3
-      - name: Install node 18
-        uses: actions/setup-node@v2
+        uses: actions/checkout@v4
+      - name: Install node 20
+        uses: actions/setup-node@v4
         with:
-          node-version: "18"
-      - name: Install python 3.11.x
-        uses: actions/setup-python@v2
+          node-version: "20"
+      - name: Install python 3.12.x
+        uses: actions/setup-python@v5
         id: install-python
         with:
-          python-version: "3.11.3"
-      - name: Install poetry
-        uses: snok/install-poetry@v1
-        with:
-          version: 1.4.2
-          virtualenvs-create: true
-          virtualenvs-in-project: true
-      - name: Load cached venv
-        id: cache-python
-        uses: actions/cache@v3
-        with:
-          path: .venv
-          key: venv-${{ runner.os }}-${{ steps.install-python.outputs.python-version }}-${{ hashfiles('**/poetry.lock') }}
-      - name: Install python dependencies
-        if: steps.cache-python.outputs.cache-hit != 'true'
-        run: poetry install --no-interaction --no-root
-      - name: Cache npm cachefiles
-        uses: actions/cache@v2
-        with:
-          path: ~/.npm
-          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: ${{ runner.os }}-node-
+          python-version: "3.12.2"
       - name: Install node dependencies
         run: npm install
-      - name: Check python formatting (black)
-        run: poetry run black server --check
+      - name: Install python dependencies
+        run: pip install -r requirements.txt
+      - name: Check python formatting (ruff format)
+        run: poetry run ruff format --check server
       - name: Check python linting (ruff)
         run: poetry run ruff check server
       - name: Check python types (pyright)

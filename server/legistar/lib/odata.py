@@ -4,6 +4,7 @@ Simple tools for managing OData query parameters.
 Legistar's API uses these, but only in the simplest way; adopting the official
 OData Python library would be (painful) overkill.
 """
+
 from __future__ import annotations
 
 import datetime

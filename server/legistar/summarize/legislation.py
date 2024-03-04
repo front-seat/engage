@@ -67,8 +67,7 @@ class LegislationSummarizerCallable(t.Protocol):
 
     def __call__(
         self, title: str, document_summary_texts: list[str]
-    ) -> SummarizationResult:
-        ...
+    ) -> SummarizationResult: ...
 
 
 LEGISLATION_SUMMARIZERS: list[LegislationSummarizerCallable] = [

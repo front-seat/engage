@@ -6,7 +6,7 @@ authors = [{ name = "Dave Peck", email = "dave@frontseat.org>" }]
 
 [tool.ruff]
 exclude = ["migrations"]
-line-length = 100
+line-length = 88
 
 [tool.pyright]
 include = ["server"]

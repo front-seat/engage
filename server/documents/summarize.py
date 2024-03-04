@@ -5,10 +5,8 @@ from django.conf import settings
 from django.template import Context, Template
 from langchain.base_language import BaseLanguageModel
 from langchain.chains.combine_documents.map_reduce import MapReduceDocumentsChain
-from langchain.chains.combine_documents.stuff import StuffDocumentsChain
-from langchain.chains.llm import LLMChain
 from langchain.chains.summarize import load_summarize_chain
-from langchain.chat_models import ChatOpenAI
+from langchain.chat_models.openai import ChatOpenAI
 from langchain.docstore.document import Document
 from langchain.prompts import PromptTemplate
 from langchain.text_splitter import CharacterTextSplitter
@@ -106,6 +104,16 @@ def _attempt_to_split_text(text: str, chunk_size: int) -> list[str]:
     return filtered_texts
 
 
+def _clean_headline(unclean: str) -> str:
+    """Strip whitespace, as well as enclosing single or double quotes."""
+    clean = unclean.strip()
+    if clean.startswith('"') and clean.endswith('"'):
+        clean = clean[1:-1]
+    if clean.startswith("'") and clean.endswith("'"):
+        clean = clean[1:-1]
+    return clean.strip()
+
+
 def summarize_langchain_llm(
     text: str,
     llm: BaseLanguageModel,
@@ -132,6 +140,8 @@ def summarize_langchain_llm(
     """
     # Check for a failure mode: if the text is empty, return an empty result.
     if not text.strip():
+        # TODO E2 make this an exception
+        # See https://github.com/front-seat/cdp-summarize/blob/3effcc51d1a619a55047b8aac9600bc5c0308e11/summarize/llm.py#L85
         return SummarizationError(original_text=text, message="Text was empty.")
 
     # Attempt to split our text into chunks of at most `chunk_size`.
@@ -144,7 +154,7 @@ def summarize_langchain_llm(
 
     # LangChain documents are tuples of text and arbitrary metadata;
     # we don't use the metadata. It defaults to an empty dict.
-    documents = [Document(page_content=text) for text in texts]
+    detail_documents = [Document(page_content=text) for text in texts]
 
     # Build LangChain-style PromptTemplates.
     map_prompt = _make_langchain_prompt(map_template, context)
@@ -153,7 +163,7 @@ def summarize_langchain_llm(
 
     # Build a LangChain summarization chain. This one will produce the body
     # summary.
-    chain = load_summarize_chain(
+    detail_chain = load_summarize_chain(
         llm,
         chain_type="map_reduce",
         map_prompt=map_prompt,
@@ -161,42 +171,42 @@ def summarize_langchain_llm(
         return_intermediate_steps=True,
     )
     # Our hack below depends on this being a MapReduceDocumentsChain.
-    assert isinstance(chain, MapReduceDocumentsChain)
+    assert isinstance(detail_chain, MapReduceDocumentsChain)
 
     # Run the chain.
-    outputs = chain(documents)
+    detail_outputs = detail_chain(detail_documents)
 
     # Make sure the expected output keys are available.
     # (We used the `return_intermediate_steps=True` option above, so we expect
     # to see the `intermediate_steps` key.)
-    assert "output_text" in outputs
-    assert "intermediate_steps" in outputs
+    if (
+        "output_text" not in detail_outputs
+        or "intermediate_steps" not in detail_outputs
+    ):
+        return SummarizationError(
+            original_text=text, message="Missing expected keys from detail_outputs."
+        )
 
     # Great! We now have the body summary, and the intermediate steps:
-    body = outputs["output_text"]
-    chunk_summaries = outputs["intermediate_steps"]
-    assert len(chunk_summaries) == len(documents)
+    body = detail_outputs["output_text"].strip()
+    chunk_summaries = detail_outputs["intermediate_steps"]
+    assert len(chunk_summaries) == len(detail_documents)
 
-    # Now we want to generate the headline summary. We want to re-use the
-    # chunk summaries we already generated. There's useful code in
-    # MapReduceDocumentsChain._process_results() that we want to make use of
-    # here; unfortunately, it's buried in a private method. I've opted for a
-    # big hack: replace `chain.combine_document_chain` with a new
-    # one that uses the `headline` combine prompt, and then manually re-invoke
-    # `chain._process_results()`. An alternative I considered: copying
-    # langchain's code into our own codebase. That seemed annoying, too. Argh.
-    reduce_chain = LLMChain(llm=llm, prompt=headline_combine_prompt)
-    combine_document_chain = StuffDocumentsChain(
-        llm_chain=reduce_chain,
-        document_variable_name="text",
+    # Generate a headline summary by re-using the chunk summaries.
+    headline_documents = [Document(page_content=summary) for summary in chunk_summaries]
+    headline_chain = load_summarize_chain(
+        llm,
+        chain_type="map_reduce",
+        map_prompt=map_prompt,
+        combine_prompt=headline_combine_prompt,
     )
-    chain.combine_document_chain = combine_document_chain
-    # Massage the chunk summaries into the shape expected by _process_results().
-    hack_results = [
-        {chain.llm_chain.output_key: chunk_summary} for chunk_summary in chunk_summaries
-    ]
-    # Call the private method on MapReduceDocumentsChain that we want to use.
-    headline, _ = chain._process_results(results=hack_results, docs=documents)
+    headline_outputs = headline_chain(headline_documents)
+    if "output_text" not in headline_outputs:
+        return SummarizationError(
+            original_text=text, message="Missing expected key from headline_outputs."
+        )
+
+    headline = _clean_headline(headline_outputs["output_text"])
 
     # We did it!
     return SummarizationSuccess(
@@ -204,7 +214,7 @@ def summarize_langchain_llm(
         body=body,
         headline=headline,
         chunks=tuple(texts),
-        chunk_summaries=tuple(outputs["intermediate_steps"]),
+        chunk_summaries=tuple(chunk_summaries),
     )
 
 
@@ -299,8 +309,7 @@ class SummarizerCallable(t.Protocol):
 
     def __call__(
         self, text: str, context: dict[str, t.Any] | None = None
-    ) -> SummarizationResult:
-        ...
+    ) -> SummarizationResult: ...
 
 
 SUMMARIZERS: list[SummarizerCallable] = [

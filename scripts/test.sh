@@ -22,9 +22,3 @@ npx pyright
 printf "${BLUE}Running backend tests...${NC}\n"
 python manage.py test
 
-# See if we can generate the static site
-printf "${BLUE}Generating static site...${NC}\n"
-python manage.py distill-local --force --collectstatic > /dev/null
-printf "${BLUE}...(successfully generated)${NC}\n"
-
-

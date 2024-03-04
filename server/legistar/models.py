@@ -230,8 +230,7 @@ class Meeting(models.Model):
     def document_summaries(
         self,
         style: SummarizationStyle,
-        excludes: frozenset[str]
-        | None = frozenset(
+        excludes: frozenset[str] | None = frozenset(
             [LegistarDocumentKind.AGENDA, LegistarDocumentKind.AGENDA_PACKET]
         ),
         require: bool = True,
