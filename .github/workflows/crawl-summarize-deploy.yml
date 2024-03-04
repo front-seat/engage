@@ -1,9 +1,9 @@
 name: "Crawl, summarize, and deploy updates"
 
 on:
-  schedule:
-    # 1AM and 11AM pacific (8AM and 6PM UTC)
-    - cron: "0 8,18 * * *"
+  # schedule:
+  #   # 1AM and 11AM pacific (8AM and 6PM UTC)
+  #   - cron: "0 8,18 * * *"
 
   # Make it possible to manually run this workflow.
   workflow_dispatch:
