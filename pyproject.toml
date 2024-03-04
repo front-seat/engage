@@ -1,26 +1,11 @@
 [project]
 name = "engage"
 version = "0.0.1"
-
-[build-system]
-requires = ["poetry==1.4.2"]
-
-[tool.poetry]
-name = "engage"
-version = "0.0.1"
 description = "City Council Engage-O-Tron"
-authors = ["Dave Peck <davepeck@davepeck.org>"]
-
-[tool.black]
-target-version = ["py311"]
-exclude = "/migrations/"
+authors = [{ name = "Dave Peck", email = "dave@frontseat.org>" }]
 
 [tool.ruff]
 exclude = ["migrations"]
-
-[tool.isort]
-known_first_party = "server"
-profile = "black"
 
 [tool.pyright]
 include = ["server"]
@@ -46,8 +31,6 @@ lxml = "^4.9.2"
 tiktoken = "^0.3.3"
 django-distill = "^3.1.3"
 docx2txt = "^0.8"
-
-[tool.poetry.group.dev.dependencies]
 black = "^23.3.0"
 isort = "^5.12.0"
 ruff = "^0.0.261"
