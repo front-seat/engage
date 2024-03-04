@@ -1,6 +1,6 @@
 # City Council Engage-o-tron™
 
-In progress: Engage v2
+In progress: Engage v2.0
 
 This is the code that generates [scc.frontseat.org](https://scc.frontseat.org/), a static site that contains summaries of upcoming meetings, agenda items, and legislative documents for the Seattle City Council.
 
