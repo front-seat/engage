@@ -1,5 +1,7 @@
 # City Council Engage-o-tron™
 
+In progress: Engage v2
+
 This is the code that generates [scc.frontseat.org](https://scc.frontseat.org/), a static site that contains summaries of upcoming meetings, agenda items, and legislative documents for the Seattle City Council.
 
 The SCC publishes documents for upcoming meetings at [seattle.legistar.com](https://seattle.legistar.com/Calendar.aspx). These documents are often long and complex, and it can be difficult to understand what's going on. The Engage-o-tron™ is an attempt to make this information more accessible.
