@@ -26,7 +26,7 @@ jobs:
       - name: Check python linting (ruff)
         run: ruff check server
       - name: Check python types (pyright)
-        run: run npx pyright
+        run: npx pyright
       - name: Run python tests
         run: python manage.py test
         env:
