@@ -22,13 +22,13 @@ jobs:
       - name: Install python dependencies
         run: pip install -r requirements.txt
       - name: Check python formatting (ruff format)
-        run: poetry run ruff format --check server
+        run: ruff format --check server
       - name: Check python linting (ruff)
-        run: poetry run ruff check server
+        run: ruff check server
       - name: Check python types (pyright)
-        run: poetry run npx pyright
+        run: run npx pyright
       - name: Run python tests
-        run: poetry run python manage.py test
+        run: python manage.py test
         env:
           BASE_URL: http://localhost:3000
           DEBUG: NO
